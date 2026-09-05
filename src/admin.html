@@ -58,6 +58,19 @@
       </div>
     </section>
 
+    <div id="user-edit-dialog" class="modal" hidden>
+      <section class="modal-card" role="dialog" aria-modal="true" aria-labelledby="user-edit-dialog-title">
+        <h2 id="user-edit-dialog-title">编辑账号信息</h2>
+        <p id="user-edit-dialog-user" class="modal-hint"></p>
+        <form id="user-edit-form">
+          <label>用户名<input id="edit-username" autocomplete="username" minlength="2" maxlength="32" required></label>
+          <label>绑定邮箱<input id="edit-email" type="email" autocomplete="email" required></label>
+          <p id="user-edit-dialog-message" class="message" role="status" aria-live="polite"></p>
+          <div class="modal-actions"><button id="user-edit-dialog-cancel" class="secondary" type="button">取消</button><button id="user-edit-dialog-submit" class="primary" type="submit">保存账号信息</button></div>
+        </form>
+      </section>
+    </div>
+
     <div id="password-dialog" class="modal" hidden>
       <section class="modal-card" role="dialog" aria-modal="true" aria-labelledby="password-dialog-title">
         <h2 id="password-dialog-title">直接重置用户密码</h2>

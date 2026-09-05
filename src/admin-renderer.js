@@ -13,6 +13,9 @@ const state = {
   profileUserName: "",
   profileUpdatedAt: "",
   profileSubmitting: false,
+  editUserId: "",
+  editUserName: "",
+  editUserSubmitting: false,
 };
 const $ = (id) => document.getElementById(id);
 
@@ -81,7 +84,6 @@ function userActions(user) {
   if (user.status !== "deleted" && user.status !== "suspended") {
     buttons.push(`<button data-action="edit" data-id="${safe(user.id)}" data-username="${safe(user.username)}" data-email="${safe(user.email)}">编辑</button>`);
   }
-  buttons.push(`<button data-action="revoke" data-id="${safe(user.id)}">撤销会话</button>`);
   buttons.push(`<button data-action="profile" data-id="${safe(user.id)}" data-username="${safe(user.username)}">资料</button>`);
   return buttons.join("");
 }
@@ -166,21 +168,11 @@ async function userAction(event) {
     await openProfileDialog(userId, button.dataset.username || "该用户");
     return;
   }
+  if (action === "edit") {
+    openEditDialog(userId, button.dataset.username || "", button.dataset.email || "");
+    return;
+  }
   try {
-    if (action === "revoke") {
-      const result = await window.adminAPI.revokeUserSessions({ userId });
-      await refreshAll(`已撤销 ${result.revoked || 0} 个会话。`);
-      return;
-    }
-    if (action === "edit") {
-      const username = window.prompt("用户名", button.dataset.username || "");
-      if (username === null) return;
-      const email = window.prompt("绑定邮箱（必须是 @ruc.edu.cn）", button.dataset.email || "");
-      if (email === null) return;
-      const result = await window.adminAPI.updateUser({ userId, patch: { username, email } });
-      await refreshAll(result.emailVerification ? "新邮箱验证码已发送，用户验证后才会恢复登录。" : "账号资料已更新。 ");
-      return;
-    }
     const status = action === "activate" ? "active" : action === "suspend" ? "suspended" : "deleted";
     await window.adminAPI.updateUser({ userId, patch: { status } });
     await refreshAll(status === "deleted" ? "账号已注销。" : status === "suspended" ? "账号已封禁。" : "账号已恢复。 ");
@@ -263,6 +255,54 @@ $("password-form").addEventListener("submit", async (event) => {
     $("password-dialog-submit").disabled = false;
     $("password-dialog-cancel").disabled = false;
     $("password-dialog-message").textContent = errorMessage(error);
+  }
+});
+
+function openEditDialog(userId, username, email) {
+  state.editUserId = userId;
+  state.editUserName = username;
+  state.editUserSubmitting = false;
+  $("user-edit-dialog-user").textContent = `正在编辑“${username || "该用户"}”的账号信息。`;
+  $("edit-username").value = username;
+  $("edit-email").value = email;
+  $("user-edit-dialog-message").textContent = "用户名和绑定邮箱均可修改。";
+  $("user-edit-dialog-message").classList.remove("success");
+  $("user-edit-dialog").hidden = false;
+  $("edit-username").focus();
+}
+
+function closeEditDialog() {
+  if (state.editUserSubmitting) return;
+  $("user-edit-dialog").hidden = true;
+  state.editUserId = "";
+  state.editUserName = "";
+}
+
+$("user-edit-dialog-cancel").addEventListener("click", closeEditDialog);
+$("user-edit-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (state.editUserSubmitting) return;
+  const username = $("edit-username").value.trim();
+  const email = $("edit-email").value.trim();
+  state.editUserSubmitting = true;
+  $("user-edit-dialog-submit").disabled = true;
+  $("user-edit-dialog-cancel").disabled = true;
+  $("user-edit-dialog-message").textContent = "正在保存账号信息…";
+  try {
+    const result = await window.adminAPI.updateUser({
+      userId: state.editUserId,
+      patch: { username, email },
+    });
+    state.editUserSubmitting = false;
+    $("user-edit-dialog-submit").disabled = false;
+    $("user-edit-dialog-cancel").disabled = false;
+    closeEditDialog();
+    await refreshAll(result.emailVerification ? "新邮箱验证码已发送，用户验证后才会恢复登录。" : "账号资料已更新。");
+  } catch (error) {
+    state.editUserSubmitting = false;
+    $("user-edit-dialog-submit").disabled = false;
+    $("user-edit-dialog-cancel").disabled = false;
+    $("user-edit-dialog-message").textContent = errorMessage(error);
   }
 });
 
