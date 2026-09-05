@@ -7,7 +7,7 @@ create extension if not exists pgcrypto;
 create table if not exists public.users (
   id uuid primary key default gen_random_uuid(),
   username text not null,
-  username_normalized text not null unique,
+  username_normalized text not null,
   email_ciphertext text not null,
   email_hash text not null unique,
   password_hash text not null,
@@ -89,3 +89,8 @@ alter table public.users add column if not exists profile_updated_at timestamptz
 
 -- An existing database may have been created before this column was added;
 -- the statement above is deliberately idempotent for that upgrade path.
+
+-- Usernames are display labels and may repeat. Email hashes remain unique
+-- above and are the account identity. Drop the unique constraint created by
+-- the first schema version; this is safe to run repeatedly.
+alter table public.users drop constraint if exists users_username_normalized_key;

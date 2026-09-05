@@ -42,6 +42,58 @@ test("registration verifies email and creates a session", async () => {
   assert.ok(result.refreshToken);
 });
 
+test("registration allows duplicate usernames but rejects an email already bound to another user", async () => {
+  const harness = createHarness();
+  const first = await harness.service.registerRequest({
+    username: "Same Display Name",
+    email: "first.student@ruc.edu.cn",
+    password: "First-Password-466743",
+  });
+  await harness.service.registerVerify({
+    challengeId: first.challengeId,
+    code: harness.sent.pop().code,
+  });
+
+  const second = await harness.service.registerRequest({
+    username: "Same Display Name",
+    email: "second.student@ruc.edu.cn",
+    password: "Second-Password-466743",
+  });
+  const secondResult = await harness.service.registerVerify({
+    challengeId: second.challengeId,
+    code: harness.sent.pop().code,
+  });
+  assert.equal(secondResult.user.username, "Same Display Name");
+  assert.equal(secondResult.user.email, "second.student@ruc.edu.cn");
+
+  await assert.rejects(
+    () => harness.service.registerRequest({
+      username: "Another Name",
+      email: "FIRST.STUDENT@RUC.EDU.CN",
+      password: "Third-Password-466743",
+    }),
+    (error) => error.code === "email_unavailable" && error.status === 409,
+  );
+});
+
+test("the repository also protects email uniqueness for direct writes", async () => {
+  const harness = createHarness();
+  const first = await harness.repo.insertUser({ id: "first", email_hash: "same-email-hash" });
+  assert.equal(first.id, "first");
+  const second = await harness.repo.insertUser({ id: "second", email_hash: "other-email-hash" });
+  assert.equal(second.id, "second");
+  await assert.rejects(
+    () => harness.repo.insertUser({ id: "third", email_hash: "same-email-hash" }),
+    (error) => error.code === "email_unique_violation",
+  );
+  await assert.rejects(
+    () => harness.repo.updateUser("second", { email_hash: "same-email-hash" }),
+    (error) => error.code === "email_unique_violation",
+  );
+  const unchanged = await harness.repo.getUserById("first");
+  assert.equal(unchanged.email_hash, "same-email-hash");
+});
+
 test("password and code login both work, while suspended accounts are rejected", async () => {
   const harness = createHarness();
   const registration = await harness.service.registerRequest({ username: "Student", email: "student@ruc.edu.cn", password: "Correct-Horse-466743" });
@@ -87,6 +139,35 @@ test("an administrator email change can be completed with the code sent to the n
   const verified = await harness.service.verifyEmailChange({ email: "new.student@ruc.edu.cn", code: sentCode });
   assert.equal(verified.user.status, "active");
   assert.equal(verified.user.email, "new.student@ruc.edu.cn");
+});
+
+test("an administrator cannot assign an email that belongs to another user", async () => {
+  const harness = createHarness();
+  const first = await harness.service.registerRequest({
+    username: "First Student",
+    email: "first.student@ruc.edu.cn",
+    password: "First-Password-466743",
+  });
+  await harness.service.registerVerify({ challengeId: first.challengeId, code: harness.sent.pop().code });
+  const second = await harness.service.registerRequest({
+    username: "Second Student",
+    email: "second.student@ruc.edu.cn",
+    password: "Second-Password-466743",
+  });
+  await harness.service.registerVerify({ challengeId: second.challengeId, code: harness.sent.pop().code });
+  const firstUser = await harness.repo.findUserByEmailHash(emailHash("first.student@ruc.edu.cn", harness.config.challengeSecret));
+
+  await assert.rejects(
+    () => harness.service.updateUser({
+      admin: { id: "admin-1" },
+      userId: firstUser.id,
+      patch: { email: "SECOND.STUDENT@RUC.EDU.CN" },
+      request: {},
+    }),
+    (error) => error.code === "email_taken" && error.status === 409,
+  );
+  const unchanged = await harness.repo.findUserByEmailHash(emailHash("first.student@ruc.edu.cn", harness.config.challengeSecret));
+  assert.equal(unchanged.id, firstUser.id);
 });
 
 test("changing a suspended user's email cannot silently reactivate the account", async () => {

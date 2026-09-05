@@ -30,7 +30,12 @@ function createSupabaseRepository({ url, serviceRoleKey, fetchImpl = globalThis.
       const message = parsed && (parsed.message || parsed.details || parsed.hint)
         ? `${parsed.message || "Supabase request failed"}${parsed.details ? `: ${parsed.details}` : ""}`
         : `Supabase request failed (${response.status})`;
-      throw new Error(message);
+      const error = new Error(message);
+      error.code = parsed && parsed.code ? parsed.code : `supabase_${response.status}`;
+      error.status = response.status;
+      error.details = parsed && parsed.details ? parsed.details : "";
+      error.hint = parsed && parsed.hint ? parsed.hint : "";
+      throw error;
     }
     return returnResponse ? { data: parsed, response } : parsed;
   }

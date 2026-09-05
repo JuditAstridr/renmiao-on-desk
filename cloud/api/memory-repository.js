@@ -10,6 +10,12 @@ function nowIso() {
   return new Date().toISOString();
 }
 
+function emailUniqueViolation(emailHash) {
+  const error = new Error(`email_hash must be unique: ${emailHash}`);
+  error.code = "email_unique_violation";
+  return error;
+}
+
 function createMemoryRepository(seed = {}) {
   const users = new Map((seed.users || []).map((row) => [row.id, clone(row)]));
   const challenges = new Map((seed.challenges || []).map((row) => [row.id, clone(row)]));
@@ -18,6 +24,15 @@ function createMemoryRepository(seed = {}) {
 
   function listValues(map) {
     return Array.from(map.values()).map(clone);
+  }
+
+  function assertEmailHashAvailable(emailHash, currentId = null) {
+    if (!emailHash) return;
+    for (const row of users.values()) {
+      if (row.id !== currentId && row.email_hash === emailHash) {
+        throw emailUniqueViolation(emailHash);
+      }
+    }
   }
 
   return {
@@ -34,6 +49,7 @@ function createMemoryRepository(seed = {}) {
     },
 
     async insertUser(data) {
+      assertEmailHashAvailable(data.email_hash);
       const row = {
         id: data.id || crypto.randomUUID(),
         created_at: data.created_at || nowIso(),
@@ -47,6 +63,9 @@ function createMemoryRepository(seed = {}) {
     async updateUser(id, patch) {
       const current = users.get(id);
       if (!current) return null;
+      if (Object.prototype.hasOwnProperty.call(patch || {}, "email_hash")) {
+        assertEmailHashAvailable(patch.email_hash, id);
+      }
       const next = { ...current, ...clone(patch), updated_at: nowIso() };
       users.set(id, next);
       return clone(next);

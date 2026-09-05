@@ -48,6 +48,15 @@ function secondsUntil(value, nowMs) {
   return Math.floor((new Date(value).getTime() - nowMs) / 1000);
 }
 
+function isEmailUniqueViolation(error) {
+  if (!error) return false;
+  if (error.code === "email_unique_violation") return true;
+  if (error.code !== "23505") return false;
+  return /email_hash|users_email|email/i.test(
+    `${error.message || ""} ${error.details || ""} ${error.hint || ""}`,
+  );
+}
+
 function publicUser(row, config) {
   const email = decryptText(row.email_ciphertext, config.emailEncryptionSecret);
   return {
@@ -192,10 +201,6 @@ function createAuthService({ repo, emailer, config, now = Date.now, logger = con
     const normalizedUsername = usernameKey(displayName);
     const emailInfo = await findUserByEmail(email, { user: true });
     assertPassword(password);
-    const existingByName = await repo.findUserByUsername(normalizedUsername);
-    if (existingByName && (!emailInfo.row || existingByName.id !== emailInfo.row.id)) {
-      throw new AuthError("用户名已被使用", 409, "username_taken");
-    }
     let user = emailInfo.row;
     const passwordHash = await hashPassword(password);
     if (user) {
@@ -208,20 +213,27 @@ function createAuthService({ repo, emailer, config, now = Date.now, logger = con
         password_hash: passwordHash,
       });
     } else {
-      user = await repo.insertUser({
-        username: displayName,
-        username_normalized: normalizedUsername,
-        email_ciphertext: encryptText(emailInfo.normalized, config.emailEncryptionSecret),
-        email_hash: emailInfo.hash,
-        password_hash: passwordHash,
-        role: "user",
-        status: "pending",
-        email_verified_at: null,
-        last_login_at: null,
-        suspended_until: null,
-        suspension_reason: null,
-        deleted_at: null,
-      });
+      try {
+        user = await repo.insertUser({
+          username: displayName,
+          username_normalized: normalizedUsername,
+          email_ciphertext: encryptText(emailInfo.normalized, config.emailEncryptionSecret),
+          email_hash: emailInfo.hash,
+          password_hash: passwordHash,
+          role: "user",
+          status: "pending",
+          email_verified_at: null,
+          last_login_at: null,
+          suspended_until: null,
+          suspension_reason: null,
+          deleted_at: null,
+        });
+      } catch (error) {
+        if (isEmailUniqueViolation(error)) {
+          throw new AuthError("该邮箱已被其他用户绑定", 409, "email_taken");
+        }
+        throw error;
+      }
     }
     return createChallenge({ userId: user.id, email: emailInfo.normalized, purpose: "register", username: displayName });
   }
@@ -527,8 +539,6 @@ function createAuthService({ repo, emailer, config, now = Date.now, logger = con
     if (patch && Object.prototype.hasOwnProperty.call(patch, "username")) {
       const displayName = assertUsername(patch.username);
       const normalized = usernameKey(displayName);
-      const collision = await repo.findUserByUsername(normalized);
-      if (collision && collision.id !== user.id) throw new AuthError("用户名已被使用", 409, "username_taken");
       next.username = displayName;
       next.username_normalized = normalized;
     }
@@ -560,7 +570,15 @@ function createAuthService({ repo, emailer, config, now = Date.now, logger = con
         next.status = "pending";
       }
     }
-    const updated = await repo.updateUser(user.id, next);
+    let updated;
+    try {
+      updated = await repo.updateUser(user.id, next);
+    } catch (error) {
+      if (isEmailUniqueViolation(error)) {
+        throw new AuthError("该邮箱已被其他用户绑定", 409, "email_taken");
+      }
+      throw error;
+    }
     if (next.status === "suspended" || next.status === "deleted" || next.email_hash) await repo.revokeUserSessions(user.id);
     let emailVerification = null;
     if (next.email_hash) {

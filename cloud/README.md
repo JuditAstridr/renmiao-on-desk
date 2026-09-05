@@ -31,7 +31,8 @@ In the administrator console, `重置密码` opens a form for the administrator
 to set a new password directly. It does not send a code to the user's email;
 the API hashes the new password and revokes the user's existing sessions.
 
-Each user row also has a `资料` editor. It manages the account's active pet
+Usernames are display labels and may repeat; the bound email remains unique
+per account. Each user row also has a `资料` editor. It manages the account's active pet
 theme/variant/color/accessory and the complete Study Companion state (tasks,
 Pomodoro timer, view, points, and streaks). The desktop app loads this profile
 after login, saves changes periodically, saves again on logout/quit, and keeps
@@ -45,8 +46,10 @@ reads that cache.
 2. Run `cloud/db/001_auth.sql`.
 
    The SQL is idempotent and includes the `users.profile_state` and
-   `users.profile_updated_at` columns used for durable account profiles. Run it
-   again on an existing project so the profile migration is applied.
+   `users.profile_updated_at` columns used for durable account profiles. It also
+   removes the legacy unique constraint on `username_normalized` while keeping
+   the unique constraint on `email_hash`. Run it again on an existing project
+   so all migrations are applied.
 3. Generate a password hash:
 
    ```bash
