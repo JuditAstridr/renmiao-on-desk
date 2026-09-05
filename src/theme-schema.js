@@ -1221,25 +1221,22 @@ function mergeDefaults(raw, themeId, isBuiltin) {
   // trustedRuntime grants script execution capability, so it requires loader-derived built-in trust.
   theme.trustedRuntime = normalizeTrustedRuntime(raw.trustedRuntime, isBuiltin, themeId);
   theme.rendering = normalizeRendering(raw.rendering);
+  const rawCustomization = isPlainObject(raw.customization) ? raw.customization : null;
   theme.customization = {
-    petTint: !!(
-      isPlainObject(raw.customization)
-      && raw.customization.petTint === true
-    ),
-    petTintMode: isPlainObject(raw.customization)
-      && raw.customization.petTintMode === "default-white-regions"
-      ? "default-white-regions"
-      : "filter",
-    petTintColors: normalizePetTintColors(
-      isPlainObject(raw.customization) ? raw.customization.petTintColors : null
-    ),
+    petTint: !!(rawCustomization && rawCustomization.petTint === true),
     accessories: null,
   };
-  if (isPlainObject(raw.customization) && raw.customization.petTintOptions !== undefined) {
-    theme.customization.petTintOptions = normalizePetTintOptions(raw.customization.petTintOptions);
-  }
-  if (isPlainObject(raw.customization) && raw.customization.petTintSaturation !== undefined) {
-    theme.customization.petTintSaturation = normalizePetTintSaturation(raw.customization.petTintSaturation);
+  if (rawCustomization) {
+    theme.customization.petTintMode = rawCustomization.petTintMode === "default-white-regions"
+      ? "default-white-regions"
+      : "filter";
+    theme.customization.petTintColors = normalizePetTintColors(rawCustomization.petTintColors);
+    if (rawCustomization.petTintOptions !== undefined) {
+      theme.customization.petTintOptions = normalizePetTintOptions(rawCustomization.petTintOptions);
+    }
+    if (rawCustomization.petTintSaturation !== undefined) {
+      theme.customization.petTintSaturation = normalizePetTintSaturation(rawCustomization.petTintSaturation);
+    }
   }
 
   // objectScale
