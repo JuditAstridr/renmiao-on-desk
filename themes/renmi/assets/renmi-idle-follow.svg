@@ -66,15 +66,14 @@
     </clipPath>
 
     <clipPath id="head-overlap-clip" clipPathUnits="userSpaceOnUse">
-      <!-- Keep the moving head above the curved neck seam. A rectangular
-           bottom edge becomes visible when the head tilts; this arc follows
-           the natural underside shown by the original artwork. -->
-      <path d="M 180 0 H 1080 V 550
+      <!-- Keep the moving head above the curved neck seam. The lower edge is
+           deliberately mirrored around the face center: an asymmetric crop
+           can expose a gap on one side when the head rotates. -->
+      <path d="M 174 0 H 1080 V 550
         C 989 593 942 618 869 641
         C 790 666 708 680 627 681
-        C 551 680 471 666 390 641
-        C 317 618 275 596 196 560
-        C 190 557 185 553 180 548 Z" />
+        C 546 680 464 666 385 641
+        C 312 618 265 593 174 550 Z" />
     </clipPath>
 
     <clipPath id="neck-front-clip" clipPathUnits="userSpaceOnUse">
