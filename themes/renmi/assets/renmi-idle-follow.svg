@@ -76,6 +76,29 @@
         C 312 628 265 603 174 560 Z" />
     </clipPath>
 
+    <clipPath id="head-left-lower-static-clip" clipPathUnits="userSpaceOnUse">
+      <!-- This lower-left strip stays in the original orientation and
+           overlaps the moving head by a small, rounded band. Only the upper
+           head layer is rotated, so the left seam cannot open into a gap. -->
+      <path d="M 174 548
+        C 265 591 312 616 385 637
+        C 464 661 546 670 627 669
+        L 627 760
+        C 540 760 450 750 365 725
+        C 280 700 220 660 174 610 Z" />
+    </clipPath>
+
+    <clipPath id="head-right-lower-static-clip" clipPathUnits="userSpaceOnUse">
+      <!-- Mirror the fixed lower strip on the right so both head seams use
+           the same two-layer construction. -->
+      <path d="M 1080 548
+        C 989 591 942 616 869 637
+        C 790 661 708 670 627 669
+        L 627 760
+        C 714 760 804 750 889 725
+        C 974 700 1034 660 1080 610 Z" />
+    </clipPath>
+
     <clipPath id="neck-front-clip" clipPathUnits="userSpaceOnUse">
       <path d="M 196 560
         C 275 596 317 618 390 641
@@ -121,6 +144,10 @@
       </g>
     </g>
   </g>
+  <image href="renmi.png" x="0" y="0" width="1254" height="1254" clip-path="url(#head-left-lower-static-clip)" />
+  <rect class="renmi-tint-fill" x="0" y="0" width="1254" height="1254" fill="transparent" clip-path="url(#head-left-lower-static-clip)" mask="url(#default-white-mask)" />
+  <image href="renmi.png" x="0" y="0" width="1254" height="1254" clip-path="url(#head-right-lower-static-clip)" />
+  <rect class="renmi-tint-fill" x="0" y="0" width="1254" height="1254" fill="transparent" clip-path="url(#head-right-lower-static-clip)" mask="url(#default-white-mask)" />
   <image href="renmi.png" x="0" y="0" width="1254" height="1254" clip-path="url(#neck-front-clip)" />
   <rect class="renmi-tint-fill" x="0" y="0" width="1254" height="1254" fill="transparent" clip-path="url(#neck-front-clip)" mask="url(#default-white-mask)" />
 
