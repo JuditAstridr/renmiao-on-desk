@@ -41,7 +41,7 @@ function createStudyPosterAssets(options = {}) {
   const buildPetAccessoryPayload = options.buildPetAccessoryPayload || (() => ({ id: "none" }));
   const rootDir = options.rootDir || path.resolve(__dirname, "..");
   const posterAssetsDir = options.posterAssetsDir || path.join(rootDir, "assets", "poster");
-  const posterFontPath = options.posterFontPath || path.join(rootDir, "assets", "fonts", "也字工厂小石头.ttf");
+  const posterFontPath = options.posterFontPath || path.join(rootDir, "assets", "fonts", "也字工厂小石头.woff2");
   const globalSvgDir = options.globalSvgDir || path.join(rootDir, "assets", "svg");
   const globalAccessoriesDir = options.globalAccessoriesDir || path.join(rootDir, "assets", "accessories");
 
