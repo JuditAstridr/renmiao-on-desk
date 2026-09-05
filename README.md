@@ -1,97 +1,97 @@
 # Renmi on Desk
 
-Renmi 是一个基于 Electron 的桌面宠物与专注工作台。它常驻在桌面上，陪伴用户进行 AI 编程和日常学习：桌宠会根据 coding agent 的工作状态播放动画，也会在番茄钟专注期间提供视觉、声音和完成提示。
+Renmi is an Electron desktop pet and focus workspace. It stays on your desktop while you code or study, reflects supported AI coding-agent activity through animation, and connects Pomodoro focus sessions with Renmi's visual and sound feedback.
 
-本仓库是在 Clawd on Desk 运行时基础上开发的 Renmi 应用，当前产品入口、默认主题和认证流程均以 Renmi 为准。
+This repository develops the Renmi product on top of the existing Clawd on Desk runtime. The product name, default theme, authentication flow, and user-facing entry points are Renmi-specific.
 
-## 功能概览
+**Languages:** [简体中文](README.zh-CN.md) · [繁體中文](README.zh-TW.md) · [한국어](README.ko-KR.md) · [日本語](README.ja-JP.md) · [Español](README.es.md)
 
-### 桌面宠物
+## Features
 
-- Renmi 默认主题，支持 idle、thinking/working、notification、attention、sleeping、mini mode 等状态素材。
-- 透明悬浮窗口、鼠标跟随、拖拽定位、边缘 mini mode 和跨显示器位置记忆。
-- 支持点击互动、睡眠/唤醒、声音提示和系统托盘菜单。
-- 桌宠状态可以由 AI coding agent 会话或 Study Companion 的专注阶段驱动；有活跃 coding agent 时，agent 状态优先。
-- Settings → Theme 支持切换内置主题、主题自定义，以及导入兼容的 Codex Pet 主题包。当前内置主题为 Renmi、Clawd 和 Calico。
+### Desktop pet
 
-### AI coding agent 状态感知
+- Renmi's default theme includes idle, thinking/working, notification, attention, sleeping, and mini-mode visuals.
+- Transparent floating windows, cursor tracking, drag positioning, edge mini mode, and multi-display position memory.
+- Click reactions, sleep/wake behavior, sound cues, and a system-tray menu.
+- The pet can be driven by an AI coding-agent session or by a Study Companion focus phase. An active coding-agent session remains the visual authority.
+- Settings → Theme supports built-in themes, per-theme customization, and compatible Codex Pet animation-package imports. The current built-in themes are Renmi, Clawd, and Calico.
 
-仓库保留多 Agent 状态运行时，可接入并区分多个会话。当前运行时包含以下 Agent 的适配能力：
+### AI coding-agent status
 
-Claude Code、Codex CLI、Copilot CLI、Gemini CLI、Antigravity CLI、Cursor Agent、CodeBuddy、WorkBuddy、Kiro CLI、Kimi Code CLI、Qwen Code、ZCode、CodeWhale、opencode、MiMo Code、Pi、OpenClaw、Hermes Agent、Qoder、QoderWork、QwenWork、Reasonix CLI 和 DeepSeek Harness。
+The repository contains a multi-agent runtime that can distinguish multiple sessions. Its adapters cover:
 
-不同 Agent 的能力不同：有些只上报状态，有些还支持本地权限气泡、会话列表或终端聚焦。具体安装状态、启用状态和可用操作以 Settings → Agents 中显示的 Agent 为准。Renmi profile 不会擅自修改用户机器上的外部集成文件。
+Claude Code, Codex CLI, Copilot CLI, Gemini CLI, Antigravity CLI, Cursor Agent, CodeBuddy, WorkBuddy, Kiro CLI, Kimi Code CLI, Qwen Code, ZCode, CodeWhale, opencode, MiMo Code, Pi, OpenClaw, Hermes Agent, Qoder, QoderWork, QwenWork, Reasonix CLI, and DeepSeek Harness.
 
-### Study Companion 与番茄钟
+Capabilities vary by agent: some report state only, while others also support local permission bubbles, session views, or terminal focus. Installation state, enablement, and available actions are shown in Settings → Agents. The Renmi profile does not silently rewrite external integration files on the user's machine.
 
-从桌宠右键菜单或系统托盘菜单打开 `Open Study Dashboard`，进入 Study Companion 工作窗口：
+### Study Companion and Pomodoro
 
-- 任务清单：任务标题、预估时长、DDL、标签/分类和四象限优先级。
-- 子任务：将主任务拆分为步骤，显示完成进度，并可把子任务关联到专注时段。
-- 任务整理：按创建时间、DDL、预估时长或优先级排序，也可以按标签或四象限分组。
-- 番茄钟：支持倒计时和正计时，专注时长可选 15、25、30 或 45 分钟，并可设置短休息时间。
-- 长任务：较长子任务可拆分成多个专注周期，可选择周期之间自动暂停或手动继续。
-- 专注模式：可以切换为全屏专注视图，隐藏任务列表，减少其他信息干扰。
-- 完成联动：专注周期完成会触发 Renmi 的状态、动画和声音反馈；任务完成后会自动勾选并沉底。
-- 数据持久化：任务、番茄钟和积分数据保存在 Electron 用户数据目录的 `study-data.json` 中，与 coding-agent session 状态分开管理。
+Open `Open Study Dashboard` from the pet's context menu or the system tray to enter the separate Study Companion window:
 
-### 登录与注册
+- Task list with title, estimated duration, deadline, tags/categories, and four-quadrant priority.
+- Subtasks with completion progress and focus-session association.
+- Sorting by creation time, deadline, estimated duration, or priority; grouping by tag or quadrant.
+- Count-down and count-up timers, with 15, 25, 30, and 45-minute focus options and configurable short breaks.
+- Long subtasks can be split into multiple focus cycles, with optional automatic or manual continuation between cycles.
+- Full-screen focus mode hides the task list and reduces distractions.
+- Completed focus cycles trigger Renmi state, animation, and sound feedback. Finished tasks are checked automatically and moved to the bottom.
+- Tasks, Pomodoro state, and points are persisted in `study-data.json` inside the Electron user-data directory and remain separate from coding-agent session state.
 
-Renmi 当前使用独立的认证服务，并在开发启动时自动连接认证 API。认证页面支持：
+### Account and authentication
 
-- 使用已验证的 `@ruc.edu.cn` 邮箱注册。
-- 邮箱验证码登录或密码登录。
-- 忘记密码和重置密码。
-- 修改绑定邮箱时的邮箱验证。
-- 管理员邮箱登录和管理员控制台。
+Renmi uses a separate authentication service. The development launcher starts a local authentication API and passes its address to Electron automatically. The current UI is intended for verified `@ruc.edu.cn` email accounts and supports:
 
-开发环境中的认证账号和审计数据默认保存在 `~/.renmiao/auth-dev.json`；验证码通过 Resend 发送，不会打印到终端。认证服务的密钥和邮件配置必须放在本地 `cloud/.env` 或部署平台的密钥管理中，不能写进前端代码或打包资源。
+- Account registration with email verification.
+- Password login or email-code login.
+- Password reset and email-change verification.
+- Administrator email login and an administrator console.
 
-## 开发环境
+Local development account and audit data are stored by default at `~/.renmiao/auth-dev.json`. Verification codes are delivered through Resend and are never printed to the terminal. Keep authentication secrets in `cloud/.env` or in the deployment platform's secret manager; never place them in renderer code or packaged client assets.
 
-### 环境要求
+## Development
+
+### Requirements
 
 - Node.js `>= 22.12.0`
 - npm
-- 可运行 Electron 的 Windows、macOS 或 Linux 环境
-- 使用邮箱认证时，需要可用的 Resend API key 和已验证的发件地址
+- Windows, macOS, or Linux with Electron support
+- A Resend API key and verified sender address for email verification
 
-### 安装与启动
+### Install and run
 
 ```bash
 npm install
 cp cloud/.env.example cloud/.env
 ```
 
-在 `cloud/.env` 中至少配置管理员密码哈希、`RESEND_API_KEY` 和已验证的 `AUTH_EMAIL_FROM`。管理员密码哈希可以使用：
+For local authentication, configure at least `RENMI_ADMIN_PASSWORD_HASH`, `RESEND_API_KEY`, and a verified `AUTH_EMAIL_FROM` in `cloud/.env`. Generate the administrator password hash with:
 
 ```bash
 npm run cloud:hash-password
 ```
 
-然后启动应用：
+Start the desktop app with either command:
 
 ```bash
 npm start
-# 或
+# or
 npm run dev
 ```
 
-两个命令使用同一个开发启动器。启动器会在 `8787–8791` 中选择空闲端口，启动本地认证 API，等待健康检查通过后再启动 Electron，并自动把 API 地址传给应用。若端口被占用或认证配置不完整，启动器会直接给出错误信息。
-
-只启动认证 API 可使用：
+Both commands use `scripts/renmiao-dev.js`. It selects an available port from `8787–8791`, starts the local authentication API, waits for its health check, and then launches Electron with the selected API URL. To run only the authentication API:
 
 ```bash
 npm run cloud:dev
 ```
 
-### 测试、检查与构建
+### Test and build
 
 ```bash
 npm test
 npm run verify:electron
 npm run audit:assets
 
+npm run build
 npm run build:mac
 npm run build:linux
 npm run build:win:x64
@@ -99,48 +99,48 @@ npm run build:win:arm64
 npm run build:all
 ```
 
-生产打包时需要通过 `RENMI_AUTH_API_URL` 指定部署好的 HTTPS 认证服务地址，例如：
+Production packaging requires a deployed HTTPS authentication endpoint, supplied through `RENMI_AUTH_API_URL`:
 
 ```bash
 RENMI_AUTH_API_URL=https://auth.example.com npm run build:mac
 ```
 
-数据库连接信息、Supabase service-role key、管理员凭据和邮件服务密钥只属于认证 API 服务端，不应进入 Electron 客户端。
+Database credentials, Supabase service-role keys, administrator credentials, and mail-service secrets belong only on the authentication server.
 
-## 代码结构
+## Project structure
 
-| 目录/文件 | 作用 |
+| Directory/file | Responsibility |
 | --- | --- |
-| `src/main.js` | Electron 主进程组合入口，负责窗口、生命周期、IPC 和运行时接线 |
-| `src/renderer.js` | 桌宠渲染、动画切换和眼球跟随 |
-| `src/pet-window-runtime.js` | 桌宠显示窗口与输入窗口的创建、定位和交互 |
-| `src/state.js`、`src/agent-runtime-main.js` | Agent session 状态机、多会话合并和状态更新 |
-| `src/study-runtime.js` | 任务、子任务、番茄钟和积分的纯运行时逻辑 |
-| `src/study-window.js`、`src/study-dashboard.html` | Study Companion 窗口及其 UI |
-| `src/auth-runtime.js`、`src/auth-client.js`、`src/auth.html` | Electron 侧认证窗口、会话和 API 客户端 |
-| `cloud/api/` | 本地/云端认证 API、邮件发送和数据存储实现 |
-| `src/settings-*.js` | Settings 页面、状态同步、校验和提交后的运行时效果 |
-| `agents/`、`hooks/` | Agent 注册表、状态监控器和外部 hook/plugin 安装器 |
-| `themes/` | 内置主题、主题素材与主题配置 |
-| `test/` | Node.js 测试和各类运行时/契约 fixture |
+| `src/main.js` | Electron main-process composition, lifecycle, IPC, and runtime wiring |
+| `src/renderer.js` | Pet rendering, animation switching, and eye tracking |
+| `src/pet-window-runtime.js` | Pet display/input windows, positioning, and interaction |
+| `src/state.js`, `src/agent-runtime-main.js` | Agent session state machine, multi-session merging, and updates |
+| `src/study-runtime.js` | Tasks, subtasks, Pomodoro, and points runtime logic |
+| `src/study-window.js`, `src/study-dashboard.html` | Study Companion window and UI |
+| `src/auth-runtime.js`, `src/auth-client.js`, `src/auth.html` | Electron-side authentication window, session, and API client |
+| `cloud/api/` | Local/cloud authentication API, mail delivery, and repositories |
+| `src/settings-*.js` | Settings UI, validation, persistence, and runtime effects |
+| `agents/`, `hooks/` | Agent registry, monitors, and hook/plugin installers |
+| `themes/` | Built-in themes, assets, and theme configuration |
+| `test/` | Node.js tests and runtime/contract fixtures |
 
-## 开发约定
+## Development conventions
 
-- 项目使用 CommonJS；资源路径统一通过 `path.join(__dirname, ...)` 构造。
-- Settings 的持久化链路是 `prefs.js` → `settings-controller.js` → `settings-store.js`。修改设置时应通过 controller/action，不要绕过 store 直接写偏好文件。
-- Study Companion 数据与 Agent session 数据保持独立，修改任一合约时要检查对应的 IPC、窗口和渲染层消费者。
-- Agent 的能力和权限入口以 `agents/registry.js` 为准，不要在其他模块复制一份 Agent 名单。
-- 修改主题素材时，先将来源文件复制到 `assets/source/` 再进行编辑；不要直接改动来源不明的工作素材。
-- `cloud/.env`、认证数据和本地 Electron 用户数据不应提交到 Git。
+- The project uses CommonJS. Build resource paths with `path.join(__dirname, ...)`.
+- Settings persistence follows `prefs.js` → `settings-controller.js` → `settings-store.js`; changes should go through the controller/actions.
+- Study Companion data and agent-session data are separate contracts. Changes to either contract should be checked across its IPC, window, and renderer consumers.
+- Agent capabilities are authoritative in `agents/registry.js`; do not duplicate the agent list in another module.
+- Copy source assets into `assets/source/` before editing them. Do not directly modify assets whose provenance is unclear.
+- Do not commit `cloud/.env`, authentication data, or local Electron user data.
 
-## 相关文档
+## Documentation
 
-- [Agent 运行时架构](docs/project/agent-runtime-architecture.md)
-- [主题、状态与 Settings 说明](docs/project/theme-state-ui.md)
-- [主题创建指南](docs/guides/guide-theme-creation.md)
-- [自定义 HTTP Agent 接入](docs/guides/custom-agent-http.md)
-- [认证服务说明](cloud/README.md)
+- [Agent runtime architecture](docs/project/agent-runtime-architecture.md)
+- [Theme, state, and Settings](docs/project/theme-state-ui.md)
+- [Theme creation guide](docs/guides/guide-theme-creation.md)
+- [Custom HTTP Agent guide](docs/guides/custom-agent-http.md)
+- [Authentication service guide](cloud/README.md)
 
-## 许可证
+## License
 
-本项目使用 [AGPL-3.0-only](LICENSE) 许可证。
+This project is licensed under [AGPL-3.0-only](LICENSE).

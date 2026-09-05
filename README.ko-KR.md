@@ -1,381 +1,146 @@
-<p align="center">
-  <img src="assets/icon.png" width="128" alt="Clawd">
-</p>
-<h1 align="center">Clawd on Desk</h1>
-<p align="center">
-  <a href="README.md">English</a>
-  ·
-  <a href="README.zh-CN.md">中文版</a>
-  ·
-  <a href="README.zh-TW.md">繁體中文</a>
-  ·
-  <a href="README.ja-JP.md">日本語</a>
-  ·
-  <a href="README.es.md">Español</a>
-</p>
-<p align="center">
-  <a href="https://github.com/rullerzhou-afk/clawd-on-desk/releases"><img src="https://img.shields.io/github/v/release/rullerzhou-afk/clawd-on-desk" alt="Version"></a>
-  <img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey" alt="Platform">
-</p>
-<p align="center">
-  <a href="https://github.com/rullerzhou-afk/clawd-on-desk/stargazers"><img src="https://img.shields.io/github/stars/rullerzhou-afk/clawd-on-desk?style=flat&logo=github&color=yellow" alt="Stars"></a>
-  <a href="https://github.com/hesreallyhim/awesome-claude-code"><img src="https://awesome.re/mentioned-badge-flat.svg" alt="Mentioned in Awesome Claude Code"></a>
-</p>
+# Renmi on Desk
 
-<p align="center">
-  <img src="assets/hero.gif" alt="Clawd on Desk 애니메이션 데모: 픽셀 크랩이 AI 코딩 에이전트 상태에 맞춰 잠자기, 생각하기, 도구 실행 중 타이핑, 서브에이전트 1개일 때 헤드폰 그루브, 여러 서브에이전트 병렬 작업 중 세 개 공 저글링, 권한 요청 알림, 작업 완료 축하로 실시간 전환합니다. Claude Code, Codex, Cursor, Copilot, Gemini, Antigravity, Qwen, Pi, OpenClaw 등을 지원합니다.">
-</p>
+Renmi는 Electron으로 만든 데스크톱 펫이자 집중 작업 공간입니다. 데스크톱에 상주하면서 AI 코딩과 학습을 함께하고, 지원되는 AI 코딩 에이전트의 상태를 애니메이션으로 보여 주며, 뽀모도로 집중 세션을 Renmi의 시각 및 사운드 피드백과 연결합니다.
 
-Clawd는 당신의 데스크톱 위에서 살며, AI 코딩 에이전트가 지금 무엇을 하고 있는지 실시간으로 반응합니다. 긴 작업을 시작하고, 잠시 자리를 비운 뒤, 크랩이 완료 소식을 전하면 돌아오면 됩니다.
+이 저장소는 기존 Clawd on Desk 런타임을 기반으로 Renmi 제품을 개발합니다. 제품명, 기본 테마, 인증 흐름과 사용자 진입점은 Renmi를 기준으로 합니다.
 
-프롬프트를 입력하면 생각하고, 도구가 실행되면 타이핑하고, 서브에이전트가 생기면 헤드폰 그루브나 세 개 공 저글링으로 반응하고, 권한 요청이 오면 카드로 알려 주고, 작업이 끝나면 기뻐하고, 자리를 비우면 잠이 듭니다. 기본 테마로 **Clawd**(픽셀 크랩), **Calico**(삼색 고양이), **Cloudling**(云宝)이 포함되어 있으며, 커스텀 테마와 가져온 Codex Pet 애니메이션 팩도 지원합니다.
-
-> Windows 11, macOS, Ubuntu/Linux를 지원합니다. Windows 릴리스는 x64와 ARM64 설치 파일을 별도로 제공합니다. 소스에서 실행하려면 Node.js가 필요합니다. **Claude Code**, **Codex CLI**, **Copilot CLI**, **Gemini CLI**, **Antigravity CLI (agy)**, **Cursor Agent**, **CodeBuddy**, **WorkBuddy**, **Kiro CLI**, **Kimi Code CLI (Kimi-CLI)**, **Qwen Code**, **ZCode**, **CodeWhale**, **opencode**, **MiMo Code**, **Pi**, **OpenClaw**, **Hermes Agent**, **Qoder**, **QoderWork**, **QwenWork (千问办公)**, **Reasonix CLI**, **DeepSeek Harness**와 함께 동작합니다.
+**언어:** [English](README.md) · [简体中文](README.zh-CN.md) · [繁體中文](README.zh-TW.md) · [日本語](README.ja-JP.md) · [Español](README.es.md)
 
 ## 기능
 
-### 멀티 에이전트 지원
-- **Claude Code** — command hook + HTTP permission hook을 통한 완전 통합
-- **Codex CLI** — official hooks를 기본 경로로 사용하고 `~/.codex/sessions/` JSONL 폴링을 fallback으로 유지합니다. 자동 등록되며 실제 권한 말풍선을 지원합니다.
-- **Copilot CLI** — `~/.copilot/hooks/hooks.json`의 command hook 지원
-- **Gemini CLI** — `~/.gemini/settings.json`의 command hook 지원 (Clawd 시작 시 자동 등록되며, `npm run install:gemini-hooks`로 수동 설치 가능)
-- **Antigravity CLI (agy)** — `~/.gemini/config/hooks.json`의 command hook 지원 (Antigravity config가 있으면 Clawd 시작 시 자동 등록되며, `npm run install:antigravity-hooks`로 수동 설치 가능). **상태만 동기화**되며, Clawd는 agy 권한 말풍선을 띄우지 않습니다. Allow / Deny / Always-allow 선택은 agy 자체 터미널 메뉴에서 처리합니다.
-- **Cursor Agent** — `~/.cursor/hooks.json`의 [Cursor IDE hooks](https://cursor.com/docs/agent/hooks) 지원 (Clawd 시작 시 자동 등록되며, `npm run install:cursor-hooks`로 수동 설치 가능)
-- **CodeBuddy** — Claude Code 호환 command hook + HTTP permission hook을 `~/.codebuddy/settings.json`에 등록합니다 (Clawd 시작 시 자동 등록되며, `node hooks/codebuddy-install.js`로 수동 설치 가능)
-- **사용자 지정 HTTP Agent** — Settings에서 다른 로컬 앱을 등록한 뒤 앱이나 adapter가 Clawd의 동적 `/state` 엔드포인트로 이벤트를 전송합니다. 등록만으로 hook이 설치되지는 않으며 v1은 상태 전용입니다. 자세한 내용은 [사용자 지정 HTTP Agent 가이드](docs/guides/custom-agent-http.md)를 참고하세요.
-- **WorkBuddy** — `~/.workbuddy-ai/settings.json`(현재) 또는 `~/.workbuddy/settings.json`(레거시)의 Claude Code 호환 command hook을 사용합니다 (Settings → Agents에서 설치하거나 `node hooks/workbuddy-install.js` 실행). 상태와 Notification만 동기화하며 권한 결정은 WorkBuddy의 기본 GUI에 남습니다.
-- **Kiro CLI** — `~/.kiro/agents/` 아래 커스텀 agent 설정에 command hook을 주입하고, 추가로 `clawd` agent를 자동 생성합니다. Clawd가 시작될 때마다 Kiro 기본 `kiro_default`에서 다시 동기화되므로 `kiro-cli --agent clawd` 또는 `/agent swap clawd`로 비교적 원본 동작을 유지한 채 hook을 켤 수 있습니다. 상태 hook은 macOS와 Windows에서 검증되었습니다.
-- **Kimi Code CLI (Kimi-CLI)** — `~/.kimi/config.toml`의 command hook(`[[hooks]]` 항목)을 사용합니다. Clawd 시작 시 자동 등록되며, `npm run install:kimi-hooks`로 수동 설치할 수도 있습니다.
-- **Qwen Code** — `~/.qwen/settings.json`의 command hook을 사용합니다 (Clawd 시작 시 자동 등록되며, `npm run install:qwen-hooks`로 수동 설치 가능). 상태 추적과 Qwen `PermissionRequest` 데스크톱 권한 말풍선을 지원합니다.
-- **ZCode** — `~/.zcode/cli/config.json`의 `hooks.events.*`에 선택적 상태 hook과 blocking `PermissionRequest` hook을 등록합니다 (Settings → Agents에서 설치하거나 `npm run install:zcode-hooks`). Clawd는 수동 Allow / Deny 말풍선을 표시하고 global 및 per-session permission automation은 defer 상태를 유지합니다. 명시적인 global 또는 hook별 `enabled:false`를 보존하며, 외부 `PermissionRequest` hook이 있으면 덮어쓰지 않습니다.
-- **opencode** — `~/.config/opencode/` 아래 실제로 적용되는 파일(`config.json` → `opencode.json` → `opencode.jsonc`, 뒤쪽이 우선)의 선택적 [플러그인 연동](https://opencode.ai/docs/plugins)입니다 (Settings → Agents에서 설치). 지연 없는 이벤트 스트리밍과 허용/항상 허용/거부 권한 말풍선을 지원합니다. `task` 하위 세션은 headless이므로 표시되는 다중 세션 애니메이션 집계에 참여하지 않습니다.
-- **MiMo Code** — `~/.config/mimocode/mimocode.jsonc`의 선택적 [플러그인 연동](https://opencode.ai/docs/plugins)입니다 (Settings → Agents에서 설치하거나 `node hooks/mimocode-install.js` 실행). opencode와 동일한 `@mimo-ai/plugin` SDK 및 권한 동작을 공유하며 `task` 하위 세션도 headless입니다.
-- **Pi** — `~/.pi/agent/extensions/clawd-on-desk`의 전역 extension으로 연동됩니다 (Clawd 시작 시 자동 등록되며, `npm run install:pi-extension`으로 수동 설치 가능). 인터랙티브 Pi 세션의 라이프사이클과 도구 활동 상태만 보고하며, Pi의 기본 YOLO 동작을 유지합니다.
-- **OpenClaw** — `~/.openclaw/openclaw.json`의 plugin 경로로 상태만 연동합니다 (OpenClaw config가 이미 있으면 Clawd 시작 시 자동 등록되며, `npm run install:openclaw-plugin`으로 수동 설치 가능). Phase 1은 로컬 `openclaw tui --local` 세션의 애니메이션만 지원하며, 권한 말풍선과 터미널 포커스는 지원하지 않습니다.
-- **Hermes Agent** — Hermes의 관리형 plugin 디렉터리를 통한 [plugin 연동](https://hermes-agent.org/) (Hermes가 설치되어 있으면 Clawd 시작 시 자동 등록되며, `npm run install:hermes-plugin`으로 수동 설치 가능). 상태, 세션, SessionEnd, 터미널 포커스를 지원합니다.
-- **Qoder** — `~/.qoder/settings.json`의 command hook으로 상태만 연동합니다 (`~/.qoder/` 디렉터리가 있으면 Clawd 시작 시 자동 등록되며, `npm run install:qoder-hooks`로 수동 설치 가능). Phase 1은 애니메이션만 구동하고 권한 요청은 알림으로만 표시하며, Clawd는 권한 말풍선을 띄우거나 대신 응답하지 않습니다. Allow / Deny 선택은 Qoder 자체 권한 흐름에서 처리합니다.
-- **QwenWork (千问办公)** — `~/.QwenWorkCN/settings.json`의 command hook으로 hook-only / state-only 연동합니다 (Settings → Agents에서 설치하거나 `npm run install:qwenwork-hooks`, 제거는 `npm run uninstall:qwenwork-hooks`). macOS / Windows 데스크톱만 지원하며, [qwenwork.cn/download](https://qwenwork.cn/download)에 Linux 클라이언트가 없으므로 WSL 페어링도 제공하지 않습니다. Phase 1은 애니메이션과 Session HUD를 구동합니다. `PermissionRequest` / `PermissionDenied`는 관찰만 하여 `working`으로 매핑되고 hook stdout은 항상 `{}`이며, Clawd는 allow/deny를 만들지 않습니다. 권한 결정은 QwenWork 자체 흐름이 전담합니다. startup recovery는 없습니다 — 데스크톱 상주 프로세스는 작업 진행 중을 의미하지 않기 때문입니다.
-- **DeepSeek Harness** — Clawd가 관리하는 DSH in-process plugin을 사용하는 실험적 web-profile-only 연동입니다. 공개 session event가 session별 순서에 따라 Clawd 상태를 구동하며, 공개 blocking `approval/request`는 Allow Once / Deny 말풍선을 표시할 수 있습니다. 결정이 없으면 항상 DSH 기본 web answerer로 돌아갑니다. `ask_user_question`은 전적으로 DSH 기본 provider에 남고 Clawd는 DSH projection storage를 읽지 않습니다. 자세한 내용은 [DeepSeek Harness 가이드](docs/guides/dsh-setup.md)를 참고하세요.
-- **멀티 에이전트 공존** — 여러 에이전트를 동시에 실행할 수 있으며, Clawd는 각 세션을 독립적으로 추적합니다.
+### 데스크톱 펫
 
-### 애니메이션과 상호작용
-- **실시간 상태 인식** — 에이전트 hook과 로그 폴링이 자동으로 Clawd 애니메이션을 구동합니다.
-- **12개 애니메이션 상태** — 대기, 생각, 타이핑, 건설, 헤드폰 그루브, 다중 서브에이전트 저글링, 오류, 기쁨, 알림, 청소, 운반, 수면
-- **Codex Pet 가져오기** — `Settings…` → `Theme`에서 Codex Pet zip 패키지를 가져오면 Clawd가 atlas 애니메이션을 관리형 테마로 변환합니다.
-- **시선 추적** — 대기 상태에서 Clawd가 커서를 따라보고, 몸 기울기와 그림자까지 반응합니다.
-- **수면 시퀀스** — 60초 동안 대기 상태면 하품 → 졸기 → 쓰러짐 → 수면 상태로 전환되고, 마우스를 움직이면 깜짝 놀라며 깨어납니다.
-- **클릭 반응** — 더블클릭하면 poke, 네 번 클릭하면 flail 애니메이션이 나옵니다.
-- **아무 상태에서나 드래그 가능** — 언제든 Clawd를 잡아 옮길 수 있고, 놓으면 원래 상태로 돌아갑니다. Pointer Capture를 써서 빠르게 흔들어도 놓치지 않습니다.
-- **미니 모드** — 화면 오른쪽 끝으로 드래그하거나 우클릭 후 `Mini Mode`를 선택하면 화면 가장자리에 숨어 있다가 마우스를 올리면 살짝 튀어나옵니다. 미니 알림/축하 애니메이션과 포물선 점프 전환도 지원합니다.
+- Renmi 기본 테마에는 idle, thinking/working, notification, attention, sleeping, mini mode 상태 애니메이션이 포함되어 있습니다.
+- 투명 플로팅 창, 커서 추적, 드래그 위치 지정, 화면 가장자리 mini mode, 다중 모니터 위치 기억을 지원합니다.
+- 클릭 반응, 수면/깨우기, 사운드 알림과 시스템 트레이 메뉴를 제공합니다.
+- AI 코딩 에이전트 세션 또는 Study Companion 집중 단계가 펫 상태를 구동할 수 있습니다. 활성 코딩 에이전트 세션이 있으면 해당 상태가 우선합니다.
+- Settings → Theme에서 기본 테마 전환, 테마별 커스터마이즈, 호환되는 Codex Pet 애니메이션 패키지 가져오기를 지원합니다. 현재 기본 테마는 Renmi, Clawd, Calico입니다.
 
-### 권한 말풍선
-- **앱 내 권한 검토** — Claude Code, Codex CLI, CodeBuddy, opencode, MiMo Code가 도구 권한을 요청하면 터미널을 기다리는 대신 Clawd가 떠 있는 카드 형태의 말풍선을 띄웁니다.
-- **Allow / Deny / 에이전트별 추가 동작** — 한 번의 클릭으로 승인/거절할 수 있고, 에이전트가 지원하면 권한 규칙이나 `Always` 같은 추가 동작도 표시됩니다.
-- **전역 단축키** — 최신 권한 말풍선에 대해 `Ctrl+Shift+Y`로 허용, `Ctrl+Shift+N`으로 거부할 수 있습니다. 단, 말풍선이 보일 때만 등록됩니다.
-- **스택 레이아웃** — 여러 권한 요청이 화면 오른쪽 아래에서 위로 차곡차곡 쌓입니다.
-- **자동 닫힘** — 터미널에서 먼저 응답하면 말풍선은 자동으로 사라집니다.
-- **에이전트별 끄기** — `Settings…` → `Agents`에서 해당 에이전트를 선택한 뒤 `Show pop-up bubbles`를 끄면, 권한 프롬프트가 그 에이전트 자체 터미널/TUI로 돌아갑니다.
+### AI 코딩 에이전트 상태 감지
 
-### 원격 알림
-- **Telegram / Feishu (Lark)** — 대화형 원격 승인: 권한 요청을 휴대폰으로 전달하고 데스크톱으로 돌아가지 않고 Allow / Deny 할 수 있습니다.
-- **Slack** — **알림 전용**: Slack Incoming Webhook(또는 선택적 `xoxb-` Bot Token + channel id)을 통해 작업 **완료**, **오류**, **권한 요청**을 Block Kit 카드로 보냅니다. 이 버전에서는 Slack에서 Allow / Deny 할 수 없습니다. 권한 메시지는 알림일 뿐이며 결정은 데스크톱 앱에서 합니다. Telegram / Feishu와 같은 원격 승인 설정에서 구성하며 secret은 prefs 밖의 로컬 env 파일에 저장됩니다(macOS / Linux는 `0600`, Windows는 AppData ACL 사용). 미설정 또는 오프라인 상태에서는 안전하게 fallback합니다. 메시지에 session title, folder, host name이 포함될 수 있으므로 private channel을 권장합니다. 자세한 내용은 [Slack 알림 가이드](docs/guides/slack-notifications.md)를 참고하세요.
+저장소에는 여러 세션을 구분할 수 있는 멀티 에이전트 런타임이 포함되어 있습니다. 다음 Agent용 어댑터를 제공합니다.
 
-### 세션 인텔리전스
-- **멀티 세션 추적** — 모든 에이전트 세션 상태를 모아 가장 우선순위가 높은 상태를 반영합니다.
-- **서브에이전트 인식** — 서브에이전트가 1개면 헤드폰 그루브, 2개 이상이면 세 개 공 저글링 상태가 됩니다.
-- **세션 Dashboard + HUD** — 우클릭 또는 트레이 메뉴의 `Open Dashboard`에서 라이브 세션, 최근 이벤트, 별칭을 확인하고 터미널로 이동할 수 있습니다. Clawd 근처의 작은 HUD도 현재 라이브 세션을 계속 보여줍니다.
-- **터미널 포커스** — Dashboard/HUD 동작으로 특정 세션의 터미널 창으로 바로 이동할 수 있으며, notification/attention 상태에서는 관련 터미널이 자동으로 포커스됩니다.
-- **프로세스 생존 감지** — 지원되는 에이전트 프로세스가 종료되거나 크래시하면 orphan 세션을 정리합니다.
-- **시작 복구** — Clawd가 실행 중인 에이전트 세션 도중 재시작되어도 곧바로 잠들지 않고 깨어 있는 상태를 유지합니다.
+Claude Code, Codex CLI, Copilot CLI, Gemini CLI, Antigravity CLI, Cursor Agent, CodeBuddy, WorkBuddy, Kiro CLI, Kimi Code CLI, Qwen Code, ZCode, CodeWhale, opencode, MiMo Code, Pi, OpenClaw, Hermes Agent, Qoder, QoderWork, QwenWork, Reasonix CLI, DeepSeek Harness.
 
-### 모바일 컴패니언 (PWA)
-- **휴대폰 실시간 미러** — `Settings…` → `Mobile / PWA`를 켜고 휴대폰에서 페어링 URL을 열면, Clawd Mobile 웹 앱이 에이전트 세션과 라이브 상태를 실시간으로 보여줍니다.
-- **읽기 전용 설계** — LAN 브리지는 상태만 브로드캐스트하며, 휴대폰에서 PC를 조작할 수 없습니다. (원격 승인은 로드맵에 있습니다.)
-- **LAN 전용 + 토큰 보호** — 페어링에는 토큰이 필요하고, 토큰은 유예 기간과 함께 자동으로 회전하며, 클릭 한 번으로 재생성하거나 초기화할 수 있습니다.
-- **설치 가능** — PWA이므로 홈 화면에 추가하면 앱처럼 사용할 수 있습니다.
-> 모바일 컴패니언 라인은 첫 프로토타입부터 토큰 회전까지 코어 컨트리뷰터 [@Bynlk](https://github.com/Bynlk)가 만들고 이끌고 있으며, 네이티브 Android 앱을 갖춘 자매 프로젝트 [clawd-on-mobile](https://github.com/Bynlk/clawd-on-mobile)도 함께 유지보수하고 있습니다.
+에이전트마다 기능은 다릅니다. 상태만 보고하는 에이전트도 있고, 로컬 권한 말풍선, 세션 보기 또는 터미널 포커스를 지원하는 에이전트도 있습니다. 설치 상태, 활성화 상태와 사용 가능한 작업은 Settings → Agents에서 확인하세요. Renmi profile은 사용자의 컴퓨터에 있는 외부 통합 파일을 몰래 수정하지 않습니다.
 
-### 시스템
-- **클릭 스루** — 투명한 부분은 아래 창으로 클릭이 통과되며, Clawd 몸체만 상호작용됩니다.
-- **위치 기억** — 재시작 후에도 마지막 위치를 기억합니다. 미니 모드 위치도 포함됩니다.
-- **단일 인스턴스 잠금** — Clawd 창이 중복 실행되지 않도록 막습니다.
-- **자동 시작** — Claude Code의 SessionStart hook이 Clawd가 실행 중이 아니어도 자동으로 켤 수 있습니다.
-- **방해 금지 모드** — 우클릭 또는 트레이 메뉴로 sleep 모드에 들어가면, 깰 때까지 모든 hook 이벤트가 음소거됩니다. DND 동안에는 권한 말풍선이 뜨지 않으며, Codex, opencode, MiMo Code는 기본 프롬프트로 돌아가고, Claude Code와 CodeBuddy는 자체 권한 확인 흐름으로 되돌아갑니다. Antigravity와 Pi는 상태만 동기화합니다.
-- **효과음** — 작업 완료나 권한 요청 시 짧은 오디오 알림이 재생됩니다. 시스템 트레이 또는 설정에서 켜고 끌 수 있으며, 10초 쿨다운이 있고 DND에서는 자동 음소거됩니다.
-- **시스템 트레이** — DND, 자동 시작, 업데이트 확인 등을 지원합니다.
-- **i18n** — 영어, 중국어 간체, 중국어 번체, 한국어, 일본어, Português (Brasil), Español UI를 지원하며, 설정 → 일반에서 전환할 수 있습니다.
-- **자동 업데이트** — GitHub release를 확인하고, Windows는 종료 시 NSIS 업데이트를 설치하며, macOS/Linux는 clone한 저장소에서 실행 중일 때 `git pull` + 재시작으로 업데이트합니다.
+### Study Companion과 뽀모도로
 
-## 애니메이션
+펫 컨텍스트 메뉴 또는 시스템 트레이에서 `Open Study Dashboard`를 열면 별도의 Study Companion 창으로 이동합니다.
 
-<table>
-  <tr>
-    <td align="center"><img src="assets/gif/clawd-idle.gif" width="100"><br><sub>대기</sub></td>
-    <td align="center"><img src="assets/gif/clawd-thinking.gif" width="100"><br><sub>생각 말풍선</sub></td>
-    <td align="center"><img src="assets/gif/clawd-typing.gif" width="100"><br><sub>타이핑</sub></td>
-    <td align="center"><img src="assets/gif/clawd-building.gif" width="100"><br><sub>건설</sub></td>
-    <td align="center"><img src="assets/gif/clawd-headphones-groove.gif" width="100"><br><sub>1개 서브에이전트</sub></td>
-    <td align="center"><img src="assets/gif/clawd-juggling.gif" width="100"><br><sub>2+ 서브에이전트</sub></td>
-  </tr>
-  <tr>
-    <td align="center"><img src="assets/gif/calico-idle.gif" width="80"><br><sub>Calico 대기</sub></td>
-    <td align="center"><img src="assets/gif/calico-thinking.gif" width="80"><br><sub>Calico 생각</sub></td>
-    <td align="center"><img src="assets/gif/calico-typing.gif" width="80"><br><sub>Calico 타이핑</sub></td>
-    <td align="center"><img src="assets/gif/calico-building.gif" width="80"><br><sub>Calico 건설</sub></td>
-    <td align="center"><img src="assets/gif/calico-juggling.gif" width="80"><br><sub>Calico 저글링</sub></td>
-    <td align="center"><img src="assets/gif/calico-conducting.gif" width="80"><br><sub>Calico 지휘</sub></td>
-  </tr>
-  <tr>
-    <td align="center"><img src="assets/gif/cloudling-idle.gif" width="120"><br><sub>Cloudling 대기</sub></td>
-    <td align="center"><img src="assets/gif/cloudling-thinking.gif" width="120"><br><sub>Cloudling 생각</sub></td>
-    <td align="center"><img src="assets/gif/cloudling-typing.gif" width="120"><br><sub>Cloudling 타이핑</sub></td>
-    <td align="center"><img src="assets/gif/cloudling-building.gif" width="120"><br><sub>Cloudling 건설</sub></td>
-    <td align="center"><img src="assets/gif/cloudling-juggling.gif" width="120"><br><sub>Cloudling 저글링</sub></td>
-    <td align="center"><img src="assets/gif/cloudling-conducting.gif" width="120"><br><sub>Cloudling 지휘</sub></td>
-  </tr>
-</table>
+- 작업 목록: 제목, 예상 소요 시간, 마감일, 태그/카테고리, 4분면 우선순위.
+- 하위 작업: 완료 진행률 표시와 집중 세션 연결.
+- 생성 시간, 마감일, 예상 시간 또는 우선순위로 정렬하고 태그나 4분면별로 그룹화.
+- 카운트다운/카운트업 타이머, 15·25·30·45분 집중 시간과 설정 가능한 짧은 휴식.
+- 긴 하위 작업을 여러 집중 사이클로 나누고, 사이클 사이 자동 일시정지 또는 수동 계속을 선택.
+- 전체 화면 집중 모드로 작업 목록을 숨겨 방해를 줄임.
+- 집중 사이클이 끝나면 Renmi 상태, 애니메이션과 사운드 피드백이 실행됩니다. 완료된 작업은 자동으로 체크되고 목록 아래로 이동합니다.
+- 작업, 뽀모도로 상태와 포인트는 Electron 사용자 데이터 디렉터리의 `study-data.json`에 저장되며 코딩 에이전트 세션 상태와 분리됩니다.
 
-전체 이벤트-상태 매핑, 미니 모드, 클릭 반응은 **[docs/guides/state-mapping.md](docs/guides/state-mapping.md)** 에서 확인할 수 있습니다.
+### 계정과 인증
 
-## 멀티 디스플레이
+Renmi는 별도의 인증 서비스를 사용합니다. 개발 런처가 로컬 인증 API를 시작하고 주소를 Electron에 자동으로 전달합니다. 현재 UI는 인증된 `@ruc.edu.cn` 이메일 계정을 대상으로 하며 다음을 지원합니다.
 
-Clawd는 멀티 모니터 환경에 맞춰 동작합니다: 실행된 디스플레이에 비례한 크기 조정, 세로 모니터에서는 너무 작아 보이지 않도록 크기 보정, 디스플레이 간 드래그 이동을 지원합니다.
+- 이메일 인증을 통한 계정 등록.
+- 비밀번호 로그인 또는 이메일 코드 로그인.
+- 비밀번호 재설정과 이메일 변경 인증.
+- 관리자 이메일 로그인과 관리자 콘솔.
 
-<p align="center"><sub>실제 멀티 모니터 동작은 <a href="assets/videos/clawd-multi-monitor-demo.mp4">이 저장소의 데모 영상</a>에서 확인할 수 있습니다.</sub></p>
+로컬 개발 계정과 감사 데이터는 기본적으로 `~/.renmiao/auth-dev.json`에 저장됩니다. 인증 코드는 Resend를 통해 전송되며 터미널에 출력되지 않습니다. 인증 비밀값은 `cloud/.env` 또는 배포 플랫폼의 비밀값 관리자에 보관하고, 렌더러 코드나 패키징된 클라이언트 리소스에 넣지 마세요.
 
-## 빠른 시작
+## 개발 환경
 
-일반 사용자는 **[GitHub Releases](https://github.com/rullerzhou-afk/clawd-on-desk/releases/latest)** 에서 최신 사전 빌드 설치 파일을 다운로드하는 것을 권장합니다.
+### 요구 사항
 
-- **Windows**: `Clawd-on-Desk-Setup-<version>-x64.exe` 또는 `Clawd-on-Desk-Setup-<version>-arm64.exe`
-- **macOS**: `.dmg`
-- **Linux**: `.AppImage` 또는 `.deb`
+- Node.js `>= 22.12.0`
+- npm
+- Electron을 실행할 수 있는 Windows, macOS 또는 Linux
+- 이메일 인증을 위한 Resend API key와 인증된 발신 주소
 
-설치 후 Clawd를 실행하면 지원되는 agent hooks / plugins가 시작 시 자동으로 동기화됩니다.
-
-소스에서 실행하는 방식은 기여, 미릴리스 코드 테스트, 통합 디버깅이 필요할 때만 권장합니다. 소스 설치는 Electron / 패키징 도구를 다운로드하며 큰 `node_modules` 트리를 만들 수 있습니다.
+### 설치 및 실행
 
 ```bash
-# 저장소 복제
-git clone https://github.com/rullerzhou-afk/clawd-on-desk.git
-cd clawd-on-desk
-
-# 의존성 설치
 npm install
-
-# Clawd 시작 (실행 시 Claude Code hooks 자동 등록)
-npm start
+cp cloud/.env.example cloud/.env
 ```
 
-**Claude Code**와 **Codex CLI**는 기본적으로 hook이 동기화됩니다. 다른 Agent는 먼저 **Settings → Agents**에서 해당 integration을 설치해야 하며, 설치되어 있고 활성화된 integration만 Clawd 시작 시 계속 동기화됩니다. 원격 SSH, WSL, 플랫폼별 참고 사항(macOS / Linux)까지 포함된 가이드는 **[docs/guides/setup-guide.md](docs/guides/setup-guide.md)** 를 참고하세요.
+로컬 인증을 위해 `cloud/.env`에 최소한 `RENMI_ADMIN_PASSWORD_HASH`, `RESEND_API_KEY`, 인증된 `AUTH_EMAIL_FROM`을 설정하세요. 관리자 비밀번호 해시는 다음 명령으로 생성할 수 있습니다.
 
-`Codex + WSL`의 공식 현황, Clawd의 현재 구현 경계, 그리고 왜 이 부분이 오해되기 쉬운지는 **[docs/guides/codex-wsl-clarification.ko-KR.md](docs/guides/codex-wsl-clarification.ko-KR.md)** 를 참고하세요.
-
-## 알려진 제한 사항
-
-일부 에이전트는 기능 차이가 있습니다. 예를 들어 권한 말풍선이 없거나, 폴링 지연이 있거나, 터미널 포커스를 지원하지 않을 수 있습니다. 전체 표는 **[docs/guides/known-limitations.md](docs/guides/known-limitations.md)** 에 있습니다.
-
-## 커스텀 테마
-
-Clawd는 커스텀 테마를 지원합니다. 기본 크랩 대신 원하는 캐릭터와 애니메이션으로 바꿀 수 있습니다. 이미 Codex Pet 패키지가 있다면 `Settings…` → `Theme` → `Import pet zip`에서 가져오세요. Clawd가 atlas를 관리형 테마로 자동 변환합니다.
-
-**빠른 시작:**
-1. 먼저 테마 스캐폴드를 생성합니다.
-   ```bash
-   node scripts/create-theme.js my-theme
-   # 또는
-   npm run create-theme -- my-theme
-   ```
-   인자를 주지 않아도 사용자 테마 디렉터리에 다음 사용 가능한 `my-theme` 스캐폴드가 생성됩니다.
-2. `theme.json`을 수정하고 에셋(SVG, GIF, APNG, WebP, PNG, JPG, JPEG)을 만듭니다.
-3. Clawd를 재시작하거나 `Settings…` → `Theme`에서 테마를 선택합니다.
-
-**최소 동작 테마:** 1개의 SVG(idle + 시선 추적)와 7개의 GIF/APNG(thinking, working, error, happy, notification, sleeping, waking)만 있어도 됩니다. 시선 추적을 끄면 모든 상태를 아무 형식으로나 만들어도 됩니다.
-
-배포 전에 테마를 검증하세요:
 ```bash
-node scripts/validate-theme.js path/to/your-theme
+npm run cloud:hash-password
 ```
 
-`Settings…` → `Theme`의 테마 카드에는 `Tracked idle`, `Static theme`, `Mini`, `Direct sleep`, `No reactions` 같은 능력 배지가 표시되어 전환 전에 테마 특성을 확인할 수 있습니다.
+데스크톱 앱 실행:
 
-전체 제작 가이드는 [docs/guides/guide-theme-creation.md](docs/guides/guide-theme-creation.md) 에 있습니다. 입문/중급/고급 경로, `theme.json` 필드 설명, 에셋 가이드라인까지 포함합니다.
+```bash
+npm start
+# 또는
+npm run dev
+```
 
-> 서드파티 SVG 파일은 보안을 위해 자동으로 sanitize 됩니다.
+두 명령은 `scripts/renmiao-dev.js`를 함께 사용합니다. `8787–8791` 중 사용 가능한 포트를 선택하고, 로컬 인증 API를 시작한 뒤 상태 확인을 마치면 Electron을 실행하며 선택된 API 주소를 자동으로 전달합니다. 인증 API만 실행하려면 다음을 사용하세요.
 
-### 로드맵
+```bash
+npm run cloud:dev
+```
 
-앞으로 탐색해 보고 싶은 것들:
+### 테스트 및 빌드
 
-- `codex.exe` PID에서 프로세스 트리를 역추적하는 Codex 터미널 포커스
-- 테마 레지스트리와 앱 내 다운로드
-- 앱 제거를 위한 hook uninstall 스크립트
-- 모바일 컴패니언: 휴대폰에서의 원격 권한 승인 ([@Bynlk](https://github.com/Bynlk) 주도로 진행 중)
+```bash
+npm test
+npm run verify:electron
+npm run audit:assets
 
-## 기여하기
+npm run build
+npm run build:mac
+npm run build:linux
+npm run build:win:x64
+npm run build:win:arm64
+npm run build:all
+```
 
-Clawd on Desk는 커뮤니티 주도 프로젝트입니다. 버그 리포트, 기능 아이디어, PR 모두 환영합니다. [issue](https://github.com/rullerzhou-afk/clawd-on-desk/issues)를 열어 논의하거나 바로 PR을 보내 주세요.
+프로덕션 패키징에는 `RENMI_AUTH_API_URL`로 배포된 HTTPS 인증 엔드포인트를 지정해야 합니다.
 
-### 메인테이너
+```bash
+RENMI_AUTH_API_URL=https://auth.example.com npm run build:mac
+```
 
-<table>
-  <tr>
-    <td align="center" valign="top" width="140"><a href="https://github.com/rullerzhou-afk"><img src="https://github.com/rullerzhou-afk.png" width="72" style="border-radius:50%" /><br /><sub><b>@rullerzhou-afk</b><br />鹿鹿 · 제작자</sub></a></td>
-    <td align="center" valign="top" width="140"><a href="https://github.com/YOIMIYA66"><img src="https://github.com/YOIMIYA66.png" width="72" style="border-radius:50%" /><br /><sub><b>@YOIMIYA66</b><br />메인테이너</sub></a></td>
-    <td align="center" valign="top" width="140"><a href="https://github.com/Bynlk"><img src="https://github.com/Bynlk.png" width="72" style="border-radius:50%" /><br /><sub><b>@Bynlk</b><br />코어 컨트리뷰터 · Mobile / PWA</sub></a></td>
-  </tr>
-</table>
+데이터베이스 인증 정보, Supabase service-role key, 관리자 인증 정보와 메일 서비스 비밀값은 인증 서버에만 보관해야 합니다.
 
-### 기여자
+## 프로젝트 구조
 
-Clawd를 더 좋게 만드는 데 도움을 준 모든 분들께 감사합니다:
+| 디렉터리/파일 | 역할 |
+| --- | --- |
+| `src/main.js` | Electron 메인 프로세스 구성, 생명주기, IPC와 런타임 연결 |
+| `src/renderer.js` | 펫 렌더링, 애니메이션 전환과 눈동자 추적 |
+| `src/pet-window-runtime.js` | 펫 표시/입력 창, 위치 지정과 상호작용 |
+| `src/state.js`, `src/agent-runtime-main.js` | 에이전트 세션 상태 머신, 멀티 세션 병합과 업데이트 |
+| `src/study-runtime.js` | 작업, 하위 작업, 뽀모도로와 포인트 런타임 로직 |
+| `src/study-window.js`, `src/study-dashboard.html` | Study Companion 창과 UI |
+| `src/auth-runtime.js`, `src/auth-client.js`, `src/auth.html` | Electron 측 인증 창, 세션과 API 클라이언트 |
+| `cloud/api/` | 로컬/클라우드 인증 API, 메일 전송과 저장소 |
+| `src/settings-*.js` | Settings UI, 검증, 저장과 런타임 효과 |
+| `agents/`, `hooks/` | Agent 레지스트리, 모니터와 hook/plugin 설치기 |
+| `themes/` | 기본 테마, 리소스와 테마 설정 |
+| `test/` | Node.js 테스트와 런타임/계약 fixture |
 
-<table>
-  <tr>
-    <td align="center" valign="top" width="110"><a href="https://github.com/PixelCookie-zyf"><img src="https://github.com/PixelCookie-zyf.png" width="50" style="border-radius:50%" /><br /><sub>PixelCookie-zyf</sub></a></td>
-    <td align="center" valign="top" width="110"><a href="https://github.com/yujiachen-y"><img src="https://github.com/yujiachen-y.png" width="50" style="border-radius:50%" /><br /><sub>yujiachen-y</sub></a></td>
-    <td align="center" valign="top" width="110"><a href="https://github.com/AooooooZzzz"><img src="https://github.com/AooooooZzzz.png" width="50" style="border-radius:50%" /><br /><sub>AooooooZzzz</sub></a></td>
-    <td align="center" valign="top" width="110"><a href="https://github.com/purefkh"><img src="https://github.com/purefkh.png" width="50" style="border-radius:50%" /><br /><sub>purefkh</sub></a></td>
-    <td align="center" valign="top" width="110"><a href="https://github.com/Tobeabellwether"><img src="https://github.com/Tobeabellwether.png" width="50" style="border-radius:50%" /><br /><sub>Tobeabellwether</sub></a></td>
-    <td align="center" valign="top" width="110"><a href="https://github.com/Jasonhonghh"><img src="https://github.com/Jasonhonghh.png" width="50" style="border-radius:50%" /><br /><sub>Jasonhonghh</sub></a></td>
-    <td align="center" valign="top" width="110"><a href="https://github.com/crashchen"><img src="https://github.com/crashchen.png" width="50" style="border-radius:50%" /><br /><sub>crashchen</sub></a></td>
-  </tr>
-  <tr>
-    <td align="center" valign="top" width="110"><a href="https://github.com/hongbigtou"><img src="https://github.com/hongbigtou.png" width="50" style="border-radius:50%" /><br /><sub>hongbigtou</sub></a></td>
-    <td align="center" valign="top" width="110"><a href="https://github.com/InTimmyDate"><img src="https://github.com/InTimmyDate.png" width="50" style="border-radius:50%" /><br /><sub>InTimmyDate</sub></a></td>
-    <td align="center" valign="top" width="110"><a href="https://github.com/NeizhiTouhu"><img src="https://github.com/NeizhiTouhu.png" width="50" style="border-radius:50%" /><br /><sub>NeizhiTouhu</sub></a></td>
-    <td align="center" valign="top" width="110"><a href="https://github.com/xu3stones-cmd"><img src="https://github.com/xu3stones-cmd.png" width="50" style="border-radius:50%" /><br /><sub>xu3stones-cmd</sub></a></td>
-    <td align="center" valign="top" width="110"><a href="https://github.com/androidZzT"><img src="https://github.com/androidZzT.png" width="50" style="border-radius:50%" /><br /><sub>androidZzT</sub></a></td>
-    <td align="center" valign="top" width="110"><a href="https://github.com/Ye-0413"><img src="https://github.com/Ye-0413.png" width="50" style="border-radius:50%" /><br /><sub>Ye-0413</sub></a></td>
-    <td align="center" valign="top" width="110"><a href="https://github.com/WanfengzzZ"><img src="https://github.com/WanfengzzZ.png" width="50" style="border-radius:50%" /><br /><sub>WanfengzzZ</sub></a></td>
-  </tr>
-  <tr>
-    <td align="center" valign="top" width="110"><a href="https://github.com/TaoXieSZ"><img src="https://github.com/TaoXieSZ.png" width="50" style="border-radius:50%" /><br /><sub>TaoXieSZ</sub></a></td>
-    <td align="center" valign="top" width="110"><a href="https://github.com/ssly"><img src="https://github.com/ssly.png" width="50" style="border-radius:50%" /><br /><sub>ssly</sub></a></td>
-    <td align="center" valign="top" width="110"><a href="https://github.com/stickycandy"><img src="https://github.com/stickycandy.png" width="50" style="border-radius:50%" /><br /><sub>stickycandy</sub></a></td>
-    <td align="center" valign="top" width="110"><a href="https://github.com/Rladmsrl"><img src="https://github.com/Rladmsrl.png" width="50" style="border-radius:50%" /><br /><sub>Rladmsrl</sub></a></td>
-    <td align="center" valign="top" width="110"><a href="https://github.com/YOIMIYA66"><img src="https://github.com/YOIMIYA66.png" width="50" style="border-radius:50%" /><br /><sub>YOIMIYA66</sub></a></td>
-    <td align="center" valign="top" width="110"><a href="https://github.com/Kevin7Qi"><img src="https://github.com/Kevin7Qi.png" width="50" style="border-radius:50%" /><br /><sub>Kevin7Qi</sub></a></td>
-    <td align="center" valign="top" width="110"><a href="https://github.com/sefuzhou770801-hub"><img src="https://github.com/sefuzhou770801-hub.png" width="50" style="border-radius:50%" /><br /><sub>sefuzhou770801-hub</sub></a></td>
-  </tr>
-  <tr>
-    <td align="center" valign="top" width="110"><a href="https://github.com/Tonic-Jin"><img src="https://github.com/Tonic-Jin.png" width="50" style="border-radius:50%" /><br /><sub>Tonic-Jin</sub></a></td>
-    <td align="center" valign="top" width="110"><a href="https://github.com/seoki180"><img src="https://github.com/seoki180.png" width="50" style="border-radius:50%" /><br /><sub>seoki180</sub></a></td>
-    <td align="center" valign="top" width="110"><a href="https://github.com/sophie-haynes"><img src="https://github.com/sophie-haynes.png" width="50" style="border-radius:50%" /><br /><sub>sophie-haynes</sub></a></td>
-    <td align="center" valign="top" width="110"><a href="https://github.com/PeterShanxin"><img src="https://github.com/PeterShanxin.png" width="50" style="border-radius:50%" /><br /><sub>PeterShanxin</sub></a></td>
-    <td align="center" valign="top" width="110"><a href="https://github.com/CHIANGANGSTER"><img src="https://github.com/CHIANGANGSTER.png" width="50" style="border-radius:50%" /><br /><sub>CHIANGANGSTER</sub></a></td>
-    <td align="center" valign="top" width="110"><a href="https://github.com/JaeHyeon-KAIST"><img src="https://github.com/JaeHyeon-KAIST.png" width="50" style="border-radius:50%" /><br /><sub>JaeHyeon-KAIST</sub></a></td>
-    <td align="center" valign="top" width="110"><a href="https://github.com/hhhzxyhhh"><img src="https://github.com/hhhzxyhhh.png" width="50" style="border-radius:50%" /><br /><sub>hhhzxyhhh</sub></a></td>
-  </tr>
-  <tr>
-    <td align="center" valign="top" width="110"><a href="https://github.com/TVpoet"><img src="https://github.com/TVpoet.png" width="50" style="border-radius:50%" /><br /><sub>TVpoet</sub></a></td>
-    <td align="center" valign="top" width="110"><a href="https://github.com/zeus6768"><img src="https://github.com/zeus6768.png" width="50" style="border-radius:50%" /><br /><sub>zeus6768</sub></a></td>
-    <td align="center" valign="top" width="110"><a href="https://github.com/anhtrinh919"><img src="https://github.com/anhtrinh919.png" width="50" style="border-radius:50%" /><br /><sub>anhtrinh919</sub></a></td>
-    <td align="center" valign="top" width="110"><sub>tomaioo</sub></td>
-    <td align="center" valign="top" width="110"><a href="https://github.com/v-avuso"><img src="https://github.com/v-avuso.png" width="50" style="border-radius:50%" /><br /><sub>v-avuso</sub></a></td>
-    <td align="center" valign="top" width="110"><a href="https://github.com/livlign"><img src="https://github.com/livlign.png" width="50" style="border-radius:50%" /><br /><sub>livlign</sub></a></td>
-    <td align="center" valign="top" width="110"><a href="https://github.com/tongguang2"><img src="https://github.com/tongguang2.png" width="50" style="border-radius:50%" /><br /><sub>tongguang2</sub></a></td>
-  </tr>
-  <tr>
-    <td align="center" valign="top" width="110"><a href="https://github.com/Ziy1-Tan"><img src="https://github.com/Ziy1-Tan.png" width="50" style="border-radius:50%" /><br /><sub>Ziy1-Tan</sub></a></td>
-    <td align="center" valign="top" width="110"><a href="https://github.com/tatsuyanakanogaroinc"><img src="https://github.com/tatsuyanakanogaroinc.png" width="50" style="border-radius:50%" /><br /><sub>tatsuyanakanogaroinc</sub></a></td>
-    <td align="center" valign="top" width="110"><a href="https://github.com/yeonhub"><img src="https://github.com/yeonhub.png" width="50" style="border-radius:50%" /><br /><sub>yeonhub</sub></a></td>
-    <td align="center" valign="top" width="110"><a href="https://github.com/joshua-wu"><img src="https://github.com/joshua-wu.png" width="50" style="border-radius:50%" /><br /><sub>joshua-wu</sub></a></td>
-    <td align="center" valign="top" width="110"><a href="https://github.com/nmsn"><img src="https://github.com/nmsn.png" width="50" style="border-radius:50%" /><br /><sub>nmsn</sub></a></td>
-    <td align="center" valign="top" width="110"><a href="https://github.com/sunnysonx"><img src="https://github.com/sunnysonx.png" width="50" style="border-radius:50%" /><br /><sub>sunnysonx</sub></a></td>
-    <td align="center" valign="top" width="110"><a href="https://github.com/YuChenYunn"><img src="https://github.com/YuChenYunn.png" width="50" style="border-radius:50%" /><br /><sub>YuChenYunn</sub></a></td>
-  </tr>
-  <tr>
-    <td align="center" valign="top" width="110"><a href="https://github.com/jhseo-b"><img src="https://github.com/jhseo-b.png" width="50" style="border-radius:50%" /><br /><sub>jhseo-b</sub></a></td>
-    <td align="center" valign="top" width="110"><a href="https://github.com/Hwasowl"><img src="https://github.com/Hwasowl.png" width="50" style="border-radius:50%" /><br /><sub>Hwasowl</sub></a></td>
-    <td align="center" valign="top" width="110"><a href="https://github.com/XiangZheng2002"><img src="https://github.com/XiangZheng2002.png" width="50" style="border-radius:50%" /><br /><sub>XiangZheng2002</sub></a></td>
-    <td align="center" valign="top" width="110"><a href="https://github.com/keiyo118"><img src="https://github.com/keiyo118.png" width="50" style="border-radius:50%" /><br /><sub>keiyo118</sub></a></td>
-    <td align="center" valign="top" width="110"><a href="https://github.com/pan93412"><img src="https://github.com/pan93412.png" width="50" style="border-radius:50%" /><br /><sub>pan93412</sub></a></td>
-    <td align="center" valign="top" width="110"><a href="https://github.com/taehwanis"><img src="https://github.com/taehwanis.png" width="50" style="border-radius:50%" /><br /><sub>taehwanis</sub></a></td>
-    <td align="center" valign="top" width="110"><a href="https://github.com/linnin233"><img src="https://github.com/linnin233.png" width="50" style="border-radius:50%" /><br /><sub>linnin233</sub></a></td>
-  </tr>
-  <tr>
-    <td align="center" valign="top" width="110"><a href="https://github.com/xiyouMc"><img src="https://github.com/xiyouMc.png" width="50" style="border-radius:50%" /><br /><sub>xiyouMc</sub></a></td>
-    <td align="center" valign="top" width="110"><a href="https://github.com/Bynlk"><img src="https://github.com/Bynlk.png" width="50" style="border-radius:50%" /><br /><sub>Bynlk</sub></a></td>
-    <td align="center" valign="top" width="110"><a href="https://github.com/zxypro1"><img src="https://github.com/zxypro1.png" width="50" style="border-radius:50%" /><br /><sub>zxypro1</sub></a></td>
-    <td align="center" valign="top" width="110"><a href="https://github.com/NeroAyase"><img src="https://github.com/NeroAyase.png" width="50" style="border-radius:50%" /><br /><sub>NeroAyase</sub></a></td>
-    <td align="center" valign="top" width="110"><a href="https://github.com/divergentD"><img src="https://github.com/divergentD.png" width="50" style="border-radius:50%" /><br /><sub>divergentD</sub></a></td>
-    <td align="center" valign="top" width="110"><a href="https://github.com/Ne9roni"><img src="https://github.com/Ne9roni.png" width="50" style="border-radius:50%" /><br /><sub>Ne9roni</sub></a></td>
-    <td align="center" valign="top" width="110"><a href="https://github.com/QingXB"><img src="https://github.com/QingXB.png" width="50" style="border-radius:50%" /><br /><sub>QingXB</sub></a></td>
-  </tr>
-  <tr>
-    <td align="center" valign="top" width="110"><a href="https://github.com/29206394"><img src="https://github.com/29206394.png" width="50" style="border-radius:50%" /><br /><sub>藤知</sub></a></td>
-    <td align="center" valign="top" width="110"><a href="https://github.com/Tsdsj"><img src="https://github.com/Tsdsj.png" width="50" style="border-radius:50%" /><br /><sub>Tsdsj</sub></a></td>
-    <td align="center" valign="top" width="110"><a href="https://github.com/godlockin"><img src="https://github.com/godlockin.png" width="50" style="border-radius:50%" /><br /><sub>godlockin</sub></a></td>
-    <td align="center" valign="top" width="110"><a href="https://github.com/sLingli"><img src="https://github.com/sLingli.png" width="50" style="border-radius:50%" /><br /><sub>sLingli</sub></a></td>
-    <td align="center" valign="top" width="110"><a href="https://github.com/ustin-star"><img src="https://github.com/ustin-star.png" width="50" style="border-radius:50%" /><br /><sub>ustin-star</sub></a></td>
-    <td align="center" valign="top" width="110"><a href="https://github.com/cod3hulk"><img src="https://github.com/cod3hulk.png" width="50" style="border-radius:50%" /><br /><sub>cod3hulk</sub></a></td>
-    <td align="center" valign="top" width="110"><a href="https://github.com/lxgxhsy"><img src="https://github.com/lxgxhsy.png" width="50" style="border-radius:50%" /><br /><sub>lxgxhsy</sub></a></td>
-  </tr>
-  <tr>
-    <td align="center" valign="top" width="110"><a href="https://github.com/rebootcrab-blip"><img src="https://github.com/rebootcrab-blip.png" width="50" style="border-radius:50%" /><br /><sub>rebootcrab-blip</sub></a></td>
-    <td align="center" valign="top" width="110"><a href="https://github.com/zhaoxv210"><img src="https://github.com/zhaoxv210.png" width="50" style="border-radius:50%" /><br /><sub>zhaoxv210</sub></a></td>
-    <td align="center" valign="top" width="110"><a href="https://github.com/serenNan"><img src="https://github.com/serenNan.png" width="50" style="border-radius:50%" /><br /><sub>serenNan</sub></a></td>
-    <td align="center" valign="top" width="110"><a href="https://github.com/IatomicreactorI"><img src="https://github.com/IatomicreactorI.png" width="50" style="border-radius:50%" /><br /><sub>IatomicreactorI</sub></a></td>
-    <td align="center" valign="top" width="110"><a href="https://github.com/quantai1314"><img src="https://github.com/quantai1314.png" width="50" style="border-radius:50%" /><br /><sub>quantai1314</sub></a></td>
-    <td align="center" valign="top" width="110"><a href="https://github.com/Git-creat7"><img src="https://github.com/Git-creat7.png" width="50" style="border-radius:50%" /><br /><sub>Git-creat7</sub></a></td>
-    <td align="center" valign="top" width="110"><a href="https://github.com/undownding"><img src="https://github.com/undownding.png" width="50" style="border-radius:50%" /><br /><sub>undownding</sub></a></td>
-  </tr>
-  <tr>
-    <td align="center" valign="top" width="110"><a href="https://github.com/chrono-meta"><img src="https://github.com/chrono-meta.png" width="50" style="border-radius:50%" /><br /><sub>chrono-meta</sub></a></td>
-    <td align="center" valign="top" width="110"><a href="https://github.com/Yike-Ye"><img src="https://github.com/Yike-Ye.png" width="50" style="border-radius:50%" /><br /><sub>Yike-Ye</sub></a></td>
-    <td align="center" valign="top" width="110"><a href="https://github.com/xiaoshidefeng"><img src="https://github.com/xiaoshidefeng.png" width="50" style="border-radius:50%" /><br /><sub>xiaoshidefeng</sub></a></td>
-    <td align="center" valign="top" width="110"><a href="https://github.com/yanguibao1997"><img src="https://github.com/yanguibao1997.png" width="50" style="border-radius:50%" /><br /><sub>yanguibao1997</sub></a></td>
-    <td align="center" valign="top" width="110"><a href="https://github.com/JasonZH6600"><img src="https://github.com/JasonZH6600.png" width="50" style="border-radius:50%" /><br /><sub>JasonZH6600</sub></a></td>
-    <td align="center" valign="top" width="110"><a href="https://github.com/V1staz"><img src="https://github.com/V1staz.png" width="50" style="border-radius:50%" /><br /><sub>V1staz</sub></a></td>
-    <td align="center" valign="top" width="110"><a href="https://github.com/royhuang91"><img src="https://github.com/royhuang91.png" width="50" style="border-radius:50%" /><br /><sub>royhuang91</sub></a></td>
-  </tr>
-  <tr>
-    <td align="center" valign="top" width="110"><a href="https://github.com/Schlaflied"><img src="https://github.com/Schlaflied.png" width="50" style="border-radius:50%" /><br /><sub>Schlaflied</sub></a></td>
-    <td align="center" valign="top" width="110"><a href="https://github.com/KaiC5504"><img src="https://github.com/KaiC5504.png" width="50" style="border-radius:50%" /><br /><sub>KaiC5504</sub></a></td>
-    <td align="center" valign="top" width="110"><a href="https://github.com/jiaxuan1101"><img src="https://github.com/jiaxuan1101.png" width="50" style="border-radius:50%" /><br /><sub>jiaxuan1101</sub></a></td>
-    <td align="center" valign="top" width="110"><a href="https://github.com/kkirito16"><img src="https://github.com/kkirito16.png" width="50" style="border-radius:50%" /><br /><sub>kkirito16</sub></a></td>
-    <td align="center" valign="top" width="110"><a href="https://github.com/200780381"><img src="https://github.com/200780381.png" width="50" style="border-radius:50%" /><br /><sub>200780381</sub></a></td>
-    <td align="center" valign="top" width="110"><a href="https://github.com/Dxy2326"><img src="https://github.com/Dxy2326.png" width="50" style="border-radius:50%" /><br /><sub>Dxy2326</sub></a></td>
-    <td align="center" valign="top" width="110"><a href="https://github.com/lurui1997"><img src="https://github.com/lurui1997.png" width="50" style="border-radius:50%" /><br /><sub>lurui1997</sub></a></td>
-  </tr>
-  <tr>
-    <td align="center" valign="top" width="110"><a href="https://github.com/JesmonX"><img src="https://github.com/JesmonX.png" width="50" style="border-radius:50%" /><br /><sub>JesmonX</sub></a></td>
-    <td align="center" valign="top" width="110"><a href="https://github.com/chen86860"><img src="https://github.com/chen86860.png" width="50" style="border-radius:50%" /><br /><sub>chen86860</sub></a></td>
-    <td align="center" valign="top" width="110"><a href="https://github.com/LinYsssss"><img src="https://github.com/LinYsssss.png" width="50" style="border-radius:50%" /><br /><sub>LinYsssss</sub></a></td>
-    <td align="center" valign="top" width="110"><a href="https://github.com/He-wei-gui"><img src="https://github.com/He-wei-gui.png" width="50" style="border-radius:50%" /><br /><sub>He-wei-gui</sub></a></td>
-    <td align="center" valign="top" width="110"><a href="https://github.com/liugou27"><img src="https://github.com/liugou27.png" width="50" style="border-radius:50%" /><br /><sub>liugou27</sub></a></td>
-    <td align="center" valign="top" width="110"><a href="https://github.com/YOOGOMJA"><img src="https://github.com/YOOGOMJA.png" width="50" style="border-radius:50%" /><br /><sub>YOOGOMJA</sub></a></td>
-    <td align="center" valign="top" width="110"><a href="https://github.com/anupamme"><img src="https://github.com/anupamme.png" width="50" style="border-radius:50%" /><br /><sub>anupamme</sub></a></td>
-  </tr>
-  <tr>
-    <td align="center" valign="top" width="110"><a href="https://github.com/anthonyonazure"><img src="https://github.com/anthonyonazure.png" width="50" style="border-radius:50%" /><br /><sub>anthonyonazure</sub></a></td>
-    <td align="center" valign="top" width="110"><a href="https://github.com/weed33834"><img src="https://github.com/weed33834.png" width="50" style="border-radius:50%" /><br /><sub>weed33834</sub></a></td>
-    <td align="center" valign="top" width="110"><a href="https://github.com/arismarioneves"><img src="https://github.com/arismarioneves.png" width="50" style="border-radius:50%" /><br /><sub>arismarioneves</sub></a></td>
-    <td align="center" valign="top" width="110"><a href="https://github.com/wang4433"><img src="https://github.com/wang4433.png" width="50" style="border-radius:50%" /><br /><sub>wang4433</sub></a></td>
-    <td align="center" valign="top" width="110"><a href="https://github.com/shengmai-justin"><img src="https://github.com/shengmai-justin.png" width="50" style="border-radius:50%" /><br /><sub>shengmai-justin</sub></a></td>
-    <td align="center" valign="top" width="110"><a href="https://github.com/aaronWool"><img src="https://github.com/aaronWool.png" width="50" style="border-radius:50%" /><br /><sub>aaronWool</sub></a></td>
-    <td align="center" valign="top" width="110"><a href="https://github.com/Zamaniego"><img src="https://github.com/Zamaniego.png" width="50" style="border-radius:50%" /><br /><sub>Zamaniego</sub></a></td>
-  </tr>
-  <tr>
-    <td align="center" valign="top" width="110"><a href="https://github.com/CheeseAgent"><img src="https://github.com/CheeseAgent.png" width="50" style="border-radius:50%" /><br /><sub>CheeseAgent</sub></a></td>
-    <td align="center" valign="top" width="110"><a href="https://github.com/RS-Nocsi"><img src="https://github.com/RS-Nocsi.png" width="50" style="border-radius:50%" /><br /><sub>RS-Nocsi</sub></a></td>
-    <td align="center" valign="top" width="110"><a href="https://github.com/Cobb04"><img src="https://github.com/Cobb04.png" width="50" style="border-radius:50%" /><br /><sub>Cobb04</sub></a></td>
-  </tr>
-</table>
+## 개발 규칙
 
-## 감사의 말
+- 프로젝트는 CommonJS를 사용합니다. 리소스 경로는 `path.join(__dirname, ...)`으로 구성하세요.
+- Settings 저장 흐름은 `prefs.js` → `settings-controller.js` → `settings-store.js`입니다. 설정 변경은 controller/actions를 거쳐야 합니다.
+- Study Companion 데이터와 에이전트 세션 데이터는 별도 계약입니다. 어느 한 계약을 변경할 때 해당 IPC, 창과 렌더러 소비자를 함께 확인하세요.
+- Agent 기능의 기준은 `agents/registry.js`입니다. 다른 모듈에 Agent 목록을 복제하지 마세요.
+- 테마 리소스를 편집하기 전에 `assets/source/`로 복사하세요. 출처가 불명확한 작업 리소스를 직접 수정하지 마세요.
+- `cloud/.env`, 인증 데이터와 로컬 Electron 사용자 데이터를 커밋하지 마세요.
 
-- Clawd 픽셀 아트 참고: [clawd-tank](https://github.com/marciogranzotto/clawd-tank) by [@marciogranzotto](https://github.com/marciogranzotto)
-- [LINUX DO](https://linux.do/) 커뮤니티에서 공유됨
+## 문서
+
+- [Agent 런타임 아키텍처](docs/project/agent-runtime-architecture.md)
+- [테마, 상태와 Settings](docs/project/theme-state-ui.md)
+- [테마 생성 가이드](docs/guides/guide-theme-creation.md)
+- [사용자 지정 HTTP Agent 가이드](docs/guides/custom-agent-http.md)
+- [인증 서비스 안내](cloud/README.md)
 
 ## 라이선스
 
-소스 코드는 [GNU Affero General Public License v3.0](LICENSE)(AGPL-3.0)로 배포됩니다.
-
-**아트워크와 번들 테마 에셋(`assets/` 및 `themes/*/assets/` 포함)은 AGPL-3.0 라이선스 대상이 아닙니다.** 각 저작권자의 권리가 유지되며 자세한 내용은 [assets/LICENSE](assets/LICENSE)와 아래 고지를 참고하세요.
-
-- **Clawd** 캐릭터는 [Anthropic](https://www.anthropic.com)의 자산입니다. 이 프로젝트는 비공식 팬 프로젝트이며 Anthropic과 제휴하거나 승인받지 않았습니다.
-- **Calico cat (삼색 고양이)** 아트워크는 鹿鹿([@rullerzhou-afk](https://github.com/rullerzhou-afk))의 작품이며, 모든 권리를 보유합니다.
-- **Cloudling (云宝)** 아트워크는 鹿鹿([@rullerzhou-afk](https://github.com/rullerzhou-afk))의 작품이며, 모든 권리를 보유합니다. Cloudling의 시각 방향에는 OpenAI Codex 로고에 대한 오마주가 포함되어 있습니다. Codex/OpenAI 관련 표장은 OpenAI의 자산이며, 이 프로젝트는 OpenAI와 제휴하거나 승인받지 않았습니다.
-- **서드파티 기여물**: 저작권은 각 아티스트에게 유지됩니다.
+이 프로젝트는 [AGPL-3.0-only](LICENSE) 라이선스로 배포됩니다.
