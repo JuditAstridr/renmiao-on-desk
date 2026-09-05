@@ -918,7 +918,6 @@ describe("renderer low-power idle mode", () => {
     );
     assert.ok(source.includes("if (shouldSuppressPassiveTrackingForLowPower()) { _layerAnimFrame = null; return; }"));
     assert.ok(source.includes("if (shouldSuppressPassiveTrackingForLowPower()) {\n    _cancelLayerAnimLoop();\n    return;\n  }"));
-    assert.ok(source.includes("if (shouldSuppressPassiveTrackingForLowPower()) return;\n  if (!shouldUseCloudlingPointerBridge"));
   });
 
   it("notifies main only when the low-power paused state changes", () => {
@@ -2013,19 +2012,6 @@ describe("renderer pet accessory wardrobe", () => {
     assert.ok(preload.includes(
       'onPetAccessoryChange: (cb) => ipcRenderer.on("pet-accessory-change", (_, payload) => cb(payload))'
     ));
-  });
-});
-
-describe("renderer Cloudling pointer bridge", () => {
-  it("bridges only selected Cloudling pointer states through the exporter API", () => {
-    const source = fs.readFileSync(RENDERER, "utf8");
-    const preload = fs.readFileSync(PRELOAD, "utf8");
-
-    assert.ok(source.includes('const CLOUDLING_POINTER_BRIDGE_STATES = new Set(["idle", "mini-idle", "mini-peek"]);'));
-    assert.ok(source.includes('typeof svgWindow.__cloudlingSetPointer === "function"'));
-    assert.ok(source.includes('svgWindow.__cloudlingSetPointer(payload);'));
-    assert.ok(source.includes('window.electronAPI.onCloudlingPointer((payload) => {'));
-    assert.ok(preload.includes('onCloudlingPointer: (callback) => ipcRenderer.on("cloudling-pointer", (_, payload) => callback(payload))'));
   });
 });
 

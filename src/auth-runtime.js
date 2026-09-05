@@ -25,6 +25,8 @@ function createAuthRuntime({
   getMainWindows = () => [],
   setMainWindowsVisible = null,
   onAuthenticated = () => {},
+  onBeforeLoggedOut = async () => {},
+  onLoggedOut = () => {},
 } = {}) {
   if (!app || !BrowserWindow || !ipcMain) throw new TypeError("createAuthRuntime requires app, BrowserWindow and ipcMain");
   const resolvedBaseUrl = baseUrl === undefined
@@ -83,7 +85,24 @@ function createAuthRuntime({
   async function logoutCurrentSession() {
     const refreshToken = session && session.refreshToken;
     try {
-      if (refreshToken) await client.logout(refreshToken);
+      try {
+        await onBeforeLoggedOut(session && session.user ? { ...session.user } : null);
+      } catch (error) {
+        // Logout must remain available even when a best-effort profile save is
+        // unavailable. The desktop runtime keeps the last successful cloud
+        // snapshot and will retry on the next authenticated session.
+        console.warn("Renmi pre-logout callback failed; continuing logout:", error && error.message);
+      }
+      if (refreshToken) {
+        try {
+          await client.logout(refreshToken);
+        } catch (error) {
+          // Local logout must still complete when the API is temporarily
+          // unavailable or the refresh token has already expired. The local
+          // session is cleared below and the caller will reopen login.
+          console.warn("Renmi remote logout failed; continuing locally:", error && error.message);
+        }
+      }
     } finally {
       session = null;
       refreshPromise = null;
@@ -94,11 +113,28 @@ function createAuthRuntime({
     return { status: "ok" };
   }
 
-  function finishAuthentication(result) {
+  async function logoutAndOpenAuthWindow() {
+    let result;
+    try {
+      result = await logoutCurrentSession();
+    } finally {
+      try { onLoggedOut(); } catch (error) { console.warn("Renmi logout callback failed:", error.message); }
+      // Reopen login even if a local cleanup operation fails. This keeps the
+      // app usable and avoids ending up with every main window hidden.
+      openAuthWindow();
+    }
+    return result || { status: "ok" };
+  }
+
+  async function finishAuthentication(result) {
     saveSession(result);
+    try {
+      await onAuthenticated(session.user);
+    } catch (error) {
+      console.warn("Renmi auth callback failed:", error && error.message);
+    }
     showMainWindows();
     closeAuthWindow();
-    try { onAuthenticated(session.user); } catch (error) { console.warn("Renmi auth callback failed:", error.message); }
     if (session.user && session.user.role === "admin") openAdminWindow();
     return { status: "ok", user: session.user };
   }
@@ -128,6 +164,24 @@ function createAuthRuntime({
     }
   }
 
+  async function authenticatedRequest(request) {
+    if (!session || !session.user) throw new Error("请先登录");
+    try {
+      return await request(session.accessToken);
+    } catch (error) {
+      if (!error || error.status !== 401 || !session.refreshToken) throw error;
+      if (!refreshPromise) {
+        const refreshToken = session.refreshToken;
+        refreshPromise = client.refresh(refreshToken)
+          .then((result) => saveSession(result))
+          .finally(() => { refreshPromise = null; });
+      }
+      await refreshPromise;
+      if (!session) throw error;
+      return request(session.accessToken);
+    }
+  }
+
   function registerIpc() {
     if (registered || !configured) return;
     registered = true;
@@ -153,8 +207,14 @@ function createAuthRuntime({
     handle("auth:admin-login-verify", async (payload) => finishAuthentication(await client.adminLoginVerify(payload)));
     handle("auth:reset-password-request", (payload) => client.resetPasswordRequest(payload));
     handle("auth:reset-password", async (payload) => finishAuthentication(await client.resetPassword(payload)));
+    handle("auth:get-profile", () => authenticatedRequest((accessToken) => client.getProfile(accessToken)));
+    handle("auth:update-profile", (payload) => authenticatedRequest((accessToken) => client.updateProfile(
+      accessToken,
+      payload.profile,
+      payload.expectedUpdatedAt,
+    )));
     handle("auth:verify-email-change", (payload) => client.verifyEmailChange(payload));
-    handle("auth:logout", () => logoutCurrentSession());
+    handle("auth:logout", () => logoutAndOpenAuthWindow());
     handle("auth:close", () => {
       closeAuthWindow();
       return { status: "ok" };
@@ -167,14 +227,16 @@ function createAuthRuntime({
     handleAdmin("admin:revoke-user-sessions", (payload) => adminRequest((accessToken) => (
       client.adminRevokeUserSessions(accessToken, payload.userId)
     )));
-    handleAdmin("admin:reset-password-request", (payload) => adminRequest((accessToken) => (
-      client.adminResetPasswordRequest(accessToken, payload.userId)
+    handleAdmin("admin:reset-password", (payload) => adminRequest((accessToken) => (
+      client.adminResetPassword(accessToken, payload.userId, payload.password)
     )));
-    handleAdmin("admin:logout", async () => {
-      await logoutCurrentSession();
-      openAuthWindow();
-      return { status: "ok" };
-    });
+    handleAdmin("admin:get-user-profile", (payload) => adminRequest((accessToken) => (
+      client.adminGetUserProfile(accessToken, payload.userId)
+    )));
+    handleAdmin("admin:update-user-profile", (payload) => adminRequest((accessToken) => (
+      client.adminUpdateUserProfile(accessToken, payload.userId, payload.profile, payload.expectedUpdatedAt)
+    )));
+    handleAdmin("admin:logout", () => logoutAndOpenAuthWindow());
     handleAdmin("admin:close", () => {
       closeAdminWindow();
       return { status: "ok" };
@@ -252,7 +314,7 @@ function createAuthRuntime({
       const result = await client.refresh(stored.refreshToken);
       saveSession(result);
       showMainWindows();
-      try { onAuthenticated(session.user); } catch (error) { console.warn("Renmi auth callback failed:", error.message); }
+      try { await onAuthenticated(session.user); } catch (error) { console.warn("Renmi auth callback failed:", error && error.message); }
       if (session.user && session.user.role === "admin") openAdminWindow();
       return true;
     } catch (error) {
@@ -277,10 +339,12 @@ function createAuthRuntime({
       for (const channel of [
         "auth:get-state", "auth:register-request", "auth:register-verify", "auth:login-password",
         "auth:login-code-request", "auth:login-code-verify", "auth:reset-password-request",
-        "auth:admin-login-start", "auth:admin-login-verify", "auth:reset-password",
+        "auth:admin-login-start", "auth:admin-login-verify", "auth:reset-password", "auth:get-profile",
+        "auth:update-profile",
         "auth:verify-email-change", "auth:logout", "auth:close", "admin:list-users",
         "admin:list-audit-logs", "admin:update-user", "admin:revoke-user-sessions",
-        "admin:reset-password-request", "admin:logout", "admin:close",
+        "admin:reset-password", "admin:get-user-profile", "admin:update-user-profile",
+        "admin:logout", "admin:close",
       ]) ipcMain.removeHandler(channel);
       registered = false;
     }
@@ -293,7 +357,11 @@ function createAuthRuntime({
     openAuthWindow,
     openAdminWindow,
     getSession,
-    logout: () => session ? logoutCurrentSession() : { status: "ok" },
+    getProfile: () => authenticatedRequest((accessToken) => client.getProfile(accessToken)),
+    updateProfile: (profile, expectedUpdatedAt) => authenticatedRequest((accessToken) => (
+      client.updateProfile(accessToken, profile, expectedUpdatedAt)
+    )),
+    logout: () => logoutAndOpenAuthWindow(),
     dispose,
   };
 }

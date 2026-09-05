@@ -357,7 +357,7 @@ describe("hit-renderer OS file drop (#459)", () => {
     assert.strictEqual(plays[0][2], 2500);
   });
 
-  it("accepted drop stays silent for drag-only themes (Cloudling) or a busy pet", () => {
+  it("accepted drop stays silent for drag-only themes or a busy pet", () => {
     const noReact = createHarness();
     noReact.apiHandlers.themeConfig({ reactions: { drag: { file: "drag.svg" } } });
     noReact.apiHandlers.dropAccepted();

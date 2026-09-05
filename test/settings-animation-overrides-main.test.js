@@ -40,7 +40,7 @@ class FakeBrowserWindow {
 
 function makeTheme(root, overrides = {}) {
   return {
-    _id: "cloudling",
+    _id: "test-theme",
     _variantId: "default",
     _builtin: true,
     _themeDir: root,
@@ -221,7 +221,7 @@ test("scripted SVG previews do not fall back to direct file URLs as poster image
     assert.strictEqual(preview.previewImageUrl, null);
     assert.strictEqual(preview.previewPosterPending, true);
     assert.ok(preview.fileUrl.startsWith("file:"));
-    assert.ok(preview.previewPosterCacheKey.includes("|cloudling|scripted.svg|"));
+    assert.ok(preview.previewPosterCacheKey.includes("|test-theme|scripted.svg|"));
   } finally {
     harness.cleanup();
   }
@@ -330,7 +330,7 @@ test("animation override cards expose theme-default wide hitbox state separately
   const harness = createRuntimeHarness({
     snapshot: {
       themeOverrides: {
-        cloudling: {
+        "test-theme": {
           hitbox: {
             wide: {
               "scripted.svg": false,
@@ -361,7 +361,7 @@ test("animation override cards expose theme-default transition state separately 
   const harness = createRuntimeHarness({
     snapshot: {
       themeOverrides: {
-        cloudling: {
+        "test-theme": {
           states: {
             thinking: {
               transition: { in: 160, out: 150 },
@@ -396,7 +396,7 @@ test("animation override data builds tier cards with transition override metadat
   const harness = createRuntimeHarness({
     snapshot: {
       themeOverrides: {
-        cloudling: {
+        "test-theme": {
           tiers: {
             workingTiers: {
               "scripted.svg": {
@@ -443,7 +443,7 @@ test("animation override data exposes idle visual options and the current select
   const harness = createRuntimeHarness({
     snapshot: {
       themeOverrides: {},
-      idleVisual: { cloudling: "idle-drift.svg" },
+      idleVisual: { "test-theme": "idle-drift.svg" },
     },
     activeThemeFactory: (root) => makeTheme(root, {
       idleAnimations: [
@@ -457,7 +457,7 @@ test("animation override data exposes idle visual options and the current select
     const info = data.idleDefaultVisual;
 
     assert.ok(info);
-    assert.strictEqual(info.themeId, "cloudling");
+    assert.strictEqual(info.themeId, "test-theme");
     assert.strictEqual(info.selectedFile, "idle-drift.svg");
     assert.deepStrictEqual(info.options, [
       { file: "idle.svg", isThemeDefault: true, label: "Idle" },

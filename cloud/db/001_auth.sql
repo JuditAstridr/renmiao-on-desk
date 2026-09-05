@@ -20,7 +20,9 @@ create table if not exists public.users (
   last_login_at timestamptz,
   suspended_until timestamptz,
   suspension_reason text,
-  deleted_at timestamptz
+  deleted_at timestamptz,
+  profile_state jsonb not null default '{}'::jsonb,
+  profile_updated_at timestamptz not null default now()
 );
 
 create index if not exists users_status_created_idx on public.users(status, created_at desc);
@@ -78,6 +80,12 @@ alter table public.audit_logs enable row level security;
 
 -- Safe to run when upgrading a database created by an earlier draft.
 alter table public.users add column if not exists password_reset_required boolean not null default false;
+
+-- Account-scoped Renmiao state. These columns are intentionally on the user
+-- row so authentication and profile updates share the same durable account,
+-- while the API still exposes profile data only after authentication.
+alter table public.users add column if not exists profile_state jsonb not null default '{}'::jsonb;
+alter table public.users add column if not exists profile_updated_at timestamptz not null default now();
 
 -- An existing database may have been created before this column was added;
 -- the statement above is deliberately idempotent for that upgrade path.

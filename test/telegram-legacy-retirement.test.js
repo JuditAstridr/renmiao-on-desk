@@ -38,7 +38,6 @@ test("retired Telegram runtime modules are absent and have no production importe
   const productionSources = [
     "src/main.js",
     "src/permission.js",
-    "src/settings-tab-telegram-approval.js",
     "src/telegram-approval-runtime-status.js",
     "src/telegram-approval-settings.js",
     "src/telegram-migration-controller.js",

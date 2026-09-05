@@ -44,34 +44,6 @@ const BUILTIN_ACCESSORY_MOTION_PADDING = Object.freeze({
     "clawd-working-debugger.svg": Object.freeze({ left: 1.8, right: 4, bottom: 2 }),
     "clawd-sleeping.svg": Object.freeze({ left: 0.2, top: 5.3, right: 0.2 }),
   }),
-  cloudling: Object.freeze({
-    // Idle is script-driven, so this one is derived rather than sampled: the
-    // cloud group is transformed about (12,12) by rotate(θ)·scale(s) with
-    // |θ| <= MAX_ROT_DEG (20°, since targetRot = eyeOffset.x/EYE_MAX * maxRot
-    // and |eyeOffset.x| <= EYE_MAX) and s in [SCALE_LOW, DIST_MAX_SCALE] =
-    // [0.96, 1.15]. Both ends of the scale matter: the horizontal peak is at
-    // s=1.15, but the bottom peak is at s=0.96 — the halo sits above the pivot,
-    // so shrinking pushes its lower edge down. Sweeping that closed range over
-    // all seven accessories peaks at 10.019/4.942/10.019/3.941 (wizard-hat
-    // horizontally, halo at the bottom). An upper bound cannot be undershot by
-    // a slow or fast machine, which a sampled figure demonstrably was.
-    "cloudling-idle.svg": Object.freeze({ left: 10.1, top: 5, right: 10.1, bottom: 4 }),
-    "cloudling-typing.svg": Object.freeze({ left: 0.5, top: 1.2, right: 0.5, bottom: 0.6 }),
-    // Same pointer-driven transform as idle (maxRotDeg 13, scale in
-    // [0.96, 1.15] about (12,12)), so this is derived, not sampled: a headless
-    // window never engages the pointer, and the sampled figure was the
-    // breath-only subspace. tick.js's POINTER_BRIDGE_STATES includes mini-idle
-    // and pins inside:true, so the full rotation is ordinary runtime, not an
-    // edge case. Seven-accessory peak is 6.205/4.238/6.205/2.281 (wizard-hat
-    // horizontally, halo at the bottom).
-    "cloudling-mini-idle.svg": Object.freeze({ left: 6.3, top: 4.3, right: 6.3, bottom: 2.4 }),
-    // Swept deterministically through the walk's own frameFor() via its seek
-    // hook, over the 127.6s where the 1.16s step cycle and the 4.4s breath
-    // return to phase together, at a step coprime with both so every 1ms phase
-    // is visited — bottom's true peak sits on the contact pulse at q=0.72,
-    // which a period-dividing step steps straight over.
-    "cloudling-mini-crabwalk.svg": Object.freeze({ left: 6.4, top: 3, right: 8, bottom: 3.7 }),
-  }),
 });
 
 function resolveAccessoryDescriptor(theme, state, file) {

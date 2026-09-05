@@ -17,9 +17,26 @@ const PET_TINT_CATALOG = Object.freeze([
 
 const PET_TINT_BY_ID = new Map(PET_TINT_CATALOG.map((entry) => [entry.id, entry]));
 const PET_TINT_IDS = Object.freeze(PET_TINT_CATALOG.map((entry) => entry.id));
-const PET_TINT_THEME_ALIASES = Object.freeze({
-  cloudling: Object.freeze({ vaporwave: "matcha", matcha: "vaporwave" }),
+
+// Theme-owned tint ids intentionally stay outside the global Clawd catalog.
+// They are still validated and resolved through this module, but are exposed
+// only when the owning theme asks for them. This keeps Clawd's existing
+// Customize choices unchanged while allowing a built-in theme to describe a
+// different color vocabulary.
+const THEME_PET_TINT_CATALOG = Object.freeze({
+  renmi: Object.freeze([
+    Object.freeze({ id: "cream", labelKey: "tintCream" }),
+    Object.freeze({ id: "light-gray", labelKey: "tintLightGray" }),
+    Object.freeze({ id: "light-brown", labelKey: "tintLightBrown" }),
+  ]),
 });
+
+const THEME_PET_TINT_BY_THEME = new Map(
+  Object.entries(THEME_PET_TINT_CATALOG).map(([themeId, entries]) => [
+    themeId,
+    new Map(entries.map((entry) => [entry.id, entry])),
+  ])
+);
 
 function freezeAccessory({ id, labelKey, file = null, viewBox = null, widthScale = 1, offsetY = 0, themeWidthScales = null }) {
   return Object.freeze({
@@ -51,6 +68,13 @@ function isPetTintId(value) {
   return typeof value === "string" && PET_TINT_BY_ID.has(value);
 }
 
+function isPetTintIdForTheme(value, themeId) {
+  if (isPetTintId(value)) return true;
+  if (typeof themeId !== "string" || !themeId) return false;
+  const themeCatalog = THEME_PET_TINT_BY_THEME.get(themeId);
+  return !!(themeCatalog && themeCatalog.has(value));
+}
+
 function getPetTint(value) {
   return PET_TINT_BY_ID.get(value) || PET_TINT_BY_ID.get("none");
 }
@@ -59,7 +83,9 @@ function getPetTintIdForTheme(selections, themeId) {
   if (typeof selections === "string") return getPetTint(selections).id;
   if (!selections || typeof selections !== "object" || Array.isArray(selections)) return "none";
   if (typeof themeId !== "string" || !themeId) return "none";
-  return getPetTint(selections[themeId]).id;
+  const value = selections[themeId];
+  if (isPetTintId(value)) return value;
+  return isPetTintIdForTheme(value, themeId) ? value : "none";
 }
 
 function isPetTintSupportedForTheme(theme) {
@@ -68,16 +94,52 @@ function isPetTintSupportedForTheme(theme) {
 }
 
 function resolvePetTintPayload(value, theme = null) {
-  const entry = getPetTint(value);
   if (!isPetTintSupportedForTheme(theme)) return { id: "none", filter: "" };
-  const themeAliases = theme && theme._builtin === true ? PET_TINT_THEME_ALIASES[theme._id] : null;
-  const recipeId = (themeAliases && themeAliases[entry.id]) || entry.id;
-  const recipe = getPetTint(recipeId);
-  return { id: entry.id, filter: recipe.filter };
+  const entry = getPetTint(value);
+  if (entry.id !== "none" || value === "none") {
+    return { id: entry.id, filter: entry.filter };
+  }
+  const themeId = theme && theme._id;
+  if (isPetTintIdForTheme(value, themeId)) return { id: value, filter: "" };
+  return { id: "none", filter: "" };
 }
 
-function listPetTintOptions() {
-  return PET_TINT_CATALOG.map(({ id, labelKey }) => ({ id, labelKey }));
+function listPetTintOptions(themeId = null) {
+  const options = PET_TINT_CATALOG.map(({ id, labelKey }) => ({ id, labelKey }));
+  const themeCatalog = THEME_PET_TINT_BY_THEME.get(themeId);
+  if (themeCatalog) {
+    options.push(...[...themeCatalog.values()].map(({ id, labelKey }) => ({ id, labelKey })));
+  }
+  return options;
+}
+
+function getPetTintSaturationConfig(theme) {
+  const config = theme
+    && theme.customization
+    && theme.customization.petTintSaturation;
+  if (!config || typeof config !== "object" || config.enabled !== true) return null;
+  const min = Number.isFinite(config.min) ? config.min : 0;
+  const max = Number.isFinite(config.max) ? config.max : 200;
+  const step = Number.isFinite(config.step) && config.step > 0 ? config.step : 1;
+  const defaultValue = Number.isFinite(config.default)
+    ? config.default
+    : 100;
+  if (min < 0 || max > 200 || min >= max || defaultValue < min || defaultValue > max) return null;
+  return { enabled: true, min, max, step, default: defaultValue };
+}
+
+function getPetTintSaturationForTheme(selections, theme) {
+  const config = getPetTintSaturationConfig(theme);
+  if (!config) return 100;
+  const themeId = theme && theme._id;
+  const value = selections
+    && typeof selections === "object"
+    && !Array.isArray(selections)
+    && typeof themeId === "string"
+    ? selections[themeId]
+    : undefined;
+  if (!Number.isFinite(value) || value < config.min || value > config.max) return config.default;
+  return value;
 }
 
 function isPetAccessoryId(value) {
@@ -137,11 +199,15 @@ module.exports = {
   PET_TINT_CATALOG,
   PET_TINT_IDS,
   isPetTintId,
+  isPetTintIdForTheme,
+  THEME_PET_TINT_CATALOG,
   getPetTint,
   getPetTintIdForTheme,
   isPetTintSupportedForTheme,
   resolvePetTintPayload,
   listPetTintOptions,
+  getPetTintSaturationConfig,
+  getPetTintSaturationForTheme,
   PET_ACCESSORY_CATALOG,
   PET_ACCESSORY_IDS,
   isPetAccessoryId,

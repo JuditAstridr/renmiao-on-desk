@@ -485,6 +485,19 @@ function createStudyRuntime(options = {}) {
   return {
     getSnapshot: snapshot,
 
+    // Replace the local working copy with an account-scoped cloud snapshot.
+    // This is used on login and logout so one desktop installation can safely
+    // serve multiple accounts without leaking tasks or points between them.
+    hydrate(rawState) {
+      stopTimer();
+      state = sanitizeState(rawState);
+      lastTickAt = now();
+      if (state.pomodoro.running && state.pomodoro.phase !== "idle") ensureTimer();
+      persistNow();
+      emitPhase();
+      return snapshot();
+    },
+
     setView(patch) {
       state.view = sanitizeView({ ...state.view, ...(patch || {}) });
       persistNow();

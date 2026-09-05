@@ -9,6 +9,7 @@ const FORMAT_VERSION = 1;
 const MUTATING_METHODS = new Set([
   "insertUser",
   "updateUser",
+  "updateUserProfile",
   "insertChallenge",
   "updateChallenge",
   "consumeActiveChallenges",

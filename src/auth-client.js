@@ -30,6 +30,7 @@ function createAuthClient({ baseUrl, fetchImpl = globalThis.fetch } = {}) {
       const error = new Error(data.error?.message || `认证服务请求失败（${response.status}）`);
       error.code = data.error?.code || "auth_request_failed";
       error.status = response.status;
+      error.details = data.error?.details;
       throw error;
     }
     return data;
@@ -64,9 +65,9 @@ function createAuthClient({ baseUrl, fetchImpl = globalThis.fetch } = {}) {
       `/v1/admin/users/${encodeURIComponent(userId)}/sessions/revoke`,
       { method: "POST", body: {}, accessToken },
     ),
-    adminResetPasswordRequest: (accessToken, userId) => request(
+    adminResetPassword: (accessToken, userId, password) => request(
       `/v1/admin/users/${encodeURIComponent(userId)}/password/reset`,
-      { method: "POST", body: {}, accessToken },
+      { method: "POST", body: { password }, accessToken },
     ),
     resetPasswordRequest: (payload) => request("/v1/auth/password/reset/request", { body: payload }),
     resetPassword: (payload) => request("/v1/auth/password/reset", { body: payload }),
@@ -74,6 +75,19 @@ function createAuthClient({ baseUrl, fetchImpl = globalThis.fetch } = {}) {
     refresh: (refreshToken) => request("/v1/auth/token/refresh", { body: { refreshToken } }),
     logout: (refreshToken) => request("/v1/auth/logout", { body: { refreshToken } }),
     me: (accessToken) => request("/v1/me", { method: "GET", accessToken }),
+    getProfile: (accessToken) => request("/v1/me/profile", { method: "GET", accessToken }),
+    updateProfile: (accessToken, profile, expectedUpdatedAt) => request(
+      "/v1/me/profile",
+      { method: "PATCH", body: { profile, expectedUpdatedAt }, accessToken },
+    ),
+    adminGetUserProfile: (accessToken, userId) => request(
+      `/v1/admin/users/${encodeURIComponent(userId)}/profile`,
+      { method: "GET", accessToken },
+    ),
+    adminUpdateUserProfile: (accessToken, userId, profile, expectedUpdatedAt) => request(
+      `/v1/admin/users/${encodeURIComponent(userId)}/profile`,
+      { method: "PATCH", body: { profile, expectedUpdatedAt }, accessToken },
+    ),
   };
 }
 

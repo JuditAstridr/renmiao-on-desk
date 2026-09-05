@@ -54,11 +54,11 @@ describe("pet customization catalog", () => {
   it("resolves independent per-theme choices and accepts the short-lived legacy scalar", () => {
     const selections = {
       clawd: "matcha",
-      cloudling: "vaporwave",
+      "other-theme": "vaporwave",
       calico: "custom",
     };
     assert.strictEqual(getPetTintIdForTheme(selections, "clawd"), "matcha");
-    assert.strictEqual(getPetTintIdForTheme(selections, "cloudling"), "vaporwave");
+    assert.strictEqual(getPetTintIdForTheme(selections, "other-theme"), "vaporwave");
     assert.strictEqual(getPetTintIdForTheme(selections, "calico"), "none");
     assert.strictEqual(getPetTintIdForTheme(selections, "missing"), "none");
     assert.strictEqual(getPetTintIdForTheme("gold", "clawd"), "gold");
@@ -74,27 +74,18 @@ describe("pet customization catalog", () => {
     );
   });
 
-  it("keeps semantic labels stable while swapping Cloudling's vaporwave and matcha recipes", () => {
+  it("keeps semantic labels stable while resolving canonical tint recipes", () => {
     const clawd = { _id: "clawd", _builtin: true, _capabilities: { petTint: true } };
-    const cloudling = { _id: "cloudling", _builtin: true, _capabilities: { petTint: true } };
 
     assert.strictEqual(isPetTintSupportedForTheme(clawd), true);
     assert.deepStrictEqual(resolvePetTintPayload("vaporwave", clawd), {
       id: "vaporwave",
       filter: getPetTint("vaporwave").filter,
     });
-    assert.deepStrictEqual(resolvePetTintPayload("vaporwave", cloudling), {
-      id: "vaporwave",
-      filter: getPetTint("matcha").filter,
-    });
-    assert.deepStrictEqual(resolvePetTintPayload("matcha", cloudling), {
-      id: "matcha",
-      filter: getPetTint("vaporwave").filter,
-    });
   });
 
-  it("does not apply built-in aliases to an untrusted theme with the same id", () => {
-    const external = { _id: "cloudling", _builtin: false, _capabilities: { petTint: true } };
+  it("uses canonical tint filters for external themes", () => {
+    const external = { _id: "other-theme", _builtin: false, _capabilities: { petTint: true } };
     assert.strictEqual(
       resolvePetTintPayload("vaporwave", external).filter,
       getPetTint("vaporwave").filter
@@ -188,11 +179,6 @@ describe("pet customization catalog", () => {
       _builtin: true,
       _capabilities: { accessories: true },
     };
-    const builtinCloudling = {
-      _id: "cloudling",
-      _builtin: true,
-      _capabilities: { accessories: true },
-    };
     const externalClawd = {
       _id: "clawd",
       _builtin: false,
@@ -200,7 +186,6 @@ describe("pet customization catalog", () => {
     };
 
     assert.strictEqual(resolvePetAccessoryPayload("halo", builtinClawd).widthScale, 0.9);
-    assert.strictEqual(resolvePetAccessoryPayload("halo", builtinCloudling).widthScale, 1.15);
     assert.strictEqual(resolvePetAccessoryPayload("halo", externalClawd).widthScale, 1.15);
     assert.strictEqual(resolvePetAccessoryPayload("wizard-hat", builtinClawd).widthScale, 0.95);
   });
@@ -208,11 +193,11 @@ describe("pet customization catalog", () => {
   it("resolves accessories per theme without accepting the discarded global scalar shape", () => {
     const selections = {
       clawd: "wizard-hat",
-      cloudling: "halo",
+      "other-theme": "halo",
       calico: "seasonal",
     };
     assert.strictEqual(getPetAccessoryIdForTheme(selections, "clawd"), "wizard-hat");
-    assert.strictEqual(getPetAccessoryIdForTheme(selections, "cloudling"), "halo");
+    assert.strictEqual(getPetAccessoryIdForTheme(selections, "other-theme"), "halo");
     assert.strictEqual(getPetAccessoryIdForTheme(selections, "calico"), "none");
     assert.strictEqual(getPetAccessoryIdForTheme(selections, "missing"), "none");
     assert.strictEqual(getPetAccessoryIdForTheme("wizard-hat", "clawd"), "none");

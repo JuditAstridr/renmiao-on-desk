@@ -15,8 +15,6 @@ let idleLookReturnTimer = null;
 let yawnDelayTimer = null;     // tracked setTimeout for yawn/idle-look transitions
 let idleWasActive = false;
 let lastEyeDx = 0, lastEyeDy = 0;
-let lastPointerBridgeKey = null;
-let lastPointerBridgePayload = null;
 let mainTickTimer = null;
 let mainTickActive = false;
 let nextMainTickAt = 0;
@@ -42,9 +40,7 @@ const LOW_POWER_MINI_IDLE_TICK_MS = 2000;
 const REACTION_TICK_MS = 500;
 const BACKGROUND_TICK_MS = 750;
 const RECENT_MOUSE_MS = 2000;
-const POINTER_BRIDGE_STATES = new Set(["idle", "mini-idle", "mini-peek"]);
 const LOW_POWER_PAUSE_STATES = new Set(["idle", "mini-idle", "dozing"]);
-const POINTER_BRIDGE_EPSILON = 0.001;
 
 // ── Theme-driven state (refreshed on hot theme switch) ──
 let theme = null;
@@ -63,7 +59,7 @@ function refreshTheme() {
   IDLE_ANIMS = (theme.idleAnimations || []).map(a => ({ svg: a.file, duration: a.duration }));
   SLEEP_MODE = theme.sleepSequence && theme.sleepSequence.mode === "direct" ? "direct" : "full";
   // Precompute dizzy support so the per-tick spin detector can gate cheaply and skip all
-  // its math on themes that don't define a real dizzy state (e.g. Calico, Cloudling).
+  // its math on themes that don't define a real dizzy state.
   THEME_SUPPORTS_DIZZY = !!(theme.states && Array.isArray(theme.states.dizzy) && theme.states.dizzy.length > 0
     && theme.timings && theme.timings.autoReturn
     && Number.isFinite(theme.timings.autoReturn.dizzy) && theme.timings.autoReturn.dizzy > 0);
@@ -129,43 +125,6 @@ function scheduleSoon(maxDelay = BOOST_TICK_MS) {
   if (!mainTickTimer || nextMainTickAt - Date.now() > safeDelay) {
     scheduleNextTick(safeDelay);
   }
-}
-
-function getPointerBridgeKey() {
-  const state = ctx.currentState;
-  if (!POINTER_BRIDGE_STATES.has(state)) return null;
-  return `${state}|${ctx.currentSvg || ""}`;
-}
-
-function pointerBridgePayloadChanged(key, payload) {
-  if (key !== lastPointerBridgeKey || !lastPointerBridgePayload) return true;
-  return payload.inside !== lastPointerBridgePayload.inside
-    || Math.abs(payload.x - lastPointerBridgePayload.x) > POINTER_BRIDGE_EPSILON
-    || Math.abs(payload.y - lastPointerBridgePayload.y) > POINTER_BRIDGE_EPSILON;
-}
-
-function sendPointerBridge(cursor, bounds) {
-  if (typeof ctx.getAssetPointerPayload !== "function") return;
-  if (shouldSuppressPassiveIpc()) return;
-  const key = getPointerBridgeKey();
-  if (!key || !cursor || !bounds) return;
-  if (ctx.currentState !== "mini-peek" && Number(ctx.eyePauseUntil) > Date.now()) return;
-
-  const raw = ctx.getAssetPointerPayload(bounds, cursor);
-  if (!raw || !Number.isFinite(raw.x) || !Number.isFinite(raw.y)) return;
-
-  const payload = {
-    x: raw.x,
-    y: raw.y,
-    // Clawd polls the global cursor, so pointer-aware Cloudling idle states
-    // should keep following even when the cursor is outside the SVG art rect.
-    inside: true,
-  };
-  if (!pointerBridgePayloadChanged(key, payload)) return;
-
-  lastPointerBridgeKey = key;
-  lastPointerBridgePayload = payload;
-  ctx.sendToRenderer("cloudling-pointer", payload);
 }
 
 function shouldSuppressPassiveIpc() {
@@ -241,12 +200,8 @@ function runMainTickOnce() {
     lastCursorY = cursor.y;
 
     // ── Cursor-over-pet tracking (for mini peek + eye tracking, NOT for input routing) ──
-    const pointerBridgeKey = getPointerBridgeKey();
     const suppressPassiveIpc = shouldSuppressPassiveIpc();
-    const needsPointerBridgeBounds = !!pointerBridgeKey
-      && !suppressPassiveIpc
-      && (moved || ctx.forceEyeResend || pointerBridgeKey !== lastPointerBridgeKey);
-    const needsBounds = ctx.miniMode || moved || ctx.forceEyeResend || miniIdleNow || needsPointerBridgeBounds;
+    const needsBounds = ctx.miniMode || moved || ctx.forceEyeResend || miniIdleNow;
     let bounds = null;
     if (needsBounds) {
       bounds = typeof ctx.getPetWindowBounds === "function"
@@ -281,8 +236,6 @@ function runMainTickOnce() {
         }
       }
     }
-
-    sendPointerBridge(cursor, bounds);
 
     if (!idleNow && !miniIdleNow && !roamNow) return nextDelay();
 
@@ -430,7 +383,7 @@ function runMainTickOnce() {
     // --- Spin detection: detect sustained circling around the pet to trigger dizzy ---
     // Only active during normal idle eye-follow (not mini-idle, not idle-look), and only
     // when the active theme actually supports dizzy (THEME_SUPPORTS_DIZZY) — so unsupported
-    // themes (Calico, Cloudling) skip the math entirely and keep normal idle behavior.
+    // themes without a dizzy state skip the math entirely and keep normal idle behavior.
     //
     // We accumulate SIGNED angular displacement: circling one way keeps the same sign and
     // builds toward the threshold, while back-and-forth wiggling cancels out. The meter
@@ -493,8 +446,6 @@ function cleanup() {
   idleWasActive = false;
   lastEyeDx = 0;
   lastEyeDy = 0;
-  lastPointerBridgeKey = null;
-  lastPointerBridgePayload = null;
   lastCursorAngle = null;
   accumulatedSpin = 0;
   dizzyCooldownUntil = 0;

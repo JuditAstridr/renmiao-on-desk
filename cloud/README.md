@@ -27,6 +27,10 @@ with a configuration error instead of exposing codes locally.
 The admin console is available at `http://127.0.0.1:<the-selected-port>/admin/`
 while the local service is running.
 
+In the administrator console, `重置密码` opens a form for the administrator
+to set a new password directly. It does not send a code to the user's email;
+the API hashes the new password and revokes the user's existing sessions.
+
 ## Cloud deployment
 
 1. Create a managed PostgreSQL/Supabase project.

@@ -42,7 +42,6 @@ html, body {
 #pet-motion-stage,
 #pet-asset-direction-stage,
 #pet-media-layer,
-#pet-skin-layer,
 #pet-accessory-layer,
 #pet-effect-stage,
 #pet-particle-layer {
@@ -73,16 +72,6 @@ html, body {
 
 #pet-media-layer {
   overflow: visible;
-}
-
-.pet-skin-layer {
-  display: none;
-  overflow: visible;
-}
-
-#pet-media-layer.skin-mode > .clawd-object,
-#pet-media-layer.skin-mode > .clawd-img {
-  visibility: hidden;
 }
 
 #clawd {

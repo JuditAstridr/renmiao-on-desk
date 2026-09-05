@@ -421,9 +421,9 @@ describe("settings-effect-router", () => {
       routerOptions: { getActiveTheme: () => clawd },
     });
 
-    emit({ petTint: { clawd: "gold", cloudling: "matcha" } });
+    emit({ petTint: { clawd: "gold", "other-theme": "matcha" } });
     assert.deepStrictEqual(calls, [
-      ["updateMirrors", { petTint: { clawd: "gold", cloudling: "matcha" } }],
+      ["updateMirrors", { petTint: { clawd: "gold", "other-theme": "matcha" } }],
       ["sendToRenderer", "pet-tint-change", {
         id: "gold",
         filter: "sepia(0.8) saturate(2.2) hue-rotate(-18deg) brightness(1.05)",
@@ -431,9 +431,9 @@ describe("settings-effect-router", () => {
     ]);
 
     calls.length = 0;
-    emit({ petTint: { cloudling: "vaporwave" } });
+    emit({ petTint: { "other-theme": "vaporwave" } });
     assert.deepStrictEqual(calls, [
-      ["updateMirrors", { petTint: { cloudling: "vaporwave" } }],
+      ["updateMirrors", { petTint: { "other-theme": "vaporwave" } }],
       ["sendToRenderer", "pet-tint-change", { id: "none", filter: "" }],
     ]);
   });
@@ -457,17 +457,17 @@ describe("settings-effect-router", () => {
 
     calls.length = 0;
     activeTheme = {
-      _id: "cloudling",
-      _builtin: true,
+      _id: "other-theme",
+      _builtin: false,
       _capabilities: { petTint: true },
     };
-    emit({ petTint: { cloudling: "vaporwave" } });
+    emit({ petTint: { "other-theme": "vaporwave" } });
     assert.deepStrictEqual(calls[1], [
       "sendToRenderer",
       "pet-tint-change",
       {
         id: "vaporwave",
-        filter: "hue-rotate(75deg) saturate(1.25) brightness(1)",
+        filter: "hue-rotate(265deg) saturate(1.6) contrast(1.05)",
       },
     ]);
   });
@@ -482,9 +482,9 @@ describe("settings-effect-router", () => {
       routerOptions: { getActiveTheme: () => activeTheme },
     });
 
-    emit({ petAccessory: { clawd: "wizard-hat", cloudling: "halo" } });
+    emit({ petAccessory: { clawd: "wizard-hat", "other-theme": "halo" } });
     assert.deepStrictEqual(calls, [
-      ["updateMirrors", { petAccessory: { clawd: "wizard-hat", cloudling: "halo" } }],
+      ["updateMirrors", { petAccessory: { clawd: "wizard-hat", "other-theme": "halo" } }],
       ["sendToRenderer", "pet-accessory-change", {
         id: "wizard-hat",
         assetFile: "wizard-hat.svg",

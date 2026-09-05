@@ -1,0 +1,84 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1254 1254" width="1254" height="1254">
+  <defs>
+    <style><![CDATA[
+      #head-js { transition: transform 0.18s ease-out; }
+      #eyes-js { transition: transform 0.16s ease-out; }
+      .eyes-blink {
+        transform-box: fill-box;
+        transform-origin: center;
+        animation: renmi-mini-blink 4.8s infinite ease-in-out;
+      }
+      .mini-motion {
+        transform-box: fill-box;
+        transform-origin: center;
+        animation: renmi-mini-breathe 3.2s infinite ease-in-out;
+      }
+      @keyframes renmi-mini-breathe {
+        0%, 100% { transform: translateY(0) scale(1, 1); }
+        50% { transform: translateY(3px) scale(1.012, 0.99); }
+      }
+      @keyframes renmi-mini-blink {
+        0%, 86%, 100% { transform: scaleY(1); }
+        89% { transform: scaleY(0.08); }
+        92% { transform: scaleY(1); }
+      }
+    ]]></style>
+    <filter id="default-white-pixels" color-interpolation-filters="sRGB">
+      <feColorMatrix type="matrix" values="
+        .2126 .7152 .0722 0 0
+        .2126 .7152 .0722 0 0
+        .2126 .7152 .0722 0 0
+        0 0 0 1 0" />
+      <feComponentTransfer>
+        <feFuncR type="linear" slope="20" intercept="-19" />
+        <feFuncG type="linear" slope="20" intercept="-19" />
+        <feFuncB type="linear" slope="20" intercept="-19" />
+      </feComponentTransfer>
+    </filter>
+    <mask id="default-white-mask" maskUnits="userSpaceOnUse" x="0" y="0" width="1254" height="1254" mask-type="luminance">
+      <image href="renmi.png" x="0" y="0" width="1254" height="1254" filter="url(#default-white-pixels)" />
+    </mask>
+  </defs>
+
+  <!-- Keep the complete transparent-background cat, scaled into a compact
+       square. This avoids introducing a hard crop or a duplicated tail. -->
+  <g transform="translate(175.56 175.56) scale(0.72)">
+    <g class="mini-motion">
+      <g id="head-js">
+        <image href="renmi.png" x="0" y="0" width="1254" height="1254" />
+        <rect class="renmi-tint-fill" x="0" y="0" width="1254" height="1254" fill="transparent" mask="url(#default-white-mask)" />
+        <!-- Rebuild the pupils above the raster so mini-idle keeps mouse tracking. -->
+        <g id="eyes-js">
+          <g class="eyes-blink">
+            <g class="renmi-eye-cover" fill="#ffffff">
+              <ellipse cx="477" cy="421" rx="52" ry="48" />
+              <ellipse cx="698" cy="421" rx="52" ry="48" />
+            </g>
+            <g fill="#5a3a2f">
+              <ellipse cx="477" cy="421" rx="31" ry="33" />
+              <ellipse cx="698" cy="421" rx="31" ry="33" />
+            </g>
+            <g fill="#ffffff" opacity="0.82">
+              <ellipse cx="467" cy="410" rx="7" ry="8" />
+              <ellipse cx="688" cy="410" rx="7" ry="8" />
+            </g>
+          </g>
+        </g>
+      </g>
+    </g>
+  </g>
+
+  <script type="application/ecmascript"><![CDATA[
+    (() => {
+      const fills = Array.from(document.querySelectorAll(".renmi-tint-fill"));
+      const covers = Array.from(document.querySelectorAll(".renmi-eye-cover"));
+      const colorPattern = /^#[0-9a-f]{6}$/i;
+      window.__clawdSetPetTint = (color) => {
+        const valid = typeof color === "string" && colorPattern.test(color);
+        const next = valid ? color : "transparent";
+        for (const fill of fills) fill.setAttribute("fill", next);
+        for (const cover of covers) cover.setAttribute("fill", valid ? color : "#ffffff");
+      };
+    })();
+  ]]></script>
+</svg>

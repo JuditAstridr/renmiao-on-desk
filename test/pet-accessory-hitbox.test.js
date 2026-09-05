@@ -100,7 +100,7 @@ describe("accessory-aware hit boxes", () => {
     // This is the structural half: a followTarget accessory rides the animation
     // and needs an envelope, a static one does not, and an envelope for a file
     // that no longer animates is dead weight nobody would notice.
-    for (const themeId of ["clawd", "cloudling"]) {
+    for (const themeId of ["clawd"]) {
       const theme = themeLoader.loadTheme(themeId, { strict: true });
       const files = (theme.customization.accessories || {}).files || {};
       const animated = Object.keys(files).filter((file) => files[file] && files[file].followTarget);

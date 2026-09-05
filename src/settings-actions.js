@@ -66,7 +66,7 @@ const {
   normalizeTextScaleByDisplay,
 } = require("./text-scale");
 const {
-  isPetTintId,
+  isPetTintIdForTheme,
   isPetAccessoryId,
 } = require("./pet-customization-catalog");
 const { isValidDisplaySnapshot } = require("./work-area");
@@ -337,12 +337,32 @@ const updateRegistry = {
     for (const [themeId, tintId] of Object.entries(value)) {
       if (
         !/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$/.test(themeId)
-        || !isPetTintId(tintId)
+        || !isPetTintIdForTheme(tintId, themeId)
         || tintId === "none"
       ) {
         return {
           status: "error",
           message: `petTint entry "${themeId}" must map a safe theme id to a non-default catalog tint id`,
+        };
+      }
+    }
+    return { status: "ok" };
+  },
+  petTintSaturation(value) {
+    if (!value || typeof value !== "object" || Array.isArray(value)) {
+      return { status: "error", message: "petTintSaturation must be a theme-to-number object" };
+    }
+    for (const [themeId, saturation] of Object.entries(value)) {
+      if (
+        !/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$/.test(themeId)
+        || typeof saturation !== "number"
+        || !Number.isFinite(saturation)
+        || saturation < 0
+        || saturation > 200
+      ) {
+        return {
+          status: "error",
+          message: `petTintSaturation entry "${themeId}" must map a safe theme id to a number between 0 and 200`,
         };
       }
     }
@@ -1056,6 +1076,7 @@ async function removeTheme(payload, deps) {
   const currentVariantMap = snapshot.themeVariant || {};
   const currentIdleVisual = snapshot.idleVisual || {};
   const currentPetTint = snapshot.petTint || {};
+  const currentPetTintSaturation = snapshot.petTintSaturation || {};
   const currentPetAccessory = snapshot.petAccessory || {};
   const currentHolidayAccessoryEnabled = snapshot.holidayAccessoryEnabled || {};
   const nextCommit = {};
@@ -1078,6 +1099,11 @@ async function removeTheme(payload, deps) {
     const nextPetTint = { ...currentPetTint };
     delete nextPetTint[themeId];
     nextCommit.petTint = nextPetTint;
+  }
+  if (currentPetTintSaturation[themeId] !== undefined) {
+    const nextPetTintSaturation = { ...currentPetTintSaturation };
+    delete nextPetTintSaturation[themeId];
+    nextCommit.petTintSaturation = nextPetTintSaturation;
   }
   if (currentPetAccessory[themeId] !== undefined) {
     const nextPetAccessory = { ...currentPetAccessory };

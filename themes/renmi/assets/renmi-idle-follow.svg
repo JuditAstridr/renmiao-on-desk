@@ -20,9 +20,25 @@
       <image href="renmi.png" x="0" y="0" width="1254" height="1254" />
     </mask>
 
-    <clipPath id="body-clip" clipPathUnits="userSpaceOnUse">
-      <path d="M 0 588 H 1254 V 1254 H 0 Z" />
-    </clipPath>
+    <!-- This mask is based on the authored default artwork, not on the
+         current tint. Only its near-white regions are recolored; the brown
+         outline, pink details, eyes and beige shading stay untouched. -->
+    <filter id="default-white-pixels" color-interpolation-filters="sRGB">
+      <feColorMatrix type="matrix" values="
+        .2126 .7152 .0722 0 0
+        .2126 .7152 .0722 0 0
+        .2126 .7152 .0722 0 0
+        0 0 0 1 0" />
+      <feComponentTransfer>
+        <feFuncR type="linear" slope="20" intercept="-19" />
+        <feFuncG type="linear" slope="20" intercept="-19" />
+        <feFuncB type="linear" slope="20" intercept="-19" />
+      </feComponentTransfer>
+    </filter>
+
+    <mask id="default-white-mask" maskUnits="userSpaceOnUse" x="0" y="0" width="1254" height="1254" mask-type="luminance">
+      <image href="renmi.png" x="0" y="0" width="1254" height="1254" filter="url(#default-white-pixels)" />
+    </mask>
 
     <!-- The real rear-half tail section: it crosses the tail at the middle
          bend and continues around the full curl to the lower tip. The inner
@@ -63,7 +79,15 @@
     </clipPath>
 
     <clipPath id="head-overlap-clip" clipPathUnits="userSpaceOnUse">
-      <rect x="180" y="0" width="900" height="830" />
+      <!-- Keep the moving head above the curved neck seam. A rectangular
+           bottom edge becomes visible when the head tilts; this arc follows
+           the natural underside shown by the original artwork. -->
+      <path d="M 180 0 H 1080 V 550
+        C 989 593 942 618 869 641
+        C 790 666 708 680 627 681
+        C 551 680 471 666 390 641
+        C 317 618 275 596 196 560
+        C 190 557 185 553 180 548 Z" />
     </clipPath>
 
     <clipPath id="neck-front-clip" clipPathUnits="userSpaceOnUse">
@@ -79,44 +103,34 @@
     </clipPath>
   </defs>
 
-  <!-- Original body raster. -->
-  <image href="renmi.png" x="0" y="0" width="1254" height="1254" clip-path="url(#body-clip)" />
-
-  <!-- White underlay removes the old baked tail edge and keeps the tail
-       continuous while its visible rear contour moves. It is fenced by the
-       original alpha, so no rectangular or opaque background is introduced. -->
-  <g mask="url(#original-silhouette-mask)">
-    <path d="M 940 828
-      C 1000 808 1063 829 1098 875
-      C 1130 918 1138 981 1125 1038
-      C 1112 1090 1081 1140 1039 1172
-      C 997 1204 945 1222 891 1222
-      C 845 1221 806 1209 779 1184
-      C 755 1162 744 1131 751 1095
-      C 759 1053 790 1029 832 1016
-      C 874 1004 922 999 944 979
-      C 970 956 974 928 970 900
-      C 967 870 957 843 940 828 Z" fill="#ffffff" />
-  </g>
+  <!-- Draw only the stationary body and paws here. The original raster's
+       tail is deliberately excluded; otherwise it remains underneath the
+       moving distal tail and produces a duplicate tail during a wag. -->
+  <image href="renmi.png" x="0" y="0" width="1254" height="1254" clip-path="url(#torso-front-clip)" />
+  <rect class="renmi-tint-fill" x="0" y="0" width="1254" height="1254" fill="transparent" clip-path="url(#torso-front-clip)" mask="url(#default-white-mask)" />
 
   <!-- Only the long, real rear half of the curled tail is moved. The source
        PNG remains transparent outside the clipped tail pixels. -->
   <g>
     <g id="tail-swing-js">
       <image href="renmi.png" x="0" y="0" width="1254" height="1254" clip-path="url(#tail-distal-clip)" />
+      <rect class="renmi-tint-fill" x="0" y="0" width="1254" height="1254" fill="transparent" clip-path="url(#tail-distal-clip)" mask="url(#default-white-mask)" />
     </g>
   </g>
 
   <!-- Restore the fixed connection and body foreground after the moving
        layer, preventing the body outline from being cut or carried away. -->
   <image href="renmi.png" x="0" y="0" width="1254" height="1254" clip-path="url(#tail-root-cover-clip)" />
+  <rect class="renmi-tint-fill" x="0" y="0" width="1254" height="1254" fill="transparent" clip-path="url(#tail-root-cover-clip)" mask="url(#default-white-mask)" />
   <image href="renmi.png" x="0" y="0" width="1254" height="1254" clip-path="url(#torso-front-clip)" />
+  <rect class="renmi-tint-fill" x="0" y="0" width="1254" height="1254" fill="transparent" clip-path="url(#torso-front-clip)" mask="url(#default-white-mask)" />
 
   <!-- Head, eyes and blink. The head keeps only its local overlap clip: the
        fixed full-silhouette mask would cut off the ears and crown after the
        head tilts. The neck/body foreground below still restores that seam. -->
   <g id="head-js">
     <image href="renmi.png" x="0" y="0" width="1254" height="1254" clip-path="url(#head-overlap-clip)" />
+    <rect class="renmi-tint-fill" x="0" y="0" width="1254" height="1254" fill="transparent" clip-path="url(#head-overlap-clip)" mask="url(#default-white-mask)" />
     <g fill="#ffffff">
       <ellipse cx="477" cy="421" rx="52" ry="48" />
       <ellipse cx="698" cy="421" rx="52" ry="48" />
@@ -135,6 +149,7 @@
     </g>
   </g>
   <image href="renmi.png" x="0" y="0" width="1254" height="1254" clip-path="url(#neck-front-clip)" />
+  <rect class="renmi-tint-fill" x="0" y="0" width="1254" height="1254" fill="transparent" clip-path="url(#neck-front-clip)" mask="url(#default-white-mask)" />
 
   <!-- A single deadline controls each rest. RAF is used only while the
        1.9-second action is active. Visibility and low-power recovery cancel
@@ -142,6 +157,15 @@
        stalls after timer throttling. -->
   <script type="application/ecmascript"><![CDATA[
     (() => {
+      const tintFills = Array.from(document.querySelectorAll(".renmi-tint-fill"));
+      const tintColorPattern = /^#[0-9a-f]{6}$/i;
+      window.__clawdSetPetTint = (color) => {
+        const next = typeof color === "string" && tintColorPattern.test(color)
+          ? color
+          : "transparent";
+        for (const fill of tintFills) fill.setAttribute("fill", next);
+      };
+
       const tail = document.getElementById("tail-swing-js");
       if (!tail) return;
 

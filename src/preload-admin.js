@@ -7,7 +7,7 @@ contextBridge.exposeInMainWorld("adminAPI", {
   listAuditLogs: (payload) => ipcRenderer.invoke("admin:list-audit-logs", payload),
   updateUser: (payload) => ipcRenderer.invoke("admin:update-user", payload),
   revokeUserSessions: (payload) => ipcRenderer.invoke("admin:revoke-user-sessions", payload),
-  resetPasswordRequest: (payload) => ipcRenderer.invoke("admin:reset-password-request", payload),
+  resetPassword: (payload) => ipcRenderer.invoke("admin:reset-password", payload),
   logout: () => ipcRenderer.invoke("admin:logout"),
   close: () => ipcRenderer.invoke("admin:close"),
 });

@@ -7,7 +7,9 @@ const path = require("node:path");
 
 const { AuthError, assertEmail } = require("./auth-core");
 
-const MAX_BODY_BYTES = 64 * 1024;
+// Profile updates contain a bounded task list. Keep the HTTP ceiling above the
+// profile budget while remaining finite for all other endpoints.
+const MAX_BODY_BYTES = 768 * 1024;
 
 function json(res, status, body, headers = {}) {
   const encoded = JSON.stringify(body);
@@ -151,9 +153,22 @@ function createAuthHttpServer({ service, config, adminHtmlDir = path.join(__dirn
       checkIpLimit(req);
       return json(res, 200, await service.logout(body.refreshToken), corsHeaders(req));
     }
-    if (req.method === "GET" && pathname === "/v1/me") {
+      if (req.method === "GET" && pathname === "/v1/me") {
       const user = await requireUser(req);
       return json(res, 200, { user: service.publicUser(user) }, corsHeaders(req));
+    }
+    if (req.method === "GET" && pathname === "/v1/me/profile") {
+      const user = await requireUser(req);
+      return json(res, 200, await service.getUserProfile(user.id), corsHeaders(req));
+    }
+    if (req.method === "PATCH" && pathname === "/v1/me/profile") {
+      const user = await requireUser(req);
+      return json(res, 200, await service.updateUserProfile({
+        user,
+        profile: body.profile,
+        expectedUpdatedAt: body.expectedUpdatedAt,
+        request,
+      }), corsHeaders(req));
     }
 
     if (req.method === "POST" && pathname === "/v1/admin/auth/start") {
@@ -184,6 +199,23 @@ function createAuthHttpServer({ service, config, adminHtmlDir = path.join(__dirn
         offset: query.get("offset") || 0,
       }), corsHeaders(req));
     }
+    const profileMatch = pathname.match(/^\/v1\/admin\/users\/([^/]+)\/profile$/);
+    if (profileMatch && req.method === "GET") {
+      await requireUser(req, { admin: true });
+      return json(res, 200, await service.adminGetUserProfile({
+        userId: decodeURIComponent(profileMatch[1]),
+      }), corsHeaders(req));
+    }
+    if (profileMatch && req.method === "PATCH") {
+      const admin = await requireUser(req, { admin: true });
+      return json(res, 200, await service.adminUpdateUserProfile({
+        admin,
+        userId: decodeURIComponent(profileMatch[1]),
+        profile: body.profile,
+        expectedUpdatedAt: body.expectedUpdatedAt,
+        request,
+      }), corsHeaders(req));
+    }
     const userMatch = pathname.match(/^\/v1\/admin\/users\/([^/]+)$/);
     if (userMatch && req.method === "PATCH") {
       const admin = await requireUser(req, { admin: true });
@@ -202,9 +234,10 @@ function createAuthHttpServer({ service, config, adminHtmlDir = path.join(__dirn
     const resetMatch = pathname.match(/^\/v1\/admin\/users\/([^/]+)\/password\/reset$/);
     if (resetMatch && req.method === "POST") {
       const admin = await requireUser(req, { admin: true });
-      return json(res, 200, await service.adminResetPasswordRequest({
+      return json(res, 200, await service.adminResetPassword({
         admin,
         userId: decodeURIComponent(resetMatch[1]),
+        password: body.password,
         request,
       }), corsHeaders(req));
     }
@@ -243,7 +276,14 @@ function createAuthHttpServer({ service, config, adminHtmlDir = path.join(__dirn
     } catch (error) {
       const requestIdValue = String(req.headers["x-request-id"] || "");
       if (error instanceof AuthError) {
-        return json(res, error.status, { error: { code: error.code, message: error.message, requestId: requestIdValue || null } }, headers);
+        return json(res, error.status, {
+          error: {
+            code: error.code,
+            message: error.message,
+            requestId: requestIdValue || null,
+            ...(error.details === undefined ? {} : { details: error.details }),
+          },
+        }, headers);
       }
       console.error("Renmi auth request failed:", error);
       return json(res, 500, { error: { code: "internal_error", message: "服务器暂时不可用" } }, headers);

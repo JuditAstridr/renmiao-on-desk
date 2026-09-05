@@ -8,12 +8,6 @@ const facingStage = document.getElementById("pet-facing-stage") || container;
 const motionStage = document.getElementById("pet-motion-stage") || container;
 const assetDirectionStage = document.getElementById("pet-asset-direction-stage") || container;
 const mediaLayer = document.getElementById("pet-media-layer") || container;
-const skinLayer = document.getElementById("pet-skin-layer");
-const skinStage = skinLayer && typeof globalThis.createSkinStage === "function"
-  ? globalThis.createSkinStage(skinLayer)
-  : null;
-let characterPayload = null;
-let skinMode = false;
 const accessoryLayer = document.getElementById("pet-accessory-layer") || container;
 const particleLayer = document.getElementById("pet-particle-layer") || container;
 const accessoryEl = document.getElementById("clawd-accessory");
@@ -30,7 +24,6 @@ const WAKE_OBJECT_RELOAD_RETRIES = 1;
 const LOW_POWER_PAUSE_STYLE_ID = "clawd-low-power-pause-svg";
 const LOW_POWER_PAUSE_STATES = new Set(["idle", "mini-idle", "dozing"]);
 const LOW_POWER_BOUNDARY_EPSILON_MS = 80;
-const CLOUDLING_POINTER_BRIDGE_STATES = new Set(["idle", "mini-idle", "mini-peek"]);
 const CODEX_PET_VISUAL_BY_FILE = Object.freeze({
   "codex-pet-idle-loop.svg": "idle-loop",
   "codex-pet-idle-static.svg": "idle-static",
@@ -56,6 +49,8 @@ let queuedSystemWakeReplayTimer = null;
 let _lowPowerStaticImageOverrides = {};
 let _petTintPayload = { id: "none", filter: "" };
 let _petTintSupported = false;
+let _petTintMode = "filter";
+let _petTintColors = null;
 let _accessoryPayload = {
   id: "none",
   assetFile: null,
@@ -98,6 +93,9 @@ function initWithConfig(cfg) {
   _forceSvgObjectChannel = !!(tc.rendering && tc.rendering.svgChannel === "object");
   _lowPowerStaticImageOverrides = (tc.rendering && tc.rendering.lowPowerStaticImageOverrides) || {};
   _petTintSupported = tc.petTintSupported === true;
+  _petTintMode = tc.petTintMode === "default-white-regions" ? "default-white-regions" : "filter";
+  _petTintColors = tc.petTintColors && typeof tc.petTintColors === "object"
+    && !Array.isArray(tc.petTintColors) ? tc.petTintColors : null;
   if (Object.prototype.hasOwnProperty.call(tc, "petTintPayload")) {
     _petTintPayload = normalizePetTintPayload(tc.petTintPayload);
   }
@@ -496,7 +494,7 @@ function setViewportOffset(offsetY) {
 // `#pet-facing-stage` (carries the separate mini-left mirror `scale: -1 1`,
 // src/styles.css). Because the flip lives on the child, not this element,
 // the translate here is never re-signed by it, and every descendant —
-// current/pending media, accessory, effect/particle, Cloudling pointer bridge
+// current/pending media, accessory, and effect/particle layers
 // — inherits the shift for free by being painted inside the translated box.
 function setViewportOffsetX(offsetX) {
   const next = Number.isFinite(offsetX) ? Math.round(offsetX) : 0;
@@ -596,10 +594,6 @@ window.electronAPI.onThemeConfig((newConfig) => {
   applyPetTintToAllMedia();
 });
 
-if (typeof window.electronAPI.onCharacterConfig === "function") {
-  window.electronAPI.onCharacterConfig(applyCharacterPayload);
-}
-
 window.electronAPI.onViewportOffset((offsetY) => {
   setViewportOffset(offsetY);
 });
@@ -630,6 +624,14 @@ function normalizePetTintPayload(payload) {
   return { id, filter };
 }
 
+const PET_TINT_COLOR_RE = /^#[0-9a-f]{6}$/i;
+
+function getPetTintColor() {
+  if (_petTintMode !== "default-white-regions" || !_petTintColors) return null;
+  const color = _petTintColors[_petTintPayload.id];
+  return typeof color === "string" && PET_TINT_COLOR_RE.test(color) ? color : null;
+}
+
 function applyPetTintToElement(element) {
   if (!element) return;
   const isPetObject = element.tagName === "OBJECT"
@@ -639,6 +641,21 @@ function applyPetTintToElement(element) {
     && element.classList
     && element.classList.contains("clawd-img");
   if (!isPetObject && !isPetImg) return;
+
+  if (_petTintMode === "default-white-regions") {
+    element.style.filter = "";
+    if (isPetObject) {
+      try {
+        const setTint = element.contentWindow && element.contentWindow.__clawdSetPetTint;
+        if (typeof setTint === "function") setTint(getPetTintColor());
+      } catch {
+        // The SVG document may not be ready yet; the swap load path applies
+        // the tint again after the object has finished loading.
+      }
+    }
+    return;
+  }
+
   element.style.filter = _petTintSupported ? _petTintPayload.filter : "";
 }
 
@@ -1109,42 +1126,8 @@ let reactTimer = null;
 let currentIdleSvg = null;    // tracks which SVG is currently showing
 let currentState = null;      // last state name received from main (for re-pulse)
 let currentRequestedSvg = null; // original state file from main, before low-power substitution
-let lastCloudlingPointerPayload = null;
 let dndEnabled = false;
 let miniLeftFlip = false;
-
-function getSkinStateKey(state) {
-  if (state === "sleeping" || state === "dozing" || state === "collapsing") {
-    return "sleeping";
-  }
-  if (state === "working" || state === "thinking" || state === "waiting") {
-    return "studying";
-  }
-  if (state === "attention" || state === "notification" || state === "waving") {
-    return "reward";
-  }
-  return "idle";
-}
-
-function renderCharacterSkin() {
-  if (!skinStage) return;
-  const active = characterPayload
-    && characterPayload.active === true
-    && characterPayload.skin;
-  skinMode = !!active;
-  mediaLayer.classList.toggle("skin-mode", skinMode);
-  skinStage.update({
-    skin: active ? characterPayload.skin : null,
-    config: active ? characterPayload.config : null,
-    stateKey: getSkinStateKey(currentState),
-    showPlaceholders: false,
-  });
-}
-
-function applyCharacterPayload(payload) {
-  characterPayload = payload && typeof payload === "object" ? payload : null;
-  renderCharacterSkin();
-}
 
 if (window.electronAPI && typeof window.electronAPI.onLowPowerIdleModeChange === "function") {
   window.electronAPI.onLowPowerIdleModeChange(setLowPowerIdleMode);
@@ -1169,9 +1152,6 @@ window.electronAPI.onMiniModeChange((enabled, edge, options) => {
     removeGlyphFlipCompensation(clawdEl);
   }
   if (!enabled) applyMiniClip(null);
-  if (shouldUseCloudlingPointerBridge(currentState, currentDisplayedSvg) && lastCloudlingPointerPayload) {
-    applyCloudlingPointerBridge(lastCloudlingPointerPayload);
-  }
   refreshAccessoryLayout();
 });
 
@@ -1328,59 +1308,6 @@ function resolveLowPowerStaticImageOverride(state, file) {
 function hasLowPowerStaticImageOverride(state, file) {
   const override = _lowPowerStaticImageOverrides && _lowPowerStaticImageOverrides[state];
   return !!(override && override.from === file && override.to);
-}
-
-function shouldUseCloudlingPointerBridge(state, file) {
-  return CLOUDLING_POINTER_BRIDGE_STATES.has(state) && isSvgFile(file);
-}
-
-function normalizeCloudlingPointerPayload(payload) {
-  if (!payload || !Number.isFinite(payload.x) || !Number.isFinite(payload.y)) return null;
-  return {
-    x: payload.x,
-    y: payload.y,
-    inside: !!payload.inside,
-  };
-}
-
-function getDisplayedCloudlingPointerPayload(payload) {
-  const next = { ...payload };
-  if (miniLeftFlip) {
-    const viewBox = resolveViewBox(currentState, currentDisplayedSvg);
-    if (viewBox && Number.isFinite(viewBox.x) && Number.isFinite(viewBox.width)) {
-      next.x = viewBox.x + viewBox.width - (payload.x - viewBox.x);
-    }
-  }
-  return next;
-}
-
-function callCloudlingPointerBridge(objectEl, payload) {
-  if (!objectEl || objectEl.tagName !== "OBJECT" || !payload) return false;
-  try {
-    const svgWindow = objectEl.contentWindow;
-    if (svgWindow && typeof svgWindow.__cloudlingSetPointer === "function") {
-      svgWindow.__cloudlingSetPointer(payload);
-      return true;
-    }
-  } catch {}
-  return false;
-}
-
-function applyCloudlingPointerBridge(payload) {
-  const normalized = normalizeCloudlingPointerPayload(payload);
-  if (!normalized) return;
-  lastCloudlingPointerPayload = normalized;
-  if (shouldSuppressPassiveTrackingForLowPower()) return;
-  if (!shouldUseCloudlingPointerBridge(currentState, currentDisplayedSvg)) return;
-  callCloudlingPointerBridge(clawdEl, getDisplayedCloudlingPointerPayload(normalized));
-}
-
-function clearCloudlingPointerBridge(objectEl = clawdEl) {
-  const payload = {
-    ...(lastCloudlingPointerPayload || { x: 0, y: 0 }),
-    inside: false,
-  };
-  callCloudlingPointerBridge(objectEl, getDisplayedCloudlingPointerPayload(payload));
 }
 
 /**
@@ -1807,6 +1734,7 @@ function swapToFile(file, state, useObjectChannel, options = {}) {
       currentDisplayedSvg = file;
       currentDisplayedState = commitState;
       currentDisplayedAssetUrl = url;
+      applyPetTintToElement(next);
       applyMiniFlip(next, commitState);
       refreshAccessoryLayout();
       notifyPetVisualReadyOnce();
@@ -1815,9 +1743,6 @@ function swapToFile(file, state, useObjectChannel, options = {}) {
         attachEyeTracking(next);
       }
       if (miniLeftFlip) applyGlyphFlipCompensation(next);
-      if (shouldUseCloudlingPointerBridge(currentState, file) && lastCloudlingPointerPayload) {
-        callCloudlingPointerBridge(next, getDisplayedCloudlingPointerPayload(lastCloudlingPointerPayload));
-      }
       scheduleLowPowerIdlePause();
       finishSwapReady();
     };
@@ -1892,6 +1817,7 @@ function swapToFile(file, state, useObjectChannel, options = {}) {
       currentDisplayedSvg = file;
       currentDisplayedState = commitState;
       currentDisplayedAssetUrl = url;
+      applyPetTintToElement(next);
       applyMiniFlip(next, commitState);
       refreshAccessoryLayout();
       notifyPetVisualReadyOnce();
@@ -1928,7 +1854,6 @@ function renderStateFile(state, svg) {
   // Track the latest state name so the Kimi permission pulse can re-trigger
   // swapToFile() with the matching state for eye-tracking decisions.
   currentState = state;
-  if (skinMode) renderCharacterSkin();
   currentRequestedSvg = svg;
   const requestedSvg = svg;
   const lowPowerStaticImageOverride = resolveLowPowerStaticImageOverride(state, requestedSvg);
@@ -1942,10 +1867,6 @@ function renderStateFile(state, svg) {
   // Themes with a dedicated roam visual animate themselves — no bob on top.
   if (container) {
     container.classList.toggle("roam-walk", state === "roam" && !_hasRoamVisual);
-  }
-
-  if (!shouldUseCloudlingPointerBridge(state, effectiveSvg)) {
-    clearCloudlingPointerBridge();
   }
 
   // Dedup only when the same file resolves to the same asset URL. Imported
@@ -1989,9 +1910,6 @@ function renderStateFile(state, svg) {
         if (clawdEl.tagName === "OBJECT") attachEyeTracking(clawdEl);
       } else if (!tracksEyesForFile(state, effectiveSvg)) {
         detachEyeTracking();
-      }
-      if (shouldUseCloudlingPointerBridge(state, effectiveSvg) && lastCloudlingPointerPayload) {
-        applyCloudlingPointerBridge(lastCloudlingPointerPayload);
       }
       scheduleLowPowerIdlePause();
     }
@@ -2629,12 +2547,6 @@ window.electronAPI.onEyeMove((dx, dy) => {
 
 if (window.electronAPI && typeof window.electronAPI.onSystemWake === "function") {
   window.electronAPI.onSystemWake(recoverFromSystemWake);
-}
-
-if (window.electronAPI && typeof window.electronAPI.onCloudlingPointer === "function") {
-  window.electronAPI.onCloudlingPointer((payload) => {
-    applyCloudlingPointerBridge(payload);
-  });
 }
 
 if (window.electronAPI && typeof window.electronAPI.onRoamHeading === "function") {

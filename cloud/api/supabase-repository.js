@@ -76,6 +76,21 @@ function createSupabaseRepository({ url, serviceRoleKey, fetchImpl = globalThis.
       return updateById("users", id, patch);
     },
 
+    async updateUserProfile(id, profile, expectedUpdatedAt) {
+      const params = {
+        id: `eq.${id}`,
+        select: "*",
+      };
+      if (expectedUpdatedAt) params.profile_updated_at = `eq.${expectedUpdatedAt}`;
+      const rows = await request("users", {
+        method: "PATCH",
+        params,
+        body: { profile_state: profile, profile_updated_at: new Date().toISOString() },
+        prefer: "return=representation",
+      });
+      return Array.isArray(rows) && rows.length > 0 ? rows[0] : null;
+    },
+
     async insertChallenge(data) {
       const rows = await request("auth_challenges", {
         method: "POST",

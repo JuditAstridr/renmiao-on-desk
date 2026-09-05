@@ -94,6 +94,15 @@ function createThemeContext(theme, options = {}) {
       trustedScriptedSvgFiles: [...trustedScriptedSvgFiles],
       rendering: theme.rendering || { svgChannel: "auto" },
       petTintSupported: !!(theme._capabilities && theme._capabilities.petTint),
+      petTintMode: theme.customization && theme.customization.petTintMode === "default-white-regions"
+        ? "default-white-regions"
+        : "filter",
+      petTintColors: theme.customization && theme.customization.petTintColors
+        ? { ...theme.customization.petTintColors }
+        : null,
+      petTintSaturation: theme.customization && theme.customization.petTintSaturation
+        ? { ...theme.customization.petTintSaturation }
+        : null,
       accessorySupported: !!(theme._capabilities && theme._capabilities.accessories),
       accessoryAttachments: (
         theme._capabilities

@@ -91,7 +91,7 @@ describe("holiday accessory date rules", () => {
   });
 
   it("keeps the checkbox independent from the saved manual accessory", () => {
-    const manual = { clawd: "wizard-hat", cloudling: "halo" };
+    const manual = { clawd: "wizard-hat", "other-theme": "halo" };
     assert.strictEqual(isHolidayAccessoryEnabledForTheme({ clawd: true }, "clawd"), true);
     assert.strictEqual(isHolidayAccessoryEnabledForTheme({ clawd: false }, "clawd"), false);
     assert.strictEqual(isHolidayAccessoryEnabledForTheme("true", "clawd"), false);

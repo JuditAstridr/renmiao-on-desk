@@ -405,7 +405,7 @@ describe("menu taskbar recovery", () => {
 });
 
 describe("menu dashboard action", () => {
-  it("adds a context menu item that opens the Dashboard", () => {
+  it("does not add an Open Dashboard item to the context menu", () => {
     const fakeElectron = {
       app: { quit: () => {}, setActivationPolicy: () => {}, dock: { show: () => {}, hide: () => {} } },
       BrowserWindow: function BrowserWindow() {},
@@ -440,12 +440,11 @@ describe("menu dashboard action", () => {
     menu.buildContextMenu();
 
     const openDashboard = ctx.contextMenu.template.find((item) => item.label === "Open Dashboard");
-    assert.ok(openDashboard, "context menu should expose dashboard entry");
-    openDashboard.click();
-    assert.strictEqual(called, 1);
+    assert.strictEqual(openDashboard, undefined, "context menu should not expose dashboard entry");
+    assert.strictEqual(called, 0);
   });
 
-  it("adds a tray menu item that opens the Dashboard", () => {
+  it("does not add an Open Dashboard item to the tray menu", () => {
     const fakeElectron = {
       app: { quit: () => {}, setActivationPolicy: () => {}, dock: { show: () => {}, hide: () => {} } },
       BrowserWindow: function BrowserWindow() {},
@@ -484,9 +483,76 @@ describe("menu dashboard action", () => {
     menu.createTray();
 
     const openDashboard = ctx.tray.contextMenu.template.find((item) => item.label === "Open Dashboard");
-    assert.ok(openDashboard, "tray menu should expose dashboard entry");
-    openDashboard.click();
-    assert.strictEqual(called, 1);
+    assert.strictEqual(openDashboard, undefined, "tray menu should not expose dashboard entry");
+    assert.strictEqual(called, 0);
+  });
+});
+
+describe("menu sleep action", () => {
+  it("does not add a Sleep (Do Not Disturb) item to the context menu", () => {
+    const initMenu = loadMenuWithElectron({
+      app: { quit: () => {}, setActivationPolicy: () => {}, dock: { show: () => {}, hide: () => {} } },
+      BrowserWindow: function BrowserWindow() {},
+      Menu: {
+        buildFromTemplate(template) {
+          return { template };
+        },
+      },
+      Tray: function Tray() {},
+      nativeImage: {
+        createFromPath() {
+          return {
+            resize() { return this; },
+            setTemplateImage() {},
+          };
+        },
+      },
+      screen: {
+        getAllDisplays: () => [{ id: 1, bounds: { x: 0, y: 0, width: 1920, height: 1080 }, workArea: { x: 0, y: 0, width: 1920, height: 1040 } }],
+        getCursorScreenPoint: () => ({ x: 0, y: 0 }),
+        getDisplayNearestPoint: () => ({ id: 1 }),
+      },
+    });
+    const ctx = buildBaseCtx();
+
+    initMenu(ctx).buildContextMenu();
+
+    assert.ok(!ctx.contextMenu.template.some((item) => item.label === "Sleep (Do Not Disturb)"));
+  });
+
+  it("does not add a Sleep (Do Not Disturb) item to the tray menu", () => {
+    const initMenu = loadMenuWithElectron({
+      app: { quit: () => {}, setActivationPolicy: () => {}, dock: { show: () => {}, hide: () => {} } },
+      BrowserWindow: function BrowserWindow() {},
+      Menu: {
+        buildFromTemplate(template) {
+          return { template };
+        },
+      },
+      Tray: function Tray() {
+        this.setToolTip = () => {};
+        this.setContextMenu = (menu) => { this.contextMenu = menu; };
+        this.destroy = () => {};
+      },
+      nativeImage: {
+        createFromPath() {
+          return {
+            resize() { return this; },
+            setTemplateImage() {},
+          };
+        },
+      },
+      screen: {
+        getAllDisplays: () => [{ id: 1, bounds: { x: 0, y: 0, width: 1920, height: 1080 }, workArea: { x: 0, y: 0, width: 1920, height: 1040 } }],
+        getCursorScreenPoint: () => ({ x: 0, y: 0 }),
+        getDisplayNearestPoint: () => ({ id: 1 }),
+      },
+    });
+    const ctx = buildBaseCtx();
+
+    initMenu(ctx).createTray();
+
+    assert.ok(!ctx.tray.contextMenu.template.some((item) => item.label === "Sleep (Do Not Disturb)"));
   });
 });
 

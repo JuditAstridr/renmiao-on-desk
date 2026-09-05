@@ -1,11 +1,20 @@
 "use strict";
 
 const PAGE_SIZE = 50;
-const state = { page: 0, total: 0, rows: [], busy: false };
+const state = {
+  page: 0,
+  total: 0,
+  rows: [],
+  busy: false,
+  passwordUserId: "",
+  passwordUserName: "",
+  passwordSubmitting: false,
+};
 const $ = (id) => document.getElementById(id);
 
 const ACTION_LABELS = {
-  force_password_reset: "强制重置密码",
+  force_password_reset: "强制要求用户重置密码",
+  admin_reset_password: "管理员重置密码",
   suspend_user: "封禁用户",
   delete_user: "注销用户",
   update_user: "更新用户",
@@ -62,7 +71,7 @@ function userActions(user) {
     buttons.push(`<button data-action="delete" data-id="${safe(user.id)}">注销</button>`);
   }
   if (user.status === "active") {
-    buttons.push(`<button data-action="reset" data-id="${safe(user.id)}">重置密码</button>`);
+    buttons.push(`<button data-action="reset" data-id="${safe(user.id)}" data-username="${safe(user.username)}">重置密码</button>`);
   }
   if (user.status !== "deleted" && user.status !== "suspended") {
     buttons.push(`<button data-action="edit" data-id="${safe(user.id)}" data-username="${safe(user.username)}" data-email="${safe(user.email)}">编辑</button>`);
@@ -141,16 +150,14 @@ async function userAction(event) {
     const text = action === "delete" ? "确认注销这个账户？注销后用户将无法登录。" : "确认封禁这个账户？";
     if (!window.confirm(text)) return;
   }
-  if (action === "reset" && !window.confirm("确认向用户邮箱发送密码重置验证码？")) return;
+  if (action === "reset") {
+    openPasswordDialog(button.dataset.id, button.dataset.username || "该用户");
+    return;
+  }
   try {
     if (action === "revoke") {
       const result = await window.adminAPI.revokeUserSessions({ userId });
       await refreshAll(`已撤销 ${result.revoked || 0} 个会话。`);
-      return;
-    }
-    if (action === "reset") {
-      const result = await window.adminAPI.resetPasswordRequest({ userId });
-      await refreshAll(`密码重置验证码已发送至 ${result.email || "用户绑定邮箱"}。`);
       return;
     }
     if (action === "edit") {
@@ -196,6 +203,56 @@ $("user-status").addEventListener("change", () => {
 });
 $("users-body").addEventListener("click", (event) => userAction(event).catch((error) => setMessage(errorMessage(error))));
 $("admin-logout").addEventListener("click", () => window.adminAPI.logout().catch((error) => setMessage(errorMessage(error))));
+
+function openPasswordDialog(userId, username) {
+  state.passwordUserId = userId;
+  state.passwordUserName = username;
+  state.passwordSubmitting = false;
+  $("password-dialog-user").textContent = "正在为“" + username + "”设置新密码。";
+  $("admin-new-password").value = "";
+  $("admin-new-password-confirm").value = "";
+  $("password-dialog-message").textContent = "至少 10 个字符。";
+  $("password-dialog-message").classList.remove("success");
+  $("password-dialog").hidden = false;
+  $("admin-new-password").focus();
+}
+
+function closePasswordDialog() {
+  if (state.passwordSubmitting) return;
+  $("password-dialog").hidden = true;
+  state.passwordUserId = "";
+  state.passwordUserName = "";
+}
+
+$("password-dialog-cancel").addEventListener("click", closePasswordDialog);
+$("password-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (state.passwordSubmitting) return;
+  const password = $("admin-new-password").value;
+  const confirmation = $("admin-new-password-confirm").value;
+  if (password !== confirmation) {
+    $("password-dialog-message").textContent = "两次输入的密码不一致。";
+    return;
+  }
+  state.passwordSubmitting = true;
+  $("password-dialog-submit").disabled = true;
+  $("password-dialog-cancel").disabled = true;
+  $("password-dialog-message").textContent = "正在保存新密码…";
+  try {
+    const result = await window.adminAPI.resetPassword({ userId: state.passwordUserId, password });
+    const username = state.passwordUserName;
+    state.passwordSubmitting = false;
+    $("password-dialog-submit").disabled = false;
+    $("password-dialog-cancel").disabled = false;
+    closePasswordDialog();
+    await refreshAll("已为“" + username + "”设置新密码，并撤销 " + (result.revoked || 0) + " 个旧会话。");
+  } catch (error) {
+    state.passwordSubmitting = false;
+    $("password-dialog-submit").disabled = false;
+    $("password-dialog-cancel").disabled = false;
+    $("password-dialog-message").textContent = errorMessage(error);
+  }
+});
 
 renderStats();
 refreshAll().catch((error) => setMessage(errorMessage(error)));

@@ -252,10 +252,6 @@ module.exports = function initMenu(ctx) {
     // quit. Other settings (language, theme, bubble follow, start-with-Claude,
     // updates, etc.) live only in the Settings panel / About tab.
     const stateGroup = [
-      {
-        label: ctx.doNotDisturb ? t("wake") : t("sleep"),
-        click: () => ctx.doNotDisturb ? ctx.disableDoNotDisturb() : ctx.enableDoNotDisturb(),
-      },
       buildMiniModeMenuItem(),
     ];
 
@@ -275,15 +271,9 @@ module.exports = function initMenu(ctx) {
       },
     ];
 
-    // Dashboard + the danger auto-approve toggle (danger last, as in the
+    // Work actions + the danger auto-approve toggle (danger last, as in the
     // context menu).
     const workGroup = [
-      {
-        label: t("openDashboard"),
-        click: () => {
-          if (typeof ctx.openDashboard === "function") ctx.openDashboard();
-        },
-      },
       {
         label: t("openStudyDashboard"),
         click: () => {
@@ -333,12 +323,6 @@ module.exports = function initMenu(ctx) {
       click: () => ctx.openSettingsWindow(),
     },
   ];
-  if (typeof ctx.openCharacterSelector === "function") {
-    appGroup.push({
-      label: t("characterSelect"),
-      click: () => ctx.openCharacterSelector(),
-    });
-  }
   const authItem = buildAuthMenuItem();
     if (authItem) appGroup.push(authItem);
     // #329: surface the update item alongside the app actions. The label
@@ -498,19 +482,9 @@ module.exports = function initMenu(ctx) {
     // prominent top-level entry.
     const stateGroup = [
       { ...buildMiniModeMenuItem() },
-      {
-        label: ctx.doNotDisturb ? t("wake") : t("sleep"),
-        click: () => ctx.doNotDisturb ? ctx.disableDoNotDisturb() : ctx.enableDoNotDisturb(),
-      },
     ];
 
     const workGroup = [
-      {
-        label: t("openDashboard"),
-        click: () => {
-          if (typeof ctx.openDashboard === "function") ctx.openDashboard();
-        },
-      },
       {
         label: t("openStudyDashboard"),
         click: () => {
@@ -559,12 +533,6 @@ module.exports = function initMenu(ctx) {
       click: () => ctx.openSettingsWindow(),
     },
   ];
-  if (typeof ctx.openCharacterSelector === "function") {
-    appGroup.push({
-      label: t("characterSelect"),
-      click: () => ctx.openCharacterSelector(),
-    });
-  }
   const authItem = buildAuthMenuItem();
     if (authItem) appGroup.push(authItem);
     // #329: surface the update item alongside the other app actions when one is

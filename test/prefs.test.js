@@ -1871,7 +1871,7 @@ describe("prefs.save", () => {
   it("migrates the short-lived global pet tint to supported built-in themes", () => {
     assert.deepStrictEqual(
       prefs.validate({ petTint: "gold" }).petTint,
-      { clawd: "gold", cloudling: "gold" }
+      { clawd: "gold" }
     );
     assert.deepStrictEqual(prefs.validate({ petTint: "none" }).petTint, {});
   });

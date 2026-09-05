@@ -5233,7 +5233,6 @@ describe("refreshTheme()", () => {
 
     ctx.theme = _calicoTheme;
     api.refreshTheme();
-
     assert.strictEqual(api.getSvgOverride("idle"), "calico-idle-follow.svg");
     api.enableDoNotDisturb();
     assert.strictEqual(api.getCurrentState(), "collapsing");

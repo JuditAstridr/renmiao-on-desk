@@ -114,3 +114,36 @@ test("admin password plus email code creates an admin session", async () => {
   const refreshed = await harness.service.refreshSession(result.refreshToken);
   assert.equal(refreshed.user.role, "admin");
 });
+
+test("administrator can set a user's password directly without sending email", async () => {
+  const harness = createHarness();
+  const registration = await harness.service.registerRequest({
+    username: "Student",
+    email: "student@ruc.edu.cn",
+    password: "Old-Password-466743",
+  });
+  await harness.service.registerVerify({ challengeId: registration.challengeId, code: harness.sent.pop().code });
+  const oldLogin = await harness.service.loginPassword({ email: "student@ruc.edu.cn", password: "Old-Password-466743" });
+  const user = await harness.repo.findUserByEmailHash(emailHash("student@ruc.edu.cn", harness.config.challengeSecret));
+  const sentBeforeReset = harness.sent.length;
+
+  const result = await harness.service.adminResetPassword({
+    admin: { id: "admin-1" },
+    userId: user.id,
+    password: "New-Password-466743",
+    request: { ip: "127.0.0.1" },
+  });
+
+  assert.equal(result.status, "ok");
+  assert.equal(result.revoked, 2);
+  assert.equal(harness.sent.length, sentBeforeReset);
+  assert.equal(result.user.passwordResetRequired, false);
+  await assert.rejects(
+    () => harness.service.loginPassword({ email: "student@ruc.edu.cn", password: "Old-Password-466743" }),
+    { code: "invalid_credentials" },
+  );
+  const newLogin = await harness.service.loginPassword({ email: "student@ruc.edu.cn", password: "New-Password-466743" });
+  assert.notEqual(newLogin.accessToken, oldLogin.accessToken);
+  const audit = await harness.service.listAuditLogs({ limit: 1 });
+  assert.equal(audit.rows[0].action, "admin_reset_password");
+});

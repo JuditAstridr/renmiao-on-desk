@@ -22,6 +22,12 @@ const {
   verifyAccessToken,
   maskEmail,
 } = require("./auth-core");
+const {
+  sanitizeProfile,
+  profileFromRow,
+  profileUpdatedAt,
+  profileSummary,
+} = require("./account-profile");
 
 const ACTIVE_STATUSES = new Set(["active"]);
 const MANAGED_STATUSES = new Set(["active", "pending", "suspended", "deleted"]);
@@ -64,6 +70,8 @@ function adminUser(row, config) {
   return {
     ...publicUser(row, config),
     email: decryptText(row.email_ciphertext, config.emailEncryptionSecret) || "",
+    profileUpdatedAt: profileUpdatedAt(row),
+    profileSummary: profileSummary(row && row.profile_state),
   };
 }
 
@@ -359,22 +367,98 @@ function createAuthService({ repo, emailer, config, now = Date.now, logger = con
     return { status: "ok", user: publicUser(updated, config) };
   }
 
-  async function adminResetPasswordRequest({ admin, userId, request }) {
+  async function adminResetPassword({ admin, userId, password, request = {} }) {
     const user = await repo.getUserById(userId);
     if (!user || user.role !== "user") throw new AuthError("用户不存在", 404, "user_not_found");
-    const email = decryptText(user.email_ciphertext, config.emailEncryptionSecret);
-    if (!email) throw new AuthError("用户绑定邮箱不可用", 500, "email_unavailable");
-    const result = await createChallenge({ userId: user.id, email, purpose: "reset_password", username: user.username });
-    await repo.updateUser(user.id, { password_reset_required: true });
-    await repo.revokeUserSessions(user.id);
+    assertPassword(password);
+    const updated = await repo.updateUser(user.id, {
+      password_hash: await hashPassword(password),
+      password_reset_required: false,
+    });
+    const revoked = await repo.revokeUserSessions(user.id);
     await repo.insertAuditLog({
       admin_id: admin.id,
-      action: "force_password_reset",
+      action: "admin_reset_password",
       target_user_id: user.id,
-      metadata: {},
+      metadata: { revokedSessions: revoked },
       ip: request.ip || "",
     });
-    return result;
+    return { status: "ok", revoked, user: adminUser(updated, config) };
+  }
+
+  function profileResponse(row) {
+    return {
+      profile: profileFromRow(row),
+      profileUpdatedAt: profileUpdatedAt(row),
+    };
+  }
+
+  async function getUserProfile(userId) {
+    const row = await repo.getUserById(userId);
+    if (!row || row.role !== "user") throw new AuthError("用户不存在", 404, "user_not_found");
+    requireActive(row);
+    return profileResponse(row);
+  }
+
+  function profileConflict(row) {
+    return new AuthError(
+      "账号资料已在其他位置更新，请重新加载后再保存",
+      409,
+      "profile_conflict",
+      row ? profileResponse(row) : undefined,
+    );
+  }
+
+  async function saveUserProfile({ userId, profile, expectedUpdatedAt, request = {}, admin = null }) {
+    const current = await repo.getUserById(userId);
+    if (!current || current.role !== "user") throw new AuthError("用户不存在", 404, "user_not_found");
+    if (!admin) requireActive(current);
+    const nextProfile = sanitizeProfile(profile);
+    const expected = typeof expectedUpdatedAt === "string" ? expectedUpdatedAt.trim() : "";
+    const updated = await repo.updateUserProfile(userId, nextProfile, expected || undefined);
+    if (!updated) {
+      const latest = await repo.getUserById(userId);
+      if (latest) throw profileConflict(latest);
+      throw new AuthError("用户不存在", 404, "user_not_found");
+    }
+    if (admin) {
+      await repo.insertAuditLog({
+        admin_id: admin.id,
+        action: "update_user_profile",
+        target_user_id: userId,
+        metadata: {
+          requestId: request.requestId || null,
+          fields: ["pet", "study"],
+        },
+        ip: request.ip || "",
+      });
+    }
+    return profileResponse(updated);
+  }
+
+  async function updateUserProfile({ user, profile, expectedUpdatedAt, request = {} }) {
+    return saveUserProfile({
+      userId: user.id,
+      profile,
+      expectedUpdatedAt,
+      request,
+    });
+  }
+
+  async function adminGetUserProfile({ userId }) {
+    const row = await repo.getUserById(userId);
+    if (!row || row.role !== "user") throw new AuthError("用户不存在", 404, "user_not_found");
+    return profileResponse(row);
+  }
+
+  async function adminUpdateUserProfile({ admin, userId, profile, expectedUpdatedAt, request = {} }) {
+    return saveUserProfile({
+      admin,
+      userId,
+      profile,
+      expectedUpdatedAt,
+      request,
+    });
   }
 
   async function ensureAdmin() {
@@ -529,7 +613,11 @@ function createAuthService({ repo, emailer, config, now = Date.now, logger = con
     adminLoginStart,
     adminLoginVerify,
     verifyEmailChange,
-    adminResetPasswordRequest,
+    adminResetPassword,
+    getUserProfile,
+    updateUserProfile,
+    adminGetUserProfile,
+    adminUpdateUserProfile,
     listAuditLogs,
     listUsers,
     updateUser,

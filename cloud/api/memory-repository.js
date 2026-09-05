@@ -52,6 +52,21 @@ function createMemoryRepository(seed = {}) {
       return clone(next);
     },
 
+    async updateUserProfile(id, profile, expectedUpdatedAt) {
+      const current = users.get(id);
+      if (!current) return null;
+      const currentUpdatedAt = current.profile_updated_at || current.updated_at || null;
+      if (expectedUpdatedAt && currentUpdatedAt !== expectedUpdatedAt) return null;
+      const next = {
+        ...current,
+        profile_state: clone(profile),
+        profile_updated_at: nowIso(),
+        updated_at: nowIso(),
+      };
+      users.set(id, next);
+      return clone(next);
+    },
+
     async insertChallenge(data) {
       const row = {
         id: data.id || crypto.randomUUID(),

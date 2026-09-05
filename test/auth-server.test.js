@@ -62,4 +62,19 @@ test("HTTP API supports registration, self lookup, and admin-only user listing",
   const usersBody = await users.json();
   assert.equal(users.status, 200);
   assert.deepEqual(usersBody.rows.map((user) => user.email), ["student@ruc.edu.cn"]);
+
+  const resetResponse = await call(`/v1/admin/users/${encodeURIComponent(usersBody.rows[0].id)}/password/reset`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${adminLogin.accessToken}` },
+    body: { password: "New-Password-466743" },
+  });
+  const reset = await resetResponse.json();
+  assert.equal(resetResponse.status, 200);
+  assert.equal(reset.revoked, 1);
+  assert.equal((await call("/v1/me", { headers: { Authorization: `Bearer ${login.accessToken}` }, method: "GET" })).status, 401);
+  const newUserLogin = await call("/v1/auth/login/password", {
+    method: "POST",
+    body: { email: "student@ruc.edu.cn", password: "New-Password-466743" },
+  });
+  assert.equal(newUserLogin.status, 200);
 });

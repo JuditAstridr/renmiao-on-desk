@@ -11,7 +11,6 @@ contextBridge.exposeInMainWorld("electronAPI", {
   isRenmiProfile,
   // Theme config push (for hot-switch; additionalArguments won't update on reload)
   onThemeConfig: (cb) => ipcRenderer.on("theme-config", (_, cfg) => cb(cfg)),
-  onCharacterConfig: (cb) => ipcRenderer.on("character-config", (_, payload) => cb(payload)),
   // PR #751 Codex review #12 (rework batch B-8, non-blocking): normalize a
   // non-finite value (NaN, +/-Infinity, or anything main.js might someday
   // send that isn't a plain number) to 0 right at the IPC bridge boundary,
@@ -28,7 +27,6 @@ contextBridge.exposeInMainWorld("electronAPI", {
   onTimerTick: (callback) => ipcRenderer.on("timer-tick", (_, payload) => callback(payload)),
   onKimiPermissionPulse: (callback) => ipcRenderer.on("kimi-permission-pulse", () => callback()),
   onEyeMove: (callback) => ipcRenderer.on("eye-move", (_, dx, dy) => callback(dx, dy)),
-  onCloudlingPointer: (callback) => ipcRenderer.on("cloudling-pointer", (_, payload) => callback(payload)),
   onRoamHeading: (callback) => ipcRenderer.on("roam-heading", (_, headingLeft) => callback(headingLeft)),
   onWakeFromDoze: (callback) => ipcRenderer.on("wake-from-doze", () => callback()),
   onDndChange: (callback) => ipcRenderer.on("dnd-change", (_, enabled) => callback(enabled)),

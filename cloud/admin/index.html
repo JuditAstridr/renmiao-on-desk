@@ -49,6 +49,19 @@
         </div>
       </section>
     </section>
+
+    <div id="password-dialog" class="modal" hidden>
+      <section class="modal-card" role="dialog" aria-modal="true" aria-labelledby="password-dialog-title">
+        <h2 id="password-dialog-title">直接重置用户密码</h2>
+        <p id="password-dialog-user" class="modal-hint"></p>
+        <form id="password-form">
+          <label>新密码<input id="admin-new-password" type="password" autocomplete="new-password" minlength="10" maxlength="256" required></label>
+          <label>确认新密码<input id="admin-new-password-confirm" type="password" autocomplete="new-password" minlength="10" maxlength="256" required></label>
+          <p id="password-dialog-message" class="message" role="status" aria-live="polite"></p>
+          <div class="modal-actions"><button id="password-dialog-cancel" class="secondary" type="button">取消</button><button id="password-dialog-submit" class="primary" type="submit">保存新密码</button></div>
+        </form>
+      </section>
+    </div>
   </main>
   <script src="/admin/admin.js"></script>
 </body>

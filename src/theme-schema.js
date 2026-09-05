@@ -189,6 +189,37 @@ function validateTheme(cfg) {
       ) {
         errors.push(`customization.petTint must be a boolean, got ${JSON.stringify(cfg.customization.petTint)}`);
       }
+      if (
+        cfg.customization.petTintMode !== undefined
+        && cfg.customization.petTintMode !== "filter"
+        && cfg.customization.petTintMode !== "default-white-regions"
+      ) {
+        errors.push(`customization.petTintMode must be "filter" or "default-white-regions", got ${JSON.stringify(cfg.customization.petTintMode)}`);
+      }
+      if (cfg.customization.petTintColors !== undefined) {
+        if (!isPlainObject(cfg.customization.petTintColors)) {
+          errors.push("customization.petTintColors must be an object when present");
+        } else {
+          for (const [id, color] of Object.entries(cfg.customization.petTintColors)) {
+            if (!/^[a-z][a-z0-9-]{0,31}$/.test(id) || !/^#[0-9a-f]{6}$/i.test(color)) {
+              errors.push(`customization.petTintColors[${JSON.stringify(id)}] must be a #RRGGBB color`);
+            }
+          }
+        }
+      }
+      if (cfg.customization.petTintOptions !== undefined) {
+        const options = normalizePetTintOptions(cfg.customization.petTintOptions);
+        if (!options) {
+          errors.push("customization.petTintOptions must be an array of { id, labelKey } objects when present");
+        }
+      }
+      if (cfg.customization.petTintSaturation !== undefined) {
+        if (!normalizePetTintSaturation(cfg.customization.petTintSaturation)) {
+          errors.push(
+            "customization.petTintSaturation must define enabled, min, max, step, and default within 0–200"
+          );
+        }
+      }
       const accessoryResult = normalizeAccessoryAttachments(
         cfg.customization.accessories,
         cfg
@@ -268,6 +299,68 @@ function validateTheme(cfg) {
 
 function isPlainObject(v) {
   return v && typeof v === "object" && !Array.isArray(v);
+}
+
+function normalizePetTintColors(value) {
+  if (!isPlainObject(value)) return null;
+  const colors = {};
+  for (const [id, color] of Object.entries(value)) {
+    if (/^[a-z][a-z0-9-]{0,31}$/.test(id) && /^#[0-9a-f]{6}$/i.test(color)) {
+      colors[id] = color.toLowerCase();
+    }
+  }
+  return Object.keys(colors).length > 0 ? colors : null;
+}
+
+function normalizePetTintOptions(value) {
+  if (!Array.isArray(value) || value.length === 0 || value.length > 32) return null;
+  const options = [];
+  const seen = new Set();
+  for (const entry of value) {
+    if (!isPlainObject(entry)) return null;
+    const id = entry.id;
+    const labelKey = entry.labelKey;
+    if (
+      typeof id !== "string"
+      || !/^[a-z][a-z0-9-]{0,31}$/.test(id)
+      || typeof labelKey !== "string"
+      || !/^[A-Za-z][A-Za-z0-9]{0,63}$/.test(labelKey)
+      || seen.has(id)
+    ) return null;
+    seen.add(id);
+    options.push({ id, labelKey });
+  }
+  return options;
+}
+
+function normalizePetTintSaturation(value) {
+  if (!isPlainObject(value)) return null;
+  const enabled = value.enabled;
+  const min = value.min;
+  const max = value.max;
+  const step = value.step;
+  const defaultValue = value.default;
+  if (
+    typeof enabled !== "boolean"
+    || !Number.isFinite(min)
+    || !Number.isFinite(max)
+    || !Number.isFinite(step)
+    || !Number.isFinite(defaultValue)
+    || min < 0
+    || max > 200
+    || min >= max
+    || step <= 0
+    || step > (max - min)
+    || defaultValue < min
+    || defaultValue > max
+  ) return null;
+  return {
+    enabled,
+    min,
+    max,
+    step,
+    default: defaultValue,
+  };
 }
 
 function hasNonEmptyArray(value) {
@@ -910,7 +1003,7 @@ function resolveEffectiveAccessoryAttachments(authoredCfg, effectiveCfg) {
 }
 
 function buildCapabilities(cfg, options = {}) {
-  return {
+  const capabilities = {
     eyeTracking: !!(
       isPlainObject(cfg && cfg.eyeTracking)
       && cfg.eyeTracking.enabled
@@ -930,6 +1023,16 @@ function buildCapabilities(cfg, options = {}) {
     ),
     accessories: deriveAccessoryCapability(cfg),
   };
+  const customization = isPlainObject(cfg && cfg.customization) ? cfg.customization : null;
+  if (customization && customization.petTintOptions !== undefined) {
+    const options = normalizePetTintOptions(customization.petTintOptions);
+    if (options) capabilities.petTintOptions = options;
+  }
+  if (customization && customization.petTintSaturation !== undefined) {
+    const saturation = normalizePetTintSaturation(customization.petTintSaturation);
+    if (saturation) capabilities.petTintSaturation = saturation;
+  }
+  return capabilities;
 }
 
 function addThemeAssetFile(out, filename) {
@@ -1123,8 +1226,21 @@ function mergeDefaults(raw, themeId, isBuiltin) {
       isPlainObject(raw.customization)
       && raw.customization.petTint === true
     ),
+    petTintMode: isPlainObject(raw.customization)
+      && raw.customization.petTintMode === "default-white-regions"
+      ? "default-white-regions"
+      : "filter",
+    petTintColors: normalizePetTintColors(
+      isPlainObject(raw.customization) ? raw.customization.petTintColors : null
+    ),
     accessories: null,
   };
+  if (isPlainObject(raw.customization) && raw.customization.petTintOptions !== undefined) {
+    theme.customization.petTintOptions = normalizePetTintOptions(raw.customization.petTintOptions);
+  }
+  if (isPlainObject(raw.customization) && raw.customization.petTintSaturation !== undefined) {
+    theme.customization.petTintSaturation = normalizePetTintSaturation(raw.customization.petTintSaturation);
+  }
 
   // objectScale
   theme.objectScale = { ...DEFAULT_OBJECT_SCALE, ...(raw.objectScale || {}) };

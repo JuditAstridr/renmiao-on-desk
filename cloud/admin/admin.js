@@ -1,6 +1,6 @@
 "use strict";
 
-const state = { challengeId: "", accessToken: "", refreshToken: "" };
+const state = { challengeId: "", accessToken: "", refreshToken: "", passwordUserId: "", passwordUserName: "", passwordSubmitting: false };
 const $ = (id) => document.getElementById(id);
 
 function message(target, value = "") { $(target).textContent = value; }
@@ -65,14 +65,15 @@ async function loadUsers() {
     <td class="row-actions">
       ${user.status === "suspended" ? `<button data-action="activate" data-id="${safe(user.id)}">解封</button>` : `<button data-action="suspend" data-id="${safe(user.id)}">封禁</button>`}
       ${user.status !== "deleted" ? `<button data-action="delete" data-id="${safe(user.id)}">注销</button>` : ""}
-      ${user.status === "active" ? `<button data-action="reset" data-id="${safe(user.id)}">重置密码</button>` : ""}
+      ${user.status === "active" ? `<button data-action="reset" data-id="${safe(user.id)}" data-username="${safe(user.username)}">重置密码</button>` : ""}
       ${user.status !== "deleted" ? `<button data-action="edit" data-id="${safe(user.id)}" data-username="${safe(user.username)}" data-email="${safe(user.email)}">编辑</button>` : ""}
       <button data-action="revoke" data-id="${safe(user.id)}">撤销会话</button>
     </td></tr>`).join("") || `<tr><td colspan="5">暂无用户</td></tr>`;
 }
 
 const ACTION_LABELS = {
-  force_password_reset: "强制重置密码",
+  force_password_reset: "强制要求用户重置密码",
+  admin_reset_password: "管理员重置密码",
   suspend_user: "封禁用户",
   delete_user: "注销用户",
   update_user: "更新用户",
@@ -95,11 +96,13 @@ async function userAction(event) {
   if (!button) return;
   const action = button.dataset.action;
   const userId = button.dataset.id;
-  if ((action === "delete" || action === "suspend" || action === "reset") && !window.confirm(action === "delete" ? "确认注销这个账户？" : action === "reset" ? "确认向用户邮箱发送密码重置验证码？" : "确认封禁这个账户？")) return;
+  if ((action === "delete" || action === "suspend") && !window.confirm(action === "delete" ? "确认注销这个账户？" : "确认封禁这个账户？")) return;
+  if (action === "reset") {
+    openPasswordDialog(userId, button.dataset.username || "该用户");
+    return;
+  }
   if (action === "revoke") {
     await api(`/v1/admin/users/${encodeURIComponent(userId)}/sessions/revoke`, { method: "POST", body: {} });
-  } else if (action === "reset") {
-    await api(`/v1/admin/users/${encodeURIComponent(userId)}/password/reset`, { method: "POST", body: {} });
   } else if (action === "edit") {
     const username = window.prompt("用户名", button.dataset.username || "");
     if (username === null) return;
@@ -112,6 +115,60 @@ async function userAction(event) {
   }
   await Promise.all([loadUsers(), loadAuditLogs()]);
 }
+
+function openPasswordDialog(userId, username) {
+  state.passwordUserId = userId;
+  state.passwordUserName = username;
+  state.passwordSubmitting = false;
+  $("password-dialog-user").textContent = "正在为“" + username + "”设置新密码。";
+  $("admin-new-password").value = "";
+  $("admin-new-password-confirm").value = "";
+  $("password-dialog-message").textContent = "至少 10 个字符。";
+  $("password-dialog-message").classList.remove("success");
+  $("password-dialog").hidden = false;
+  $("admin-new-password").focus();
+}
+
+function closePasswordDialog() {
+  if (state.passwordSubmitting) return;
+  $("password-dialog").hidden = true;
+  state.passwordUserId = "";
+  state.passwordUserName = "";
+}
+
+$("password-dialog-cancel").addEventListener("click", closePasswordDialog);
+$("password-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (state.passwordSubmitting) return;
+  const password = $("admin-new-password").value;
+  const confirmation = $("admin-new-password-confirm").value;
+  if (password !== confirmation) {
+    $("password-dialog-message").textContent = "两次输入的密码不一致。";
+    return;
+  }
+  state.passwordSubmitting = true;
+  $("password-dialog-submit").disabled = true;
+  $("password-dialog-cancel").disabled = true;
+  $("password-dialog-message").textContent = "正在保存新密码…";
+  try {
+    const result = await api(`/v1/admin/users/${encodeURIComponent(state.passwordUserId)}/password/reset`, {
+      method: "POST",
+      body: { password },
+    });
+    const username = state.passwordUserName;
+    state.passwordSubmitting = false;
+    $("password-dialog-submit").disabled = false;
+    $("password-dialog-cancel").disabled = false;
+    closePasswordDialog();
+    message("dashboard-message", "已为“" + username + "”设置新密码，并撤销 " + (result.revoked || 0) + " 个旧会话。");
+    await Promise.all([loadUsers(), loadAuditLogs()]);
+  } catch (error) {
+    state.passwordSubmitting = false;
+    $("password-dialog-submit").disabled = false;
+    $("password-dialog-cancel").disabled = false;
+    $("password-dialog-message").textContent = error.message || "操作失败，请稍后重试";
+  }
+});
 
 $("send-admin-code").addEventListener("click", () => sendCode().catch((error) => message("login-message", error.message)));
 $("admin-login-form").addEventListener("submit", (event) => login(event).catch((error) => message("login-message", error.message)));

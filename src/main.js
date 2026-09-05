@@ -179,13 +179,15 @@ const { WIN_TOPMOST_LEVEL } = createTopmostRuntime;
 const createThemeFadeSequencer = require("./theme-fade-sequencer");
 const createThemeRuntime = require("./theme-runtime");
 const { createAuthRuntime } = require("./auth-runtime");
-const createCharacterSelect = require("./character-select");
-const characterConfig = require("./character-config");
-const characterLoader = require("./character-loader");
 const createAgentRuntimeMain = require("./agent-runtime-main");
 const createFloatingWindowRuntime = require("./floating-window-runtime");
 const createPetWindowRuntime = require("./pet-window-runtime");
 const { createStudyRuntime } = require("./study-runtime");
+const {
+  defaultProfile,
+  sanitizeProfile,
+  hasMeaningfulStudyState,
+} = require("./account-profile");
 const createStudyWindowRuntime = require("./study-window");
 const { registerStudyIpc } = require("./study-ipc");
 const { createTestReactionHandler } = require("./test-reaction");
@@ -796,8 +798,6 @@ function safeConsoleError(...args) {
 const themeLoader = require("./theme-loader");
 const createCodexPetMain = require("./codex-pet-main");
 themeLoader.init(__dirname, app.getPath("userData"));
-characterLoader.init(__dirname, app.getPath("userData"));
-characterConfig.init(app.getPath("userData"));
 themeRuntime = createThemeRuntime({
   themeLoader,
   settingsController: _settingsController,
@@ -1092,33 +1092,6 @@ let win;
 let hitWin;  // input window — small opaque rect over hitbox, receives all pointer events
 let studyWindowRuntime = null;
 let authRuntime = null;
-let characterSelectRuntime = null;
-
-function resolveCharacterPayload() {
-  return characterConfig.resolvePayload(characterLoader);
-}
-
-function ensureCharacterSelectRuntime() {
-  if (characterSelectRuntime) return characterSelectRuntime;
-  characterSelectRuntime = createCharacterSelect({
-    t: (key) => translate(key),
-    resolveCharacterPayload,
-    saveCharacterConfig: (patch) => characterConfig.saveConfig(patch),
-    sendToRenderer,
-    iconPath: settingsWindowRuntime.getIconPath(),
-  });
-  return characterSelectRuntime;
-}
-
-function maybeShowCharacterSelector() {
-  if (characterConfig.isConfigured()) return false;
-  try {
-    return !!ensureCharacterSelectRuntime().showSelectWindow();
-  } catch (error) {
-    console.warn("Renmiao character selector unavailable:", error && error.message);
-    return false;
-  }
-}
 
 function setMainWindowsVisible(visible) {
   for (const currentWindow of [win, hitWin]) {
@@ -2179,6 +2152,216 @@ const _studyRuntime = createStudyRuntime({
     }
   },
 });
+
+// ── Account profile synchronization ──
+// Authentication owns the session tokens; this layer owns the account-scoped
+// Renmiao state that must be loaded before the pet is shown and saved before a
+// user logs out or the app quits. The local study file remains a working cache,
+// never the source of truth once it has an account owner.
+const accountProfileCachePath = path.join(app.getPath("userData"), "account-profile-cache.json");
+let activeAccountProfileId = "";
+let activeAccountProfileUpdatedAt = "";
+let activeAccountProfileSignature = "";
+let accountProfileLastPullAt = 0;
+let accountProfileSaveChain = Promise.resolve();
+
+function cloneAccountValue(value) {
+  return value == null ? value : JSON.parse(JSON.stringify(value));
+}
+
+function readAccountProfileCache() {
+  try {
+    const parsed = JSON.parse(fs.readFileSync(accountProfileCachePath, "utf8"));
+    return parsed && typeof parsed.ownerId === "string" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeAccountProfileCache(ownerId) {
+  if (!ownerId) return;
+  const temporaryPath = `${accountProfileCachePath}.${process.pid}.tmp`;
+  try {
+    fs.mkdirSync(path.dirname(accountProfileCachePath), { recursive: true, mode: 0o700 });
+    fs.writeFileSync(temporaryPath, `${JSON.stringify({ version: 1, ownerId })}\n`, {
+      encoding: "utf8",
+      mode: 0o600,
+    });
+    fs.renameSync(temporaryPath, accountProfileCachePath);
+  } catch (error) {
+    try { fs.unlinkSync(temporaryPath); } catch {}
+    console.warn("Renmi: account profile cache marker could not be saved:", error && error.message);
+  }
+}
+
+function buildCurrentAccountProfile() {
+  const settings = _settingsController.getSnapshot();
+  const activeTheme = getActiveTheme();
+  const themeId = activeTheme && activeTheme._id || settings.theme || "renmi";
+  const variantMap = settings.themeVariant || {};
+  const petTintMap = settings.petTint || {};
+  const petAccessoryMap = settings.petAccessory || {};
+  const holidayMap = settings.holidayAccessoryEnabled || {};
+  const idleVisualMap = settings.idleVisual || {};
+  return sanitizeProfile({
+    pet: {
+      themeId,
+      variantId: activeTheme && activeTheme._variantId || variantMap[themeId] || "default",
+      tintId: petTintMap[themeId] || "none",
+      accessoryId: petAccessoryMap[themeId] || "none",
+      holidayAccessoryEnabled: holidayMap[themeId] === true,
+      idleVisual: idleVisualMap[themeId] || "",
+    },
+    study: _studyRuntime.getSnapshot(),
+  });
+}
+
+function profileSignature(profile) {
+  return JSON.stringify(sanitizeProfile(profile));
+}
+
+async function applyAccountProfile(rawProfile) {
+  const profile = sanitizeProfile(rawProfile);
+  const pet = profile.pet;
+  const currentThemeVariant = _settingsController.get("themeVariant") || {};
+
+  // Clear per-theme visual selections from the previous account before
+  // applying the new account's single active appearance. This prevents a
+  // second account on the same computer from inheriting hidden choices.
+  _settingsController.hydrate({
+    petTint: {},
+    petAccessory: {},
+    holidayAccessoryEnabled: {},
+    idleVisual: {},
+    themeVariant: { ...currentThemeVariant, [pet.themeId]: pet.variantId },
+  });
+
+  let themeResult = await _settingsController.applyCommand("setThemeSelection", {
+    themeId: pet.themeId,
+    variantId: pet.variantId,
+  });
+  if (!themeResult || themeResult.status !== "ok") {
+    // A theme may have been removed locally after the profile was saved. Keep
+    // the cloud id in the account record, but do not make login fail; Renmiao
+    // falls back to its built-in theme until that theme is installed again.
+    console.warn("Renmi: saved account theme unavailable; falling back to renmi:", themeResult && themeResult.message);
+    themeResult = await _settingsController.applyCommand("setThemeSelection", {
+      themeId: "renmi",
+      variantId: "default",
+    });
+  }
+
+  const resolvedThemeId = themeResult && themeResult.themeId || pet.themeId;
+  if (pet.tintId !== "none") {
+    _settingsController.applyUpdate("petTint", { [resolvedThemeId]: pet.tintId });
+  }
+  if (pet.accessoryId !== "none") {
+    _settingsController.applyUpdate("petAccessory", { [resolvedThemeId]: pet.accessoryId });
+  }
+  if (pet.holidayAccessoryEnabled) {
+    _settingsController.applyUpdate("holidayAccessoryEnabled", { [resolvedThemeId]: true });
+  }
+  if (pet.idleVisual) {
+    _settingsController.applyUpdate("idleVisual", { [resolvedThemeId]: pet.idleVisual });
+  }
+  _studyRuntime.hydrate(profile.study);
+  return profile;
+}
+
+function saveAccountProfile({ force = false } = {}) {
+  if (!activeAccountProfileId || !authRuntime || !authRuntime.getSession()) return Promise.resolve(null);
+  const accountId = activeAccountProfileId;
+  const profile = buildCurrentAccountProfile();
+  const signature = profileSignature(profile);
+  if (!force && signature === activeAccountProfileSignature) return Promise.resolve(null);
+  accountProfileSaveChain = accountProfileSaveChain.catch(() => {}).then(async () => {
+    if (!activeAccountProfileId || activeAccountProfileId !== accountId || !authRuntime) return null;
+    try {
+      const result = await authRuntime.updateProfile(profile, activeAccountProfileUpdatedAt || undefined);
+      activeAccountProfileUpdatedAt = result.profileUpdatedAt || activeAccountProfileUpdatedAt;
+      activeAccountProfileSignature = profileSignature(result.profile || profile);
+      accountProfileLastPullAt = Date.now();
+      return result;
+    } catch (error) {
+      if (error && error.code === "profile_conflict" && error.details && error.details.profile) {
+        await applyAccountProfile(error.details.profile);
+        activeAccountProfileUpdatedAt = error.details.profileUpdatedAt || activeAccountProfileUpdatedAt;
+        activeAccountProfileSignature = profileSignature(buildCurrentAccountProfile());
+        accountProfileLastPullAt = Date.now();
+        console.warn("Renmi: applied newer cloud account profile after a conflict");
+        return error.details;
+      }
+      console.warn("Renmi: account profile save failed; will retry:", error && error.message);
+      return null;
+    }
+  });
+  return accountProfileSaveChain;
+}
+
+async function pullAccountProfileIfNeeded() {
+  if (!activeAccountProfileId || !authRuntime || !authRuntime.getSession()) return;
+  const localSignature = profileSignature(buildCurrentAccountProfile());
+  if (localSignature !== activeAccountProfileSignature) {
+    await saveAccountProfile();
+    return;
+  }
+  if (Date.now() - accountProfileLastPullAt < 30_000) return;
+  accountProfileLastPullAt = Date.now();
+  try {
+    const remote = await authRuntime.getProfile();
+    if (remote.profileUpdatedAt && remote.profileUpdatedAt !== activeAccountProfileUpdatedAt) {
+      await applyAccountProfile(remote.profile);
+      activeAccountProfileUpdatedAt = remote.profileUpdatedAt;
+      activeAccountProfileSignature = profileSignature(buildCurrentAccountProfile());
+    }
+  } catch (error) {
+    // A temporary network failure must not clear local work. The next poll
+    // retries, while the last known cloud snapshot remains usable.
+    console.warn("Renmi: account profile refresh failed:", error && error.message);
+  }
+}
+
+async function hydrateAccountProfileForUser(user) {
+  if (!user || user.role !== "user" || !authRuntime) return;
+  const remote = await authRuntime.getProfile();
+  const cache = readAccountProfileCache();
+  const localStudy = _studyRuntime.getSnapshot();
+  let profile = remote.profile;
+  const isFirstUnownedLogin = !cache.ownerId;
+  const canMigrateLegacyLocalStudy = isFirstUnownedLogin
+    && hasMeaningfulStudyState(localStudy)
+    && !hasMeaningfulStudyState(remote.profile && remote.profile.study);
+  if (canMigrateLegacyLocalStudy) {
+    profile = { ...cloneAccountValue(remote.profile), study: localStudy };
+    console.log("Renmi: migrating unbound local study data to the first signed-in account");
+  }
+  await applyAccountProfile(profile);
+  activeAccountProfileId = user.id;
+  activeAccountProfileUpdatedAt = remote.profileUpdatedAt || "";
+  activeAccountProfileSignature = profileSignature(buildCurrentAccountProfile());
+  accountProfileLastPullAt = Date.now();
+  writeAccountProfileCache(user.id);
+  if (canMigrateLegacyLocalStudy) await saveAccountProfile({ force: true });
+}
+
+async function deactivateAccountProfile(user) {
+  if (!user || user.role !== "user" || activeAccountProfileId !== user.id) return;
+  await saveAccountProfile({ force: true });
+  activeAccountProfileId = "";
+  activeAccountProfileUpdatedAt = "";
+  activeAccountProfileSignature = "";
+  accountProfileLastPullAt = 0;
+  // Do not leave the previous account's tasks/points in the local cache while
+  // the login window is waiting for the next account.
+  await applyAccountProfile(defaultProfile());
+}
+
+const accountProfileAutosaveTimer = setInterval(() => {
+  void pullAccountProfileIfNeeded();
+}, 5000);
+if (accountProfileAutosaveTimer && typeof accountProfileAutosaveTimer.unref === "function") {
+  accountProfileAutosaveTimer.unref();
+}
 
 let studyBroadcastTimer = setInterval(() => {
   const studySnapshot = _studyRuntime.getSnapshot();
@@ -4158,15 +4341,9 @@ const _menuCtx = {
     const session = authRuntime && authRuntime.getSession();
     return session && session.user ? session.user : null;
   },
-  openCharacterSelector: () => {
-    ensureCharacterSelectRuntime().showSelectWindow();
-  },
   openAuthWindow: () => authRuntime && authRuntime.openAuthWindow(),
   openAdminDashboard: () => authRuntime && authRuntime.openAdminWindow(),
-  logoutAuth: () => authRuntime ? authRuntime.logout().then(() => {
-    rebuildAllMenus();
-    authRuntime.openAuthWindow();
-  }) : undefined,
+  logoutAuth: () => authRuntime ? authRuntime.logout() : undefined,
 };
 const _menu = require("./menu")(_menuCtx);
 const { t, buildContextMenu, buildTrayMenu, rebuildAllMenus, createTray,
@@ -4596,7 +4773,6 @@ const settingsIpcRuntime = registerSettingsIpc({
     return { status: "ok" };
   },
   aboutHeroSvgPath: path.join(__dirname, "..", "assets", "svg", "clawd-about-hero.svg"),
-  getLanWsServer: () => _lanWss,
 });
 
 registerSessionIpc({
@@ -4858,7 +5034,6 @@ function createWindow() {
   });
   win.webContents.on("did-finish-load", () => {
     sendToRenderer("theme-config", buildRendererThemeConfig());
-    sendToRenderer("character-config", resolveCharacterPayload());
     petWindowRuntime.resendViewportOffsets();
     if (themeRuntime.isReloadInProgress()) return;
     syncRendererStateAfterLoad();
@@ -5338,7 +5513,9 @@ if (!gotTheLock) {
         setMainWindowsVisible,
         onAuthenticated: () => {
           rebuildAllMenus();
-          maybeShowCharacterSelector();
+        },
+        onLoggedOut: () => {
+          rebuildAllMenus();
         },
       });
     } catch (error) {
@@ -5352,7 +5529,6 @@ if (!gotTheLock) {
       app.quit();
       return;
     }
-    ensureCharacterSelectRuntime();
     createWindow();
     // Restore a persisted Study focus visual once the pet windows exist.  An
     // active coding-agent session still wins through the guard in
@@ -5365,7 +5541,7 @@ if (!gotTheLock) {
       });
       rebuildAllMenus();
     } else {
-      maybeShowCharacterSelector();
+      rebuildAllMenus();
     }
     // Reconcile the local quota binding only after the app has visible UI.
     // initialize() reads opaque credential metadata but never decrypts the key

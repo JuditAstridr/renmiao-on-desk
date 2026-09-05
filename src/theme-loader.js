@@ -134,7 +134,6 @@ function _scanThemesDir(dir, builtin, themes, seen) {
         cfg = JSON.parse(fs.readFileSync(jsonPath, "utf8"));
       } catch { continue; }
     if (builtin && cfg && cfg._scaffoldOnly === true) continue;
-    if (cfg && cfg._skinOnly === true) continue;
     themes.push({ id: entry.name, name: cfg.name || entry.name, path: jsonPath, builtin });
       seen.add(entry.name);
     }

@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1254 1254" width="1254" height="1254">
+  <defs>
+    <!-- The mask is derived from Renmi's authored default pixels. It is not
+         a current-color or literal-white replacement, so recoloring remains
+         stable after a tint has been selected. -->
+    <filter id="default-white-pixels" color-interpolation-filters="sRGB">
+      <feColorMatrix type="matrix" values="
+        .2126 .7152 .0722 0 0
+        .2126 .7152 .0722 0 0
+        .2126 .7152 .0722 0 0
+        0 0 0 1 0" />
+      <feComponentTransfer>
+        <feFuncR type="linear" slope="20" intercept="-19" />
+        <feFuncG type="linear" slope="20" intercept="-19" />
+        <feFuncB type="linear" slope="20" intercept="-19" />
+      </feComponentTransfer>
+    </filter>
+
+    <mask id="default-white-mask" maskUnits="userSpaceOnUse" x="0" y="0" width="1254" height="1254" mask-type="luminance">
+      <image href="renmi.png" x="0" y="0" width="1254" height="1254" filter="url(#default-white-pixels)" />
+    </mask>
+  </defs>
+
+  <image href="renmi.png" x="0" y="0" width="1254" height="1254" />
+  <rect id="renmi-tint-fill" x="0" y="0" width="1254" height="1254" fill="transparent" mask="url(#default-white-mask)" />
+
+  <script type="application/ecmascript"><![CDATA[
+    (() => {
+      const fill = document.getElementById("renmi-tint-fill");
+      const tintColorPattern = /^#[0-9a-f]{6}$/i;
+      window.__clawdSetPetTint = (color) => {
+        if (!fill) return;
+        fill.setAttribute(
+          "fill",
+          typeof color === "string" && tintColorPattern.test(color)
+            ? color
+            : "transparent",
+        );
+      };
+    })();
+  ]]></script>
+</svg>

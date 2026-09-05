@@ -92,27 +92,3 @@ test("settings preload exposes dedicated Kimi quota operations", async () => {
     ["settings:kimi-quota-forget"],
   ]);
 });
-
-test("settings preload forwards Telegram status revisions and unsubscribe is exact", () => {
-  const { exposed, ipcHandlers } = loadPreload();
-  const settingsAPI = exposed.get("settingsAPI");
-  const forward = ipcHandlers.get("remoteApproval:status-changed");
-  const received = [];
-  const payload = { channel: "telegram", revision: 7 };
-
-  assert.equal(typeof settingsAPI.onRemoteApprovalStatusChanged, "function");
-  assert.equal(typeof forward, "function");
-
-  const unsubscribe = settingsAPI.onRemoteApprovalStatusChanged((value) => {
-    received.push(value);
-  });
-  assert.equal(typeof unsubscribe, "function");
-
-  forward({}, payload);
-  assert.equal(received.length, 1);
-  assert.equal(received[0], payload, "the channel-scoped payload must pass through unchanged");
-
-  unsubscribe();
-  forward({}, { channel: "telegram", revision: 8 });
-  assert.equal(received.length, 1, "unsubscribe must remove only the registered callback");
-});

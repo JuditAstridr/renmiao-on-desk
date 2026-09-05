@@ -19,15 +19,11 @@ themeLoader.init(path.join(ROOT, "src"));
 
 const BUILTINS = [
   { id: "clawd", theme: path.join(ROOT, "themes", "clawd", "theme.json"), assets: path.join(ROOT, "assets", "svg") },
-  { id: "cloudling", theme: path.join(ROOT, "themes", "cloudling", "theme.json"), assets: path.join(ROOT, "themes", "cloudling", "assets") },
 ];
 const ACCESSORIES = PET_ACCESSORY_CATALOG.filter((entry) => entry.id !== "none");
 const MOTION_EPSILON = 0.15;
 const SCREEN_EPSILON = 0.51;
 const LARGE_SCREEN_BOUNDS = Object.freeze({ x: 0, y: 0, width: 6000, height: 6000 });
-// Mirrors src/tick.js POINTER_BRIDGE_STATES, intersected with the visuals that
-// actually carry an accessory followTarget.
-const POINTER_DRIVEN = new Set(["cloudling-idle.svg", "cloudling-mini-idle.svg"]);
 const MINI_PAD_X = 25;
 const MINI_PAD_Y = 8;
 
@@ -143,7 +139,6 @@ function containsScreenRect(hit, actual) {
 
 async function sampleMatrices(win, targetId, options = {}) {
   const scriptedCycleMs = Number.isFinite(options.scriptedCycleMs) ? options.scriptedCycleMs : 0;
-  const cloudlingPointer = options.cloudlingPointer === true;
   // Long enough to cover both periods a scripted walk composes: the step cycle
   // (~1.16s) and the slower breath (4.4s) land back in phase together at 127.6s.
   const seekSeconds = Number.isFinite(options.seekSeconds) ? options.seekSeconds : 127.6;
@@ -160,34 +155,6 @@ async function sampleMatrices(win, targetId, options = {}) {
       return { a: m.a, b: m.b, c: m.c, d: m.d, e: m.e, f: m.f };
     };
     const out = [];
-
-    if (${cloudlingPointer ? "true" : "false"}) {
-      if (typeof window.__cloudlingSetPointer !== "function") {
-        throw new Error("cloudling scripted pointer hook is unavailable");
-      }
-      // The diagonals alone cap the eye offset's x component at 1/sqrt(2), so
-      // they can never reach the full MAX_ROT_DEG the horizontal probes do —
-      // which is how the sampled envelope came out short of the real one.
-      const probes = [
-        { x: -1000, y: 0, inside: true },
-        { x: 1000, y: 0, inside: true },
-        { x: 0, y: -1000, inside: true },
-        { x: 0, y: 1000, inside: true },
-        { x: -1000, y: -1000, inside: true },
-        { x: 1000, y: -1000, inside: true },
-        { x: -1000, y: 1000, inside: true },
-        { x: 1000, y: 1000, inside: true },
-      ];
-      for (const probe of probes) {
-        window.__cloudlingSetPointer(probe);
-        await wait(1200);
-        for (let i = 0; i < 12; i++) {
-          out.push(snapshot());
-          await wait(16);
-        }
-      }
-      return out;
-    }
 
     const animations = document.getAnimations({ subtree: true });
     const durations = [];
@@ -256,11 +223,6 @@ async function auditTheme(win, builtin) {
     if (!fs.existsSync(svgPath)) throw new Error(`missing SVG for motion audit: ${svgPath}`);
     await win.loadFile(svgPath);
     const matrices = await sampleMatrices(win, descriptor.followTarget.id, {
-      // Every visual the pointer bridge drives, not just idle:
-      // src/tick.js's POINTER_BRIDGE_STATES covers mini-idle too, and probing
-      // only idle measured mini-idle's breath-only subspace and called it the
-      // envelope.
-      cloudlingPointer: builtin.id === "cloudling" && POINTER_DRIVEN.has(file),
       scriptedCycleMs: Number(scriptedCycles[file]) || 0,
     });
     const authored = descriptor.hitBoxPadding || emptyPadding();
@@ -360,16 +322,6 @@ async function auditTheme(win, builtin) {
           }
         }
       }
-    }
-
-    // A pointer-driven visual that measured no horizontal travel means the
-    // probes never engaged — which reads identically to "this animation barely
-    // moves" and silently certifies a far-too-small envelope.
-    if (POINTER_DRIVEN.has(file) && required.left < 1 && required.right < 1) {
-      failures.push(
-        `${builtin.id}/${file}: pointer probes produced no rotation `
-        + `(required=${JSON.stringify(required)}) — the sweep measured the idle subspace only`
-      );
     }
 
     for (const side of ["left", "top", "right", "bottom"]) {

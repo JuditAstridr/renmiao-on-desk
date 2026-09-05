@@ -296,8 +296,7 @@ if (!isMac) {
   // Main confirmed the drop opened a terminal → react. Routed back through the
   // local playReaction so isReacting gating stays consistent. Best-effort with a
   // fallback chain: double (Clawd) → clickLeft/clickRight poke (Calico) →
-  // nothing (Cloudling only ships a drag reaction; no new theme capability is
-  // invented for drops).
+  // nothing when the active theme has no drop reaction.
   window.hitAPI.onDropAccepted(() => {
     if (!canPlayReactionNow()) return;
     const doubleReact = _getReaction("double");

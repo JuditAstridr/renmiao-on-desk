@@ -58,7 +58,7 @@ const {
   normalizeTextScaleByDisplay,
 } = require("./text-scale");
 const {
-  PET_TINT_IDS,
+  isPetTintIdForTheme,
   PET_ACCESSORY_IDS,
 } = require("./pet-customization-catalog");
 
@@ -327,7 +327,7 @@ const SCHEMA = {
   },
   // Theme
   theme: { type: "string", default: "renmi" },
-  // Per-theme color filter choice, e.g. { clawd: "matcha", cloudling: "mono" }.
+  // Per-theme color filter choice, e.g. { clawd: "matcha" }.
   // Missing entries preserve the theme's native colors. The normalizer also
   // accepts the short-lived pre-detail-view string shape and seeds supported
   // built-ins with that value so Draft PR testers do not lose their choice.
@@ -335,6 +335,13 @@ const SCHEMA = {
     type: "object",
     defaultFactory: () => ({}),
     normalize: normalizePetTint,
+  },
+  // Per-theme saturation for default-white-regions tinting. Missing entries
+  // preserve each theme's declared default saturation.
+  petTintSaturation: {
+    type: "object",
+    defaultFactory: () => ({}),
+    normalize: normalizePetTintSaturation,
   },
   // Per-theme wardrobe choice. Missing entries mean no accessory. The
   // discarded PR #529 global scalar was never shipped, so it is deliberately
@@ -1254,15 +1261,30 @@ function normalizeThemeVariant(value, defaultsValue) {
 
 function normalizePetTint(value, defaultsValue) {
   if (typeof value === "string") {
-    if (!PET_TINT_IDS.includes(value) || value === "none") return {};
-    return { clawd: value, cloudling: value };
+    if (!isPetTintIdForTheme(value, "clawd") || value === "none") return {};
+    return { clawd: value };
   }
   if (!value || typeof value !== "object" || Array.isArray(value)) return defaultsValue;
   const out = {};
   for (const [themeId, tintId] of Object.entries(value)) {
     if (!/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$/.test(themeId)) continue;
-    if (!PET_TINT_IDS.includes(tintId)) continue;
+    if (!isPetTintIdForTheme(tintId, themeId)) continue;
     if (tintId !== "none") out[themeId] = tintId;
+  }
+  return out;
+}
+
+function normalizePetTintSaturation(value, defaultsValue) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return defaultsValue;
+  const out = {};
+  for (const [themeId, saturation] of Object.entries(value)) {
+    if (
+      !/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$/.test(themeId)
+      || !Number.isFinite(saturation)
+      || saturation < 0
+      || saturation > 200
+    ) continue;
+    out[themeId] = saturation;
   }
   return out;
 }
@@ -1475,6 +1497,7 @@ module.exports = {
   mapLocaleToLang,
   normalizeThemeOverrides,
   normalizePetTint,
+  normalizePetTintSaturation,
   normalizeShortcuts,
   normalizeOptionalHttpUrl,
   normalizePathList,

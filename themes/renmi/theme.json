@@ -5,12 +5,44 @@
   "version": "1.0.0",
   "description": "A clean white sitting cat with a curled tail.",
   "customization": {
-    "petTint": false
+    "petTint": true,
+    "petTintMode": "default-white-regions",
+    "petTintColors": {
+      "cream": "#f1e3c4",
+      "light-gray": "#d9dde2",
+      "light-brown": "#c7aa8f"
+    },
+    "petTintOptions": [
+      { "id": "none", "labelKey": "tintWhite" },
+      { "id": "cream", "labelKey": "tintCream" },
+      { "id": "light-gray", "labelKey": "tintLightGray" },
+      { "id": "light-brown", "labelKey": "tintLightBrown" }
+    ],
+    "petTintSaturation": {
+      "enabled": true,
+      "min": 0,
+      "max": 200,
+      "step": 1,
+      "default": 100
+    }
   },
   "trustedRuntime": {
     "scriptedSvgFiles": [
-      "renmi-idle-follow.svg"
+      "renmi-idle-follow.svg",
+      "renmi-static.svg",
+      "renmi-mini-idle.svg",
+      "renmi-mini-alert.svg",
+      "renmi-mini-happy.svg",
+      "renmi-mini-enter.svg",
+      "renmi-mini-peek.svg",
+      "renmi-mini-working.svg",
+      "renmi-mini-crabwalk.svg",
+      "renmi-mini-enter-sleep.svg",
+      "renmi-mini-sleep.svg"
     ]
+  },
+  "rendering": {
+    "svgChannel": "object"
   },
   "viewBox": {
     "x": 0,
@@ -32,7 +64,10 @@
   },
   "eyeTracking": {
     "enabled": true,
-    "states": ["idle"],
+    "states": [
+      "idle",
+      "mini-idle"
+    ],
     "eyeRatioX": 0.468,
     "eyeRatioY": 0.336,
     "maxOffset": 20,
@@ -51,16 +86,36 @@
     "mode": "direct"
   },
   "states": {
-    "idle": ["renmi-idle-follow.svg"],
-    "thinking": ["renmi.png"],
-    "working": ["renmi.png"],
-    "juggling": ["renmi.png"],
-    "sweeping": ["renmi.png"],
-    "error": ["renmi.png"],
-    "attention": ["renmi.png"],
-    "notification": ["renmi.png"],
-    "carrying": ["renmi.png"],
-    "sleeping": ["renmi.png"]
+    "idle": [
+      "renmi-idle-follow.svg"
+    ],
+    "thinking": [
+      "renmi-static.svg"
+    ],
+    "working": [
+      "renmi-static.svg"
+    ],
+    "juggling": [
+      "renmi-static.svg"
+    ],
+    "sweeping": [
+      "renmi-static.svg"
+    ],
+    "error": [
+      "renmi-static.svg"
+    ],
+    "attention": [
+      "renmi-static.svg"
+    ],
+    "notification": [
+      "renmi-static.svg"
+    ],
+    "carrying": [
+      "renmi-static.svg"
+    ],
+    "sleeping": [
+      "renmi-static.svg"
+    ]
   },
   "hitBoxes": {
     "default": {
@@ -83,6 +138,47 @@
     }
   },
   "miniMode": {
-    "supported": false
+    "supported": true,
+    "offsetRatio": 0.486,
+    "states": {
+      "mini-idle": [
+        "renmi-mini-idle.svg"
+      ],
+      "mini-alert": [
+        "renmi-mini-alert.svg"
+      ],
+      "mini-happy": [
+        "renmi-mini-happy.svg"
+      ],
+      "mini-enter": [
+        "renmi-mini-enter.svg"
+      ],
+      "mini-peek": [
+        "renmi-mini-peek.svg"
+      ],
+      "mini-working": [
+        "renmi-mini-working.svg"
+      ],
+      "mini-crabwalk": [
+        "renmi-mini-crabwalk.svg"
+      ],
+      "mini-enter-sleep": [
+        "renmi-mini-enter-sleep.svg"
+      ],
+      "mini-sleep": [
+        "renmi-mini-sleep.svg"
+      ]
+    },
+    "timings": {
+      "minDisplay": {
+        "mini-alert": 4000,
+        "mini-happy": 4000
+      },
+      "autoReturn": {
+        "mini-alert": 4000,
+        "mini-happy": 4000
+      }
+    },
+    "glyphFlips": {}
   }
 }

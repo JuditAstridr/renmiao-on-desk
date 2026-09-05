@@ -3455,45 +3455,6 @@ for (const [language, translations] of Object.entries(studyTranslations)) {
   if (i18n[language]) Object.assign(i18n[language], translations);
 }
 
-// Character selector strings are shared by the first-run companion flow and
-// the tray/context-menu entry. Keep English as the safe fallback for locales
-// without a dedicated skin translation, while preserving the existing
-// Chinese UI used by the Renmiao profile.
-const characterTranslations = {
-  characterSelect: "Choose companion",
-  characterSelectTitle: "Choose your companion",
-  characterConfirm: "Confirm",
-  characterCancel: "Cancel",
-  characterPreview: "Preview",
-  characterColor: "Body color",
-  characterSize: "Size",
-  characterPatterns: "Patterns",
-  characterAccessories: "Accessories",
-  characterStateIdle: "Idle",
-  characterStateStudying: "Studying",
-  characterStateReward: "Celebrating",
-  characterStateSleeping: "Sleeping",
-  characterNoSkins: "No companions found yet.",
-};
-for (const language of Object.keys(i18n)) {
-  Object.assign(i18n[language], characterTranslations);
-}
-Object.assign(i18n.zh, {
-  characterSelect: "选择桌宠",
-  characterSelectTitle: "选择你的桌宠",
-  characterConfirm: "确认",
-  characterCancel: "取消",
-  characterPreview: "预览",
-  characterColor: "身体颜色",
-  characterSize: "大小",
-  characterPatterns: "花纹",
-  characterAccessories: "配饰",
-  characterStateIdle: "待机",
-  characterStateStudying: "学习中",
-  characterStateReward: "庆祝",
-  characterStateSleeping: "睡眠",
-  characterNoSkins: "暂时没有可用桌宠。",
-});
 const SUPPORTED_LANGS = Object.freeze(["en", "zh", "zh-TW", "ko", "ja", "pt-BR", "es"]);
 
 function createTranslator(getLang) {
