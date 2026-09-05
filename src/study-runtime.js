@@ -21,6 +21,7 @@ function defaultPomodoro() {
     running: false,
     mode: "countdown",
     elapsedSeconds: 0,
+    awardedFocusSeconds: 0,
     taskId: null,
     taskTotalSeconds: 0,
     taskRemainingSeconds: 0,
@@ -126,6 +127,8 @@ function sanitizePomodoro(raw, tasks) {
   out.mode = MODES.includes(raw.mode) ? raw.mode : "countdown";
   out.elapsedSeconds = Number.isInteger(raw.elapsedSeconds) && raw.elapsedSeconds >= 0
     ? raw.elapsedSeconds : 0;
+  out.awardedFocusSeconds = Number.isInteger(raw.awardedFocusSeconds) && raw.awardedFocusSeconds >= 0
+    ? raw.awardedFocusSeconds : 0;
   out.taskId = typeof raw.taskId === "string" && raw.taskId ? raw.taskId : null;
   out.taskTotalSeconds = Number.isInteger(raw.taskTotalSeconds) && raw.taskTotalSeconds >= 0
     ? raw.taskTotalSeconds : 0;
@@ -275,10 +278,19 @@ function createStudyRuntime(options = {}) {
       points.lastAwardDate = today;
       points.bestStreak = Math.max(points.bestStreak, points.streak);
     }
-    let amount = reason === "focus" ? 10 : (reason === "task" ? 30 : (reason === "quadrant0" ? 15 : 0));
+    let amount = reason === "focusMinute" ? 1
+      : (reason === "focus" ? 10 : (reason === "task" ? 30 : (reason === "quadrant0" ? 15 : 0)));
     if (points.streak >= 3 && (reason === "focus" || reason === "task")) amount += 5;
     points.total += amount;
     points.today += amount;
+  }
+
+  function awardFocusTimePoints() {
+    const pomodoro = state.pomodoro;
+    const earnedMinutes = Math.floor(pomodoro.awardedFocusSeconds / 60);
+    if (earnedMinutes <= 0) return;
+    pomodoro.awardedFocusSeconds %= 60;
+    for (let index = 0; index < earnedMinutes; index += 1) awardPoints("focusMinute");
   }
 
   function stopTimer() {
@@ -345,6 +357,7 @@ function createStudyRuntime(options = {}) {
     pomodoro.completedFocusCycles = 0;
     pomodoro.awaitingContinue = false;
     pomodoro.elapsedSeconds = 0;
+    pomodoro.awardedFocusSeconds = 0;
     pomodoro.totalSeconds = pomodoro.focusMinutes * 60;
     pomodoro.remainingSeconds = pomodoro.totalSeconds;
   }
@@ -358,8 +371,6 @@ function createStudyRuntime(options = {}) {
     if (taskId) {
       const task = state.tasks.find((entry) => entry.id === taskId);
       if (task) task.completedPomodoros += 1;
-      awardPoints("focus");
-
       if (pomodoro.currentSubtaskId && task) {
         if (pomodoro.splitLongSubtasks && pomodoro.currentSubtaskRemainingSeconds > 0) {
           pomodoro.currentSubtaskRemainingSeconds = Math.max(
@@ -436,7 +447,6 @@ function createStudyRuntime(options = {}) {
     }
 
     startPhase("shortBreak");
-    awardPoints("focus");
     onFocusComplete({ taskId: null, taskFinished: false });
   }
 
@@ -449,8 +459,16 @@ function createStudyRuntime(options = {}) {
     if (elapsed <= 0) return;
     if (pomodoro.mode === "countup") {
       pomodoro.elapsedSeconds += elapsed;
+      if (pomodoro.phase === "focus") {
+        pomodoro.awardedFocusSeconds += elapsed;
+        awardFocusTimePoints();
+      }
       persistSoon();
       return;
+    }
+    if (pomodoro.phase === "focus") {
+      pomodoro.awardedFocusSeconds += elapsed;
+      awardFocusTimePoints();
     }
     pomodoro.remainingSeconds -= elapsed;
     if (pomodoro.remainingSeconds > 0) {
@@ -714,6 +732,7 @@ function createStudyRuntime(options = {}) {
           pomodoro.subtaskIds = [];
           pomodoro.currentSubtaskId = null;
           pomodoro.currentSubtaskRemainingSeconds = 0;
+          pomodoro.awardedFocusSeconds = 0;
           startPhase("focus");
         } else if (!pomodoro.running) {
           pomodoro.running = true;

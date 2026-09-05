@@ -131,14 +131,26 @@ describe("study runtime", () => {
     assert.equal(snapshot.tasks[0].done, true);
   });
 
-  it("records focus points independently from task completion", () => {
-    const { runtime } = createRuntime({ now: () => 1000 });
+  it("converts actual focused minutes into points instead of rewarding skipped sessions", () => {
+    let clock = 1000;
+    const ticks = [];
+    const { runtime } = createRuntime({
+      now: () => clock,
+      setInterval: (callback) => { ticks.push(callback); return callback; },
+      clearInterval: () => {},
+    });
     let snapshot = runtime.addTask({ title: "Practice", estimatedMinutes: 30 });
     snapshot = runtime.startTaskPomodoro(snapshot.tasks[0].id);
     snapshot = runtime.pomodoroCommand("skip");
 
-    assert.equal(snapshot.points.total, 10);
-    assert.equal(snapshot.points.today, 10);
+    assert.equal(snapshot.points.total, 0);
+    assert.equal(snapshot.points.today, 0);
+    snapshot = runtime.pomodoroCommand("skip");
+    clock += 2 * 60 * 1000;
+    ticks[0]();
+    snapshot = runtime.getSnapshot();
+    assert.equal(snapshot.points.total, 2);
+    assert.equal(snapshot.points.today, 2);
     assert.equal(snapshot.points.streak, 1);
     assert.equal(snapshot.tasks[0].done, false);
   });
