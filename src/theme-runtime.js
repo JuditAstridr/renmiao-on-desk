@@ -42,12 +42,10 @@ function createThemeRuntime(options = {}) {
   const syncHitStateAfterLoad = options.syncHitStateAfterLoad || (() => {});
   const syncRendererStateAfterLoad = options.syncRendererStateAfterLoad || (() => {});
   const syncHitWin = options.syncHitWin || (() => {});
-  const syncSessionHudVisibility = options.syncSessionHudVisibility || (() => {});
   const startMainTick = options.startMainTick || (() => {});
   const bumpAnimationOverridePreviewPosterGeneration =
     options.bumpAnimationOverridePreviewPosterGeneration || (() => {});
   const rebuildAllMenus = options.rebuildAllMenus || (() => {});
-  const isManagedTheme = options.isManagedTheme || (() => false);
 
   let activeTheme = null;
   let activeThemeContext = null;
@@ -169,8 +167,7 @@ function createThemeRuntime(options = {}) {
     callMethod(stateRuntime, "cleanup");
     callMethod(tickRuntime, "cleanup");
     callMethod(miniRuntime, "cleanup");
-    // Do not clear pending permission bubbles, sessions, or displayHint here;
-    // those are runtime concepts that survive a theme asset reload.
+    // Keep the active theme's display hints stable while its assets reload.
 
     if (
       typeof miniRuntime.getMiniMode === "function" &&
@@ -214,7 +211,6 @@ function createThemeRuntime(options = {}) {
         syncRendererStateAfterLoad({ includeStartupRecovery: false });
         syncHitWin();
       }
-      syncSessionHudVisibility();
       if (isLiveWindow(getRenderWindow())) startMainTick();
       if (animationOverrides && typeof animationOverrides.runPendingPostReloadTasks === "function") {
         animationOverrides.runPendingPostReloadTasks();
@@ -277,7 +273,6 @@ function createThemeRuntime(options = {}) {
     return {
       builtin: !!entry.builtin,
       active: activeTheme && activeTheme._id === themeId,
-      managedCodexPet: isManagedTheme(themeId),
     };
   }
 

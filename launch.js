@@ -2,9 +2,10 @@
 
 // Cross-platform launcher that ensures Electron runs in GUI mode.
 //
-// Claude Code (and other Electron-based tools) set ELECTRON_RUN_AS_NODE=1,
-// which forces Electron to behave as a plain Node.js process — the browser
-// layer never initializes, so `require("electron").app` is undefined.
+// Some parent processes set ELECTRON_RUN_AS_NODE=1, which forces Electron to
+// behave as a plain Node.js process — the browser layer never initializes, so
+// `require("electron").app` is undefined.  Renmi has no hook/agent launcher
+// dependency; this file only prepares and starts the Electron app.
 //
 // This launcher strips that variable before spawning the real Electron binary.
 
@@ -22,17 +23,24 @@ if (!electronInstall.ok) {
 }
 
 const electron = require("electron");
-const { buildElectronLaunchConfig } = require("./hooks/shared-process");
 
 const forwardedArgs = process.argv.slice(2);
-const launchConfig = buildElectronLaunchConfig(__dirname, { forwardedArgs });
-const renmiProfileFlag = process.env.RENMI_ON_DESK_PROFILE || "1";
-const child = spawn(electron, launchConfig.args, {
+const launchArgs = [__dirname, ...forwardedArgs];
+if (process.platform === "linux" && process.env.CLAWD_DISABLE_SANDBOX === "1") {
+  launchArgs.splice(1, 0, "--no-sandbox", "--disable-setuid-sandbox");
+}
+const launchEnv = { ...process.env, RENMI_ON_DESK_PROFILE: "1" };
+delete launchEnv.ELECTRON_RUN_AS_NODE;
+if (process.platform === "linux" && process.env.CLAWD_DISABLE_SANDBOX === "1") {
+  launchEnv.ELECTRON_DISABLE_SANDBOX = "1";
+  launchEnv.CHROME_DEVEL_SANDBOX = "";
+}
+const child = spawn(electron, launchArgs, {
   stdio: "inherit",
-  // Keep this checkout's Electron profile explicit so `npm start` and direct
-  // launcher invocations both use Renmi's isolated userData/runtime paths.
-  env: { ...launchConfig.env, RENMI_ON_DESK_PROFILE: renmiProfileFlag },
-  cwd: launchConfig.cwd,
+  // Keep this checkout's Electron profile explicit so `npm start`, `npm run
+  // dev`, and direct launcher invocations all use Renmi's isolated paths.
+  env: launchEnv,
+  cwd: __dirname,
 });
 
 child.once("error", (error) => {

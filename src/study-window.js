@@ -8,6 +8,7 @@ const DEFAULT_WIDTH = 760;
 const DEFAULT_HEIGHT = 820;
 const MIN_WIDTH = 520;
 const MIN_HEIGHT = 560;
+const PET_PANEL_GAP = 24;
 
 function usableBounds(value) {
   return !!value
@@ -33,6 +34,15 @@ function clampToWorkArea(bounds, workArea) {
 module.exports = function createStudyWindowRuntime(ctx = {}) {
   let studyWindow = null;
 
+  function shouldFollowPet(override) {
+    if (typeof override === "boolean") return override;
+    try {
+      return typeof ctx.shouldFollowPet === "function" && ctx.shouldFollowPet() === true;
+    } catch {
+      return false;
+    }
+  }
+
   function getScale() {
     try {
       return clampTextScale(typeof ctx.getTextScale === "function" ? ctx.getTextScale() : 1);
@@ -54,7 +64,7 @@ module.exports = function createStudyWindowRuntime(ctx = {}) {
     let workArea = null;
     try { workArea = typeof ctx.getNearestWorkArea === "function" ? ctx.getNearestWorkArea(cx, cy) : null; } catch {}
     const area = usableBounds(workArea) ? workArea : { x: 0, y: 0, width: 1280, height: 800 };
-    return {
+    const centered = {
       bounds: clampToWorkArea({
         x: area.x + (area.width - width) / 2,
         y: area.y + (area.height - height) / 2,
@@ -64,6 +74,52 @@ module.exports = function createStudyWindowRuntime(ctx = {}) {
       minWidth,
       minHeight,
     };
+    if (!shouldFollowPet() || !usableBounds(pet)) return centered;
+    return {
+      ...centered,
+      bounds: anchorBoundsNearPet(centered.bounds, pet, area),
+    };
+  }
+
+  function anchorBoundsNearPet(bounds, pet, workArea) {
+    if (!usableBounds(bounds) || !usableBounds(pet)) return bounds;
+    const area = usableBounds(workArea) ? workArea : { x: 0, y: 0, width: 1280, height: 800 };
+    const centeredY = pet.y + (pet.height - bounds.height) / 2;
+    const right = { ...bounds, x: pet.x + pet.width + PET_PANEL_GAP, y: centeredY };
+    const left = { ...bounds, x: pet.x - bounds.width - PET_PANEL_GAP, y: centeredY };
+    const fitsHorizontally = (candidate) => candidate.x >= area.x
+      && candidate.x + candidate.width <= area.x + area.width;
+    return clampToWorkArea(fitsHorizontally(right) ? right : left, area);
+  }
+
+  function repositionNearPet(options = {}) {
+    if (!shouldFollowPet(options.follow) || !studyWindow || studyWindow.isDestroyed()) return false;
+    if (typeof studyWindow.isMaximized === "function" && studyWindow.isMaximized()) return false;
+    if (typeof studyWindow.isFullScreen === "function" && studyWindow.isFullScreen()) return false;
+    let pet = null;
+    let current = null;
+    try {
+      pet = typeof ctx.getPetWindowBounds === "function" ? ctx.getPetWindowBounds() : null;
+      current = typeof studyWindow.getBounds === "function" ? studyWindow.getBounds() : null;
+    } catch {
+      return false;
+    }
+    if (!usableBounds(pet) || !usableBounds(current)) return false;
+    let workArea = null;
+    try {
+      workArea = typeof ctx.getNearestWorkArea === "function"
+        ? ctx.getNearestWorkArea(pet.x + pet.width / 2, pet.y + pet.height / 2)
+        : null;
+    } catch {}
+    const next = anchorBoundsNearPet(current, pet, workArea);
+    if (next.x === current.x && next.y === current.y) return false;
+    try {
+      if (typeof studyWindow.setPosition === "function") studyWindow.setPosition(next.x, next.y);
+      else if (typeof studyWindow.setBounds === "function") studyWindow.setBounds(next);
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   function sendSnapshot(snapshot) {
@@ -115,6 +171,7 @@ module.exports = function createStudyWindowRuntime(ctx = {}) {
     });
     studyWindow.once("ready-to-show", () => {
       if (!studyWindow || studyWindow.isDestroyed()) return;
+      repositionNearPet();
       studyWindow.show();
       studyWindow.focus();
     });
@@ -125,6 +182,7 @@ module.exports = function createStudyWindowRuntime(ctx = {}) {
   function showStudyDashboard() {
     if (studyWindow && !studyWindow.isDestroyed()) {
       if (studyWindow.isMinimized()) studyWindow.restore();
+      repositionNearPet();
       studyWindow.show();
       studyWindow.focus();
       sendI18n();
@@ -156,6 +214,7 @@ module.exports = function createStudyWindowRuntime(ctx = {}) {
 
   return {
     showStudyDashboard,
+    repositionNearPet,
     broadcastStudySnapshot,
     sendI18n,
     applyTextScaleToWindow,

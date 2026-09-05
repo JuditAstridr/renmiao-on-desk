@@ -1,17 +1,11 @@
 "use strict";
 
 const defaultHitGeometry = require("./hit-geometry");
-const {
-  getThemeMarginBox: defaultGetThemeMarginBox,
-  computeThemeAnchorRect: defaultComputeThemeAnchorRect,
-} = require("./visible-margins");
 const { resolveAccessoryAwareHitBox } = require("./pet-accessory-hitbox");
 const { getPetAccessoryPayloadSnapshot } = require("./pet-accessory-state");
 
 function createPetGeometryMain(options = {}) {
   const hitGeometry = options.hitGeometry || defaultHitGeometry;
-  const getThemeMarginBox = options.getThemeMarginBox || defaultGetThemeMarginBox;
-  const computeThemeAnchorRect = options.computeThemeAnchorRect || defaultComputeThemeAnchorRect;
   const getActiveTheme = options.getActiveTheme || (() => null);
   const getCurrentState = options.getCurrentState || (() => null);
   const getCurrentSvg = options.getCurrentSvg || (() => null);
@@ -112,43 +106,10 @@ function createPetGeometryMain(options = {}) {
     return outwardRound(hit) || getFullHitRect(bounds);
   }
 
-  function getUpdateBubbleAnchorRect(bounds) {
-    if (!bounds) return getHitRectScreen(bounds);
-    const theme = getActiveTheme();
-    if (!theme) return getHitRectScreen(bounds);
-
-    const stableAnchor = computeThemeAnchorRect(theme, bounds);
-    if (stableAnchor) return stableAnchor;
-
-    const box = getThemeMarginBox(theme);
-    const currentFile = getCurrentSvg();
-    if (box && currentFile) {
-      const currentAnchor = computeThemeAnchorRect(theme, bounds, {
-        box,
-        state: getCurrentState(),
-        file: currentFile,
-      });
-      if (currentAnchor) return currentAnchor;
-    }
-
-    return getHitRectScreen(bounds);
-  }
-
-  function getSessionHudAnchorRect(bounds) {
-    if (!bounds) return null;
-    const theme = getActiveTheme();
-    if (!theme) return null;
-    const box = getThemeMarginBox(theme);
-    if (!box) return null;
-    return computeThemeAnchorRect(theme, bounds, { box });
-  }
-
   return {
     getObjRect,
     getAssetPointerPayload,
     getHitRectScreen,
-    getUpdateBubbleAnchorRect,
-    getSessionHudAnchorRect,
   };
 }
 

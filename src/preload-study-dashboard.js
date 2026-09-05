@@ -19,7 +19,7 @@ ipcRenderer.on("study:lang-change", (_event, payload) => {
 
 contextBridge.exposeInMainWorld("studyAPI", {
   getSnapshot: () => ipcRenderer.invoke("study:get-snapshot"),
-  getI18n: () => ipcRenderer.invoke("dashboard:get-i18n"),
+  getI18n: () => ipcRenderer.invoke("study:get-i18n"),
   addTask: (payload) => ipcRenderer.invoke("study:add-task", payload),
   updateTask: (id, patch) => ipcRenderer.invoke("study:update-task", { id, patch }),
   toggleTask: (id) => ipcRenderer.invoke("study:toggle-task", id),

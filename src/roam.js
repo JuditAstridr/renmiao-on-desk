@@ -7,11 +7,10 @@
 //     falls back to idle SVG for themes without a dedicated roam animation).
 //     This prevents the "idle pet dragged across the desktop" regression.
 //   • Movement goes through applyPetWindowBounds every frame — anchored to a
-//     size captured once at walk start (#569) — so virtual bounds, hit window,
-//     HUD, and anchored surfaces stay in sync with the pet.
-//   • Each animation step re-checks isRoamAllowed() so a state change to working /
-//     notification / permission cancels the roam immediately — no "pet drifting while
-//     working" regression.
+//     size captured once at walk start (#569) — so virtual bounds and the hit
+//     window stay in sync with the pet.
+//   • Each animation step re-checks isRoamAllowed() so a state change away from
+//     idle cancels the roam immediately.
 //   • The first roam after entering idle uses ROAM_IDLE_DELAY_MS (8s); subsequent
 //     roams use ROAM_BETWEEN_DELAY_MS (4s).
 //   • When the state changes away from idle/roam (detected in tick or step),
@@ -68,16 +67,6 @@ module.exports = function initRoam(ctx) {
     // Allow roaming when idle (about to start) or already roaming (mid-animation)
     if (state !== "idle" && state !== "roam") return false;
     if (ctx.miniTransitioning) return false;
-    // #640: while the user is typing into a bubble's text field (macOS IME
-    // editing), the pet must hold still — a wandering pet either drags the
-    // bubble along (followPet anchoring) or walks over the box being typed
-    // into. Checked per-frame like the state gate, so an editing start
-    // cancels a walk mid-stride.
-    if (
-      typeof ctx.isImeEditingActive === "function" &&
-      ctx.isImeEditingActive()
-    )
-      return false;
     return true;
   }
 
@@ -517,8 +506,6 @@ module.exports = function initRoam(ctx) {
 
     roamActive = true;
     const startTime = Date.now();
-    let frameCount = 0;
-
     function step() {
       // ── Per-frame cancellation checks ──
       if (!roamActive) return;
@@ -562,17 +549,6 @@ module.exports = function initRoam(ctx) {
       // Write the anchored size, never a re-read of live bounds (#569).
       ctx.applyPetWindowBounds({ x: vx, y: vy, width: roamW, height: roamH });
       if (typeof ctx.syncHitWin === "function") ctx.syncHitWin();
-      if (typeof ctx.repositionAnchoredSurfaces === "function")
-        ctx.repositionAnchoredSurfaces();
-      // Throttle bubble reposition to every 3rd frame (~20fps) — same as mini.js
-      if (
-        typeof ctx.repositionBubbles === "function" &&
-        ctx.bubbleFollowPet &&
-        ctx.pendingPermissions.length &&
-        (++frameCount % 3 === 0 || t >= 1)
-      ) {
-        ctx.repositionBubbles();
-      }
 
       if (t < 1 && roamActive) {
         roamAnimTimer = setTimeout(step, ROAM_FRAME_MS);

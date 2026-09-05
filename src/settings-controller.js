@@ -66,14 +66,15 @@
 // through this controller.
 
 const { createStore } = require("./settings-store");
-const prefsModule = require("./prefs");
-const defaultActions = require("./settings-actions");
 
 function createSettingsController({
   prefsPath,
-  prefs = prefsModule,
-  updates = defaultActions.updateRegistry,
-  commands = defaultActions.commandRegistry,
+  // Keep the legacy defaults lazy. Renmi injects its small settings adapter;
+  // this prevents the coding-agent prefs/actions graph from being loaded at
+  // all in the Renmi production entry point.
+  prefs = null,
+  updates = null,
+  commands = null,
   injectedDeps = {},
   loadResult = null, // optional pre-loaded { snapshot, locked } for tests
 } = {}) {
@@ -83,7 +84,11 @@ function createSettingsController({
     );
   }
 
-  const loaded = loadResult || prefs.load(prefsPath);
+  const prefsImpl = prefs || require("./prefs");
+  const legacyActions = updates || commands ? null : require("./settings-actions");
+  const updatesImpl = updates || (legacyActions && legacyActions.updateRegistry) || {};
+  const commandsImpl = commands || (legacyActions && legacyActions.commandRegistry) || {};
+  const loaded = loadResult || prefsImpl.load(prefsPath);
   const initialSnapshot = loaded.snapshot;
   let locked = !!loaded.locked;
   const readFailure = loaded.locked === true && loaded.recovered === true;
@@ -128,7 +133,7 @@ function createSettingsController({
     }
     if (!prefsPath) return { status: "ok", noop: true };
     try {
-      prefs.save(prefsPath, snapshot);
+      prefsImpl.save(prefsPath, snapshot);
       return { status: "ok" };
     } catch (err) {
       console.warn("Clawd: failed to persist prefs:", err && err.message);
@@ -165,7 +170,7 @@ function createSettingsController({
   }
 
   function rejectCommandOnly(key, operation) {
-    if (!isCommandOnlyEntry(updates[key])) return null;
+    if (!isCommandOnlyEntry(updatesImpl[key])) return null;
     return {
       status: "error",
       message: `${key}: command-only setting cannot be changed via ${operation}`,
@@ -190,7 +195,7 @@ function createSettingsController({
   }
 
   function resolveUpdateLockKey(key) {
-    const entry = updates[key];
+    const entry = updatesImpl[key];
     if (entry && typeof entry.lockKey === "string" && entry.lockKey) {
       return `domain:${entry.lockKey}`;
     }
@@ -198,7 +203,7 @@ function createSettingsController({
   }
 
   function resolveCommandLockKey(name) {
-    const command = commands[name];
+    const command = commandsImpl[name];
     if (command && typeof command.lockKey === "string" && command.lockKey) {
       return `domain:${command.lockKey}`;
     }
@@ -227,7 +232,7 @@ function createSettingsController({
   // `options.skipEffect` true → only the validator runs (used by hydrate()).
   // Returns either a sync result object or a Promise resolving to one.
   function invokeAction(key, value, options = {}) {
-    const entry = updates[key];
+    const entry = updatesImpl[key];
     if (!entry) {
       return { status: "error", message: `unknown settings key: ${key}` };
     }
@@ -334,7 +339,7 @@ function createSettingsController({
     // fix is to run all validators first, then all effects with explicit
     // rollback — not to relax this guard.
     for (const key of Object.keys(partial)) {
-      const entry = updates[key];
+      const entry = updatesImpl[key];
       const commandOnlyError = rejectCommandOnly(key, "applyBulk");
       if (commandOnlyError) return commandOnlyError;
       if (entry && resolveEffect(entry)) {
@@ -382,7 +387,7 @@ function createSettingsController({
     const mergedSnapshot = { ...store.getSnapshot(), ...accumulated };
     const mergedDeps = { ...injectedDeps, snapshot: mergedSnapshot };
     for (const key of Object.keys(accumulated)) {
-      const entry = updates[key];
+      const entry = updatesImpl[key];
       const validator = entry && resolveValidator(entry);
       if (!validator) continue;
       const recheck = runStep(`${key} post-validate`, validator, accumulated[key], mergedDeps);
@@ -460,7 +465,7 @@ function createSettingsController({
   }
 
   async function _doApplyCommand(name, payload) {
-    const command = commands[name];
+    const command = commandsImpl[name];
     if (!command) {
       return {
         status: "error",
@@ -494,7 +499,7 @@ function createSettingsController({
       const mergedSnapshot = { ...store.getSnapshot(), ...result.commit };
       const commitDeps = { ...injectedDeps, snapshot: mergedSnapshot };
       for (const key of Object.keys(result.commit)) {
-        const entry = updates[key];
+        const entry = updatesImpl[key];
         if (!entry) {
           return {
             status: "error",

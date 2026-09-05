@@ -9,7 +9,6 @@ const motionStage = document.getElementById("pet-motion-stage") || container;
 const assetDirectionStage = document.getElementById("pet-asset-direction-stage") || container;
 const mediaLayer = document.getElementById("pet-media-layer") || container;
 const accessoryLayer = document.getElementById("pet-accessory-layer") || container;
-const particleLayer = document.getElementById("pet-particle-layer") || container;
 const accessoryEl = document.getElementById("clawd-accessory");
 const accessoryLayout = globalThis.petAccessoryLayout || null;
 let clawdEl = document.getElementById("clawd");
@@ -24,19 +23,6 @@ const WAKE_OBJECT_RELOAD_RETRIES = 1;
 const LOW_POWER_PAUSE_STYLE_ID = "clawd-low-power-pause-svg";
 const LOW_POWER_PAUSE_STATES = new Set(["idle", "mini-idle", "dozing"]);
 const LOW_POWER_BOUNDARY_EPSILON_MS = 80;
-const CODEX_PET_VISUAL_BY_FILE = Object.freeze({
-  "codex-pet-idle-loop.svg": "idle-loop",
-  "codex-pet-idle-static.svg": "idle-static",
-  "codex-pet-waving-loop.svg": "waving-loop",
-  "codex-pet-waving-once.svg": "waving-once",
-  "codex-pet-jumping-loop.svg": "jumping-loop",
-  "codex-pet-jumping-once.svg": "jumping-once",
-  "codex-pet-failed-loop.svg": "failed-loop",
-  "codex-pet-waiting-loop.svg": "waiting-loop",
-  "codex-pet-running-loop.svg": "running-loop",
-  "codex-pet-review-loop.svg": "review-loop",
-  "codex-pet-drag-directional-loop.svg": "drag-directional",
-});
 const isRenmiProfile = !!(window.electronAPI && window.electronAPI.isRenmiProfile === true);
 let lowPowerIdleMode = false;
 let lowPowerIdlePauseTimer = null;
@@ -457,7 +443,6 @@ let isDragReacting = false;
 let currentDragSvg = null;
 let currentDragDirection = null;
 const directionalDragBridgeWarnings = new Set();
-const codexPetVisualBridgeWarnings = new Set();
 let _idleFollowSvg;
 let _initialIdleSvg;
 let _glyphFlipDefs;
@@ -1097,81 +1082,7 @@ if (window && typeof window.addEventListener === "function") {
   window.addEventListener("resize", refreshAccessoryLayout);
   window.addEventListener("beforeunload", () => {
     clearAccessoryRuntime({ clearAsset: true });
-    clearTestReactionVisuals();
   });
-}
-
-// ── Test-result reactions ──
-// Theme-independent decorative overlays. They never swap the current state
-// SVG, pause cursor tracking, or enter the click/drag reaction state machine.
-const TEST_CONFETTI_COLORS = ["#ff5d8f", "#ffd166", "#4ec3e0", "#8a5cff", "#5ad17a"];
-const testConfettiTimers = new Map();
-let testShakeTimer = null;
-
-function clearTestConfetti() {
-  for (const [particle, timer] of testConfettiTimers) {
-    if (timer) clearTimeout(timer);
-    try { particle.remove(); } catch {}
-  }
-  testConfettiTimers.clear();
-}
-
-function clearTestShake() {
-  if (testShakeTimer) {
-    clearTimeout(testShakeTimer);
-    testShakeTimer = null;
-  }
-  if (facingStage) facingStage.classList.remove("clawd-test-shake");
-}
-
-function clearTestReactionVisuals() {
-  clearTestConfetti();
-  clearTestShake();
-}
-
-function burstTestConfetti() {
-  clearTestReactionVisuals();
-  if (!particleLayer) return;
-  const count = 18;
-  for (let i = 0; i < count; i++) {
-    const particle = document.createElement("div");
-    const startX = 30 + Math.floor((i / count) * 40);
-    const dx = (i % 2 === 0 ? 1 : -1) * (10 + (i * 7) % 60);
-    const delay = (i % 6) * 40;
-    particle.className = "clawd-test-confetti";
-    particle.style.left = `${startX}%`;
-    particle.style.background = TEST_CONFETTI_COLORS[i % TEST_CONFETTI_COLORS.length];
-    particle.style.setProperty("--test-confetti-dx", `${dx}px`);
-    particle.style.animationDelay = `${delay}ms`;
-    particleLayer.appendChild(particle);
-    const timer = setTimeout(() => {
-      testConfettiTimers.delete(particle);
-      try { particle.remove(); } catch {}
-    }, 1500 + delay);
-    testConfettiTimers.set(particle, timer);
-  }
-}
-
-function shakePetForTestFailure() {
-  clearTestReactionVisuals();
-  if (!facingStage) return;
-  // Force a style flush so consecutive failed test runs restart the wobble.
-  void facingStage.offsetWidth;
-  facingStage.classList.add("clawd-test-shake");
-  testShakeTimer = setTimeout(() => {
-    testShakeTimer = null;
-    try { facingStage.classList.remove("clawd-test-shake"); } catch {}
-  }, 650);
-}
-
-function playTestReaction(result) {
-  if (dndEnabled) return;
-  if (result === "pass") burstTestConfetti();
-  else if (result === "fail") shakePetForTestFailure();
-}
-
-if (window.electronAPI && typeof window.electronAPI.onPlayTestReaction === "function") {
-  window.electronAPI.onPlayTestReaction(playTestReaction);
 }
 
 // Release an <object> SVG element: navigate away to unload the SVG document
@@ -1193,25 +1104,18 @@ function releaseImg(el) {
 let isReacting = false;
 let reactTimer = null;
 let currentIdleSvg = null;    // tracks which SVG is currently showing
-let currentState = null;      // last state name received from main (for re-pulse)
+let currentState = null;      // last state name received from main
 let currentRequestedSvg = null; // original state file from main, before low-power substitution
-let dndEnabled = false;
 let miniLeftFlip = false;
 
 if (window.electronAPI && typeof window.electronAPI.onLowPowerIdleModeChange === "function") {
   window.electronAPI.onLowPowerIdleModeChange(setLowPowerIdleMode);
 }
 
-window.electronAPI.onDndChange((enabled) => {
-  dndEnabled = enabled;
-  if (dndEnabled) clearTestReactionVisuals();
-});
-
 window.electronAPI.onMiniModeChange((enabled, edge, options) => {
   const preEntry = !!(options && options.preEntry);
   _miniPreEntryMode = !!enabled && preEntry;
   _inMiniMode = !!enabled && !preEntry;
-  if (enabled) clearTestReactionVisuals();
   miniLeftFlip = !!enabled && edge === "left";
   container.classList.toggle("mini-left", miniLeftFlip);
   applyMiniFlip(clawdEl, currentState);
@@ -1476,75 +1380,13 @@ function applyDirectionalDragToObject(objectEl, direction, options = {}) {
   }
 }
 
-function getCodexPetVisualForFile(file) {
-  if (!file) return null;
-  const basename = String(file).replace(/\\/g, "/").split("/").pop().split(/[?#]/, 1)[0];
-  return CODEX_PET_VISUAL_BY_FILE[basename] || null;
-}
-
 function getAssetDirectoryUrl(url) {
   const value = String(url || "").replace(/\\/g, "/");
   const slash = value.lastIndexOf("/");
   return slash >= 0 ? value.slice(0, slash) : "";
 }
 
-function restartCodexPetVisualAnimation(root) {
-  if (!root || typeof root.getAnimations !== "function") return;
-  let animations = [];
-  try {
-    animations = root.getAnimations({ subtree: true });
-  } catch {
-    return;
-  }
-  for (const animation of animations) {
-    try {
-      animation.currentTime = 0;
-    } catch {}
-  }
-}
-
-function warnCodexPetVisualBridgeOnce(reason) {
-  if (codexPetVisualBridgeWarnings.has(reason)) return;
-  codexPetVisualBridgeWarnings.add(reason);
-  console.warn(`Clawd: Codex Pet visual bridge unavailable (${reason}); using a normal media swap.`);
-}
-
-function applyCodexPetVisualToObject(objectEl, file, options = {}) {
-  const visual = getCodexPetVisualForFile(file);
-  if (!visual) return false;
-  const warn = options.warn === true;
-  if (!objectEl || objectEl.tagName !== "OBJECT") {
-    if (warn) warnCodexPetVisualBridgeOnce("non-object media channel");
-    return false;
-  }
-  try {
-    const root = objectEl.contentDocument && objectEl.contentDocument.documentElement;
-    if (!root) {
-      if (warn) warnCodexPetVisualBridgeOnce("contentDocument unavailable");
-      return false;
-    }
-    if (root.getAttribute("data-clawd-codex-pet-visuals") !== "v1") {
-      if (warn) warnCodexPetVisualBridgeOnce("v1 marker missing");
-      return false;
-    }
-    const unchanged = root.getAttribute("data-clawd-codex-pet-visual") === visual;
-    if (!unchanged) root.setAttribute("data-clawd-codex-pet-visual", visual);
-    if (visual === "drag-directional") {
-      const direction = normalizeDragDirection(options.direction);
-      if (direction && root.getAttribute("data-clawd-drag-direction") !== direction) {
-        root.setAttribute("data-clawd-drag-direction", direction);
-      }
-    }
-    if (unchanged && options.restart === true) restartCodexPetVisualAnimation(root);
-    return true;
-  } catch {
-    if (warn) warnCodexPetVisualBridgeOnce("contentDocument access denied");
-    return false;
-  }
-}
-
 function startDragReaction(direction) {
-  if (dndEnabled) return;
   const normalizedDirection = normalizeDragDirection(direction);
   const dragSvg = (normalizedDirection && _dragSvgs[normalizedDirection]) || _dragSvg;
   if (!dragSvg) return;
@@ -1711,16 +1553,11 @@ function swapToFile(file, state, useObjectChannel, options = {}) {
   const allowImageFallback = options.allowImageFallback !== false;
   const useObj = useObjectChannel !== undefined ? useObjectChannel : needsObjectChannel(state, file);
   const url = getAssetUrl(file);
-  const canReuseCodexPetDocument = useObj
+  const canReusePetDocument = useObj
     && options.forceDocumentReload !== true
     && currentDisplayedAssetUrl
-    && getAssetDirectoryUrl(currentDisplayedAssetUrl) === getAssetDirectoryUrl(url)
-    && applyCodexPetVisualToObject(clawdEl, file, {
-      direction: isDragReacting && currentDragSvg === file ? currentDragDirection : null,
-      restart: true,
-      warn: true,
-    });
-  if (canReuseCodexPetDocument) {
+    && getAssetDirectoryUrl(currentDisplayedAssetUrl) === getAssetDirectoryUrl(url);
+  if (canReusePetDocument) {
     cancelPendingSwap();
     clearSwapVisibilityRescueTimer();
     currentDisplayedSvg = file;
@@ -1920,8 +1757,6 @@ function swapToFile(file, state, useObjectChannel, options = {}) {
 function renderStateFile(state, svg) {
   // Main process state change → cancel any active click reaction
   cancelReaction();
-  // Track the latest state name so the Kimi permission pulse can re-trigger
-  // swapToFile() with the matching state for eye-tracking decisions.
   currentState = state;
   currentRequestedSvg = svg;
   const requestedSvg = svg;
@@ -1938,9 +1773,7 @@ function renderStateFile(state, svg) {
     container.classList.toggle("roam-walk", state === "roam" && !_hasRoamVisual);
   }
 
-  // Dedup only when the same file resolves to the same asset URL. Imported
-  // Codex Pet themes reuse filenames, so filename-only dedup can keep showing
-  // the previous theme until a drag/click forces a different animation.
+  // Dedup only when the same file resolves to the same asset URL.
   const desiredObjectChannel = lowPowerStaticImageOverride ? false : needsObjectChannel(state, effectiveSvg);
   const desiredAssetUrl = getAssetUrl(effectiveSvg);
   const alreadyDisplayed = clawdEl && clawdEl.isConnected
@@ -2003,14 +1836,6 @@ function refreshCurrentStateForLowPowerStaticImage() {
 // --- State change → switch animation (preload + instant swap) ---
 window.electronAPI.onStateChange((state, svg) => {
   renderStateFile(state, svg);
-});
-
-// Kimi CLI permission hold: re-trigger the current animation so it loops
-// while the user is reviewing the permission prompt.
-window.electronAPI.onKimiPermissionPulse(() => {
-  if (clawdEl && clawdEl.isConnected && currentDisplayedSvg) {
-    swapToFile(currentDisplayedSvg, currentState);
-  }
 });
 
 // --- Eye tracking (idle state only) ---
@@ -2840,8 +2665,8 @@ if (!currentDisplayedSvg && _initialIdleSvg) {
 
 // ── Ambient sound controller ──
 // The pet renderer owns Web Audio. Main only
-// supplies validated preference/state/gate snapshots, so this remains
-// independent from the existing theme sound path above.
+// supplies validated preference/state snapshots, so this remains independent
+// from the existing theme sound path above.
 (function initAmbientController() {
   if (window.ClawdAmbientController) return;
 
