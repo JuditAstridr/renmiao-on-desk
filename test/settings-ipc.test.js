@@ -316,7 +316,6 @@ test("settings IPC registers owned channels and leaves animation override channe
   assert.ok(ipcMain.handlers.has("settings:select-roam-fence"));
   assert.ok(ipcMain.handlers.has("settings:clear-roam-fence"));
   assert.ok(ipcMain.handlers.has("settings:pick-sound-file"));
-  assert.ok(ipcMain.handlers.has("settings:pick-ambient-music-source"));
   assert.ok(ipcMain.handlers.has("settings:list-themes"));
   assert.ok(ipcMain.handlers.has("settings:detect-agent-installations"));
   assert.ok(ipcMain.handlers.has("settings:show-tutorial"));
@@ -1066,28 +1065,6 @@ test("settings IPC previews sound only when not muted or in DND", async () => {
   });
 });
 
-test("settings IPC returns a validated local ambient music file without writing it", async () => {
-  const root = makeTempDir();
-  try {
-    const musicPath = path.join(root, "focus.mp3");
-    fs.writeFileSync(musicPath, "audio", "utf8");
-    const harness = createHarness({
-      dialog: { showOpenDialog: async () => ({ canceled: false, filePaths: [musicPath] }) },
-    });
-    assert.deepStrictEqual(
-      await harness.ipcMain.invoke("settings:pick-ambient-music-source"),
-      { status: "ok", path: musicPath }
-    );
-
-    harness.ipcMain.invokeEvent = { sender: {}, senderFrame: null };
-    assert.deepStrictEqual(
-      await harness.ipcMain.invoke("settings:pick-ambient-music-source"),
-      { status: "error", message: "untrusted settings sender" }
-    );
-  } finally {
-    fs.rmSync(root, { recursive: true, force: true });
-  }
-});
 
 test("settings IPC serves agent/about/update/external and remove-theme dialog helpers", async () => {
   const root = makeTempDir();

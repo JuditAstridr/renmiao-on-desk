@@ -749,8 +749,7 @@ html, body {
   opacity: 0.62;
 }
 .ambient-presets-row,
-.ambient-state-binding-row,
-.ambient-music-source-row {
+.ambient-state-binding-row {
   align-items: flex-start;
 }
 .ambient-presets,
@@ -773,37 +772,13 @@ html, body {
 .ambient-layer-checkbox input {
   accent-color: var(--accent);
 }
-.ambient-music-source-control {
-  width: 420px;
-}
-.ambient-music-source-input {
-  width: 100%;
-  min-width: 0;
-  box-sizing: border-box;
-  border: 1px solid var(--border);
-  border-radius: 7px;
-  padding: 7px 8px;
-  background: var(--panel-bg);
-  color: var(--text-primary);
-  font: inherit;
-  font-size: 12px;
-}
-.ambient-music-source-input:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
-}
-.ambient-music-source-input:disabled {
-  opacity: 0.55;
-}
 @media (max-width: 720px) {
-  .ambient-range-control,
-  .ambient-music-source-control {
+  .ambient-range-control {
     width: 100%;
   }
   .ambient-range-row,
   .ambient-presets-row,
-  .ambient-state-binding-row,
-  .ambient-music-source-row {
+  .ambient-state-binding-row {
     flex-direction: column;
     align-items: stretch;
   }

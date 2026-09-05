@@ -1470,7 +1470,6 @@ describe("prefs.migrate v15 → v16 (ambient sound)", () => {
       ambientMasterVolume: 0.8,
       ambientLayers: { white: 0.2, rain: 0.7 },
       ambientStateBinding: { working: ["rain"], idle: [], sleep: ["brown"] },
-      ambientMusicSource: "https://example.test/stream.mp3",
     };
     const upgraded = prefs.validate(prefs.migrate(raw));
     assert.strictEqual(upgraded.version, prefs.CURRENT_VERSION);
@@ -1479,7 +1478,6 @@ describe("prefs.migrate v15 → v16 (ambient sound)", () => {
     assert.strictEqual(upgraded.ambientLayers.white, 0.2);
     assert.strictEqual(upgraded.ambientLayers.brown, 0);
     assert.deepStrictEqual(upgraded.ambientStateBinding.idle, []);
-    assert.strictEqual(upgraded.ambientMusicSource, raw.ambientMusicSource);
   });
 });
 
@@ -1512,6 +1510,39 @@ describe("prefs.migrate v16 → v17 (ambient state binding opt-in)", () => {
       ambientAutoStateBinding: false,
     }));
     assert.strictEqual(manual.ambientAutoStateBinding, false);
+  });
+});
+
+describe("prefs.migrate v17 → v18 (ambient background music removal)", () => {
+  it("drops music-only fields while preserving ambient layer preferences", () => {
+    const upgraded = prefs.validate(prefs.migrate({
+      version: 17,
+      ambientEnabled: true,
+      ambientLayers: { brown: 0.7, rain: 0.2 },
+      ambientMusicSource: "https://example.test/stream.mp3",
+      ambientMusicEnabled: true,
+      ambientMusicVolume: 0.8,
+      ambientUserPresets: [{
+        name: "Focus",
+        layers: { brown: 0.5 },
+        master: 0.6,
+        musicSrc: "/tmp/old-music.mp3",
+      }],
+    }));
+
+    assert.strictEqual(upgraded.version, prefs.CURRENT_VERSION);
+    assert.strictEqual(upgraded.ambientLayers.brown, 0.7);
+    assert.strictEqual(Object.hasOwn(upgraded, "ambientMusicSource"), false);
+    assert.strictEqual(Object.hasOwn(upgraded, "ambientMusicEnabled"), false);
+    assert.strictEqual(Object.hasOwn(upgraded, "ambientMusicVolume"), false);
+    assert.deepStrictEqual(upgraded.ambientUserPresets, [{
+      name: "Focus",
+      layers: {
+        white: 0, pink: 0, brown: 0.5, rain: 0,
+        fire: 0, waves: 0, cafe: 0, keyboard: 0,
+      },
+      master: 0.6,
+    }]);
   });
 });
 

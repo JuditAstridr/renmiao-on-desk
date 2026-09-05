@@ -12,7 +12,6 @@ const {
 } = require("./pet-customization-catalog");
 
 const SOUND_OVERRIDE_ASSET_EXTS = new Set([".mp3", ".wav", ".ogg", ".m4a", ".aac", ".flac"]);
-const AMBIENT_MUSIC_ASSET_EXTS = new Set([".mp3", ".wav", ".ogg", ".m4a", ".aac", ".flac", ".webm"]);
 // #895: cleanup prompts must skip the default integrations, referencing the
 // prefs list rather than a second hardcoded copy of the ids.
 const CLEANUP_EXEMPT_AGENT_IDS = new Set(DEFAULT_INTEGRATION_INSTALLED_IDS);
@@ -42,16 +41,6 @@ const SOUND_OVERRIDE_DIALOG_STRINGS = {
   ja: { title: "音声ファイルを選択", filterName: "音声" },
   "pt-BR": { title: "Escolha um arquivo de som", filterName: "Áudio" },
   es: { title: "Elige un archivo de sonido", filterName: "Audio" },
-};
-
-const AMBIENT_MUSIC_DIALOG_STRINGS = {
-  en: { title: "Choose background music", filterName: "Audio" },
-  zh: { title: "选择背景音乐", filterName: "音频" },
-  "zh-TW": { title: "選擇背景音樂", filterName: "音效" },
-  ko: { title: "배경 음악 선택", filterName: "오디오" },
-  ja: { title: "BGMを選択", filterName: "音声" },
-  "pt-BR": { title: "Escolha a música de fundo", filterName: "Áudio" },
-  es: { title: "Elige música de fondo", filterName: "Audio" },
 };
 
 const AGENT_DISCOVERY_DIALOG_STRINGS = {
@@ -598,40 +587,6 @@ function registerSettingsIpc(options = {}) {
       sendToRenderer("preload-sounds", { urls: [newUrl] });
     }
     return { status: "ok", file: destFilename };
-  });
-
-  handle("settings:pick-ambient-music-source", async (event) => {
-    const rejected = rejectUntrustedSettingsEvent(event);
-    if (rejected) return rejected;
-    const lang = getLang();
-    const strings = AMBIENT_MUSIC_DIALOG_STRINGS[lang] || AMBIENT_MUSIC_DIALOG_STRINGS.en;
-    const extensions = [...AMBIENT_MUSIC_ASSET_EXTS].map((extension) => extension.slice(1));
-    let result;
-    try {
-      result = await dialog.showOpenDialog(getDialogParent(event), {
-        title: strings.title,
-        filters: [{ name: strings.filterName, extensions }],
-        properties: ["openFile"],
-      });
-    } catch (err) {
-      return { status: "error", message: `pick dialog failed: ${err && err.message}` };
-    }
-    if (result.canceled || !result.filePaths || !result.filePaths[0]) {
-      return { status: "cancel" };
-    }
-    const selectedPath = result.filePaths[0];
-    const extension = path.extname(selectedPath).toLowerCase();
-    if (!AMBIENT_MUSIC_ASSET_EXTS.has(extension)) {
-      return { status: "error", message: `unsupported audio extension: ${extension || "(none)"}` };
-    }
-    try {
-      if (!fs.statSync(selectedPath).isFile()) {
-        return { status: "error", message: "selected music source is not a file" };
-      }
-    } catch (err) {
-      return { status: "error", message: `selected file is unavailable: ${err && err.message}` };
-    }
-    return { status: "ok", path: selectedPath };
   });
 
   handle("settings:preview-sound", (_event, payload) => {

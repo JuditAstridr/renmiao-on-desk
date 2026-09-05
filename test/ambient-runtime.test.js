@@ -18,17 +18,6 @@ function loadDucking() {
   return context.ClawdAmbientDucking;
 }
 
-function loadMusic() {
-  const context = { globalThis: null, URL, console };
-  context.globalThis = context;
-  vm.createContext(context);
-  vm.runInContext(
-    fs.readFileSync(path.join(__dirname, "..", "src", "ambient-music.js"), "utf8"),
-    context
-  );
-  return context.ClawdAmbientMusic;
-}
-
 function makePrefs(overrides = {}) {
   return {
     ambientEnabled: true,
@@ -39,29 +28,12 @@ function makePrefs(overrides = {}) {
     ambientDuckCooldownMs: 2000,
     ambientUserPresets: [],
     ambientAutoStateBinding: true,
-    ambientMusicSource: "",
-    ambientMusicEnabled: false,
-    ambientMusicVolume: 0.5,
     soundMuted: false,
     ...overrides,
   };
 }
 
 describe("ambient runtime coordinator", () => {
-  it("accepts only supported music source forms and converts local paths", () => {
-    const Music = loadMusic();
-    assert.equal(Music.isAllowedSource(""), true);
-    assert.equal(Music.isAllowedSource("/tmp/my music.mp3"), true);
-    assert.equal(Music.toMediaSource("/tmp/my music.mp3"), "file:///tmp/my%20music.mp3");
-    assert.equal(Music.isAllowedSource("C:\\\\Music\\\\music.mp3"), true);
-    assert.equal(Music.isAllowedSource("file:///tmp/music.mp3"), true);
-    assert.equal(Music.isAllowedSource("https://example.test/music.mp3"), true);
-    assert.equal(Music.isAllowedSource("relative.mp3"), false);
-    assert.equal(Music.isAllowedSource("http://example.test/music.mp3"), false);
-    assert.equal(Music.isAllowedSource("blob:https://example.test/id"), false);
-    assert.equal(Music.isAllowedSource("file://remote-host/music.mp3"), false);
-  });
-
   it("broadcasts an ambient snapshot only when preferences or gates change", () => {
     let prefs = makePrefs({ ambientEnabled: false });
     const messages = [];
@@ -136,30 +108,23 @@ describe("ambient runtime coordinator", () => {
       gain: {
         value: 0.6,
         cancelScheduledValues() {},
-        setValueAtTime(value) { this.value = value; },
+        setValueAtTime(value) { this.value = value; calls.push(value); },
         linearRampToValueAtTime(value) { this.value = value; },
       },
-    };
-    const music = {
-      target: 0.5,
-      getTargetVolume() { return this.target; },
-      setVolume(value) { this.target = value; calls.push(value); },
     };
     const duck = Ducking.createDuckCoordinator({
       ctx: { currentTime: 0 },
       masterGain,
-      musicController: music,
       duckingMs: 0,
       cooldownMs: 0,
     });
 
     duck.onStateSoundTriggered();
-    duck.setRestoreLevels({ master: 0.25, music: 0.15 });
+    duck.setRestoreLevels({ master: 0.25 });
     duck.onStateSoundEnded();
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     assert.equal(masterGain.gain.value, 0.25);
-    assert.equal(music.target, 0.15);
     assert.ok(calls.includes(0));
   });
 });

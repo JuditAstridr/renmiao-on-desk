@@ -92,10 +92,3 @@ test("settings preload exposes dedicated Kimi quota operations", async () => {
     ["settings:kimi-quota-forget"],
   ]);
 });
-
-test("settings preload exposes ambient music picker through a dedicated IPC channel", async () => {
-  const { exposed, invokes } = loadPreload();
-  const settingsAPI = exposed.get("settingsAPI");
-  await settingsAPI.pickAmbientMusicSource();
-  assert.deepStrictEqual(invokes, [["settings:pick-ambient-music-source"]]);
-});

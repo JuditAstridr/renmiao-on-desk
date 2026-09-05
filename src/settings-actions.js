@@ -54,7 +54,6 @@ const {
   MAX_HIDDEN_QUOTA_PROVIDERS,
   isValidSettingsWindowBounds,
   normalizePathList,
-  isAllowedAmbientMusicSource,
 } = require("./prefs");
 const {
   MAX_CUSTOM_APPLICATIONS,
@@ -281,16 +280,6 @@ function validateAmbientUserPresets(value) {
     if (typeof entry.master !== "number" || !Number.isFinite(entry.master) || entry.master < 0 || entry.master > 1) {
       return { status: "error", message: "ambientUserPresets.master must be a number between 0 and 1" };
     }
-    if (entry.musicSrc !== undefined && !isAllowedAmbientMusicSource(entry.musicSrc)) {
-      return { status: "error", message: "ambientUserPresets.musicSrc must be empty, an absolute local path, file://, or https://" };
-    }
-  }
-  return { status: "ok" };
-}
-
-function validateAmbientMusicSource(value) {
-  if (!isAllowedAmbientMusicSource(value)) {
-    return { status: "error", message: "ambientMusicSource must be empty, an absolute local path, file://, or https://" };
   }
   return { status: "ok" };
 }
@@ -388,9 +377,6 @@ const updateRegistry = {
   ambientDuckCooldownMs: requireIntegerInRange("ambientDuckCooldownMs", 500, 10000),
   ambientUserPresets: validateAmbientUserPresets,
   ambientAutoStateBinding: requireBoolean("ambientAutoStateBinding"),
-  ambientMusicSource: validateAmbientMusicSource,
-  ambientMusicEnabled: requireBoolean("ambientMusicEnabled"),
-  ambientMusicVolume: requireNumberInRange("ambientMusicVolume", 0, 1),
   textScale: requireNumberInRange("textScale", TEXT_SCALE_MIN, TEXT_SCALE_MAX),
   // Committed by the setTextScaleForDisplay command (the controller requires
   // every commit key to have a registry entry). Strict per-entry validation

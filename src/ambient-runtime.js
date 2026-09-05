@@ -6,8 +6,7 @@
 const AMBIENT_KEYS = Object.freeze([
   "ambientEnabled", "ambientMasterVolume", "ambientLayers", "ambientStateBinding",
   "ambientDuckingMs", "ambientDuckCooldownMs", "ambientUserPresets",
-  "ambientAutoStateBinding", "ambientMusicSource", "ambientMusicEnabled",
-  "ambientMusicVolume",
+  "ambientAutoStateBinding",
 ]);
 
 function cloneValue(value) {

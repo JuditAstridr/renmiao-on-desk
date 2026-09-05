@@ -1,6 +1,6 @@
 "use strict";
 
-// Settings tab for synthesized ambient layers and optional background music.
+// Settings tab for synthesized ambient layers.
 // All persistence goes through settingsAPI.update, keeping the controller the
 // only writer of preferences.
 (function initSettingsTabAmbient(root) {
@@ -268,90 +268,6 @@
     });
   }
 
-  function buildMusicSection() {
-    const enabled = snapshotValue("ambientEnabled", false) === true;
-    const musicEnabled = snapshotValue("ambientMusicEnabled", false) === true;
-    const source = String(snapshotValue("ambientMusicSource", "") || "");
-    const volume = clamp01(snapshotValue("ambientMusicVolume", 0.5), 0.5);
-    const rows = [buildToggle({
-      labelKey: "ambientMusicEnabled",
-      descKey: "ambientMusicEnabledDesc",
-      checked: musicEnabled,
-      disabled: !enabled,
-      onChange: (value) => saveOne("ambientMusicEnabled", value),
-    })];
-
-    const sourceRow = document.createElement("div");
-    sourceRow.className = "row ambient-music-source-row";
-    const text = document.createElement("div");
-    text.className = "row-text";
-    const label = document.createElement("span");
-    label.className = "row-label";
-    label.textContent = t("ambientMusicSource");
-    const desc = document.createElement("span");
-    desc.className = "row-desc";
-    desc.textContent = t("ambientMusicSourceDesc");
-    text.append(label, desc);
-    sourceRow.appendChild(text);
-    const control = document.createElement("div");
-    control.className = "row-control ambient-music-source-control";
-    const input = document.createElement("input");
-    input.type = "text";
-    input.className = "ambient-music-source-input";
-    input.value = source;
-    input.placeholder = "https://…/stream.mp3";
-    input.maxLength = 4096;
-    input.disabled = !enabled || !musicEnabled;
-    const saveSource = () => {
-      saveOne("ambientMusicSource", input.value.trim());
-    };
-    input.addEventListener("keydown", (event) => {
-      if (event.key === "Enter") {
-        event.preventDefault();
-        saveSource();
-        input.blur();
-      }
-    });
-    input.addEventListener("change", saveSource);
-    control.appendChild(input);
-    if (window.settingsAPI && typeof window.settingsAPI.pickAmbientMusicSource === "function") {
-      const browse = helpers.buildButton({ labelKey: "ambientMusicBrowse", size: "compact" });
-      browse.disabled = !enabled || !musicEnabled;
-      browse.addEventListener("click", () => {
-        Promise.resolve(window.settingsAPI.pickAmbientMusicSource()).then((picked) => {
-          const path = picked && typeof picked.path === "string" ? picked.path : "";
-          if (path) {
-            input.value = path;
-            saveOne("ambientMusicSource", path);
-          }
-        }).catch((error) => ops.showToast(
-          `${t("toastSaveFailed")}${error && error.message ? error.message : ""}`,
-          { error: true }
-        ));
-      });
-      control.appendChild(browse);
-    }
-    sourceRow.appendChild(control);
-    rows.push(sourceRow);
-    rows.push(buildRangeRow({
-      labelKey: "ambientMusicVolume",
-      value: volume,
-      min: 0,
-      max: 1,
-      step: 0.01,
-      disabled: !enabled || !musicEnabled,
-      onChange: (value) => saveOne("ambientMusicVolume", value),
-    }));
-    return helpers.buildCollapsibleGroup({
-      id: "ambient.music",
-      title: t("ambientMusicSection"),
-      desc: t("ambientMusicSectionDesc"),
-      defaultCollapsed: true,
-      className: "ambient-music-card",
-      children: rows,
-    });
-  }
-
   function buildAdvancedSection() {
     const enabled = snapshotValue("ambientEnabled", false) === true;
     return helpers.buildCollapsibleGroup({
@@ -394,9 +310,6 @@
       ambientMasterVolume: 0.6,
       ambientAutoStateBinding: false,
       ambientStateBinding: { working: ["brown", "rain"], idle: ["white"], sleep: ["brown"] },
-      ambientMusicEnabled: false,
-      ambientMusicSource: "",
-      ambientMusicVolume: 0.5,
       ambientDuckingMs: 500,
       ambientDuckCooldownMs: 2000,
     }));
@@ -434,7 +347,6 @@
     parent.appendChild(buildLayersSection());
     parent.appendChild(buildPresetsSection());
     parent.appendChild(buildStateBindingSection());
-    parent.appendChild(buildMusicSection());
     parent.appendChild(buildAdvancedSection());
     parent.appendChild(buildResetSection());
   }

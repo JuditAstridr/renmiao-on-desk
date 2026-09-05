@@ -2839,16 +2839,15 @@ if (!currentDisplayedSvg && _initialIdleSvg) {
 }
 
 // ── Ambient sound controller ──
-// The pet renderer owns Web Audio and the optional <audio> element. Main only
+// The pet renderer owns Web Audio. Main only
 // supplies validated preference/state/gate snapshots, so this remains
 // independent from the existing theme sound path above.
 (function initAmbientController() {
   if (window.ClawdAmbientController) return;
 
   const Synth = window.ClawdAmbientSynth;
-  const Music = window.ClawdAmbientMusic;
   const Duck = window.ClawdAmbientDucking;
-  if (!Synth || !Music || !Duck) {
+  if (!Synth || !Duck) {
     window.ClawdAmbientController = {
       notifyStateSoundStarted() {},
       notifyStateSoundEnded() {},
@@ -2858,12 +2857,10 @@ if (!currentDisplayedSvg && _initialIdleSvg) {
 
   let audioContext = null;
   let engine = null;
-  let music = null;
   let duck = null;
   let prefs = null;
   let gates = null;
   let ambientState = "idle";
-  let loadedMusicSource = "";
 
   function clamp01(value) {
     if (typeof value !== "number" || !Number.isFinite(value)) return 0;
@@ -2889,7 +2886,6 @@ if (!currentDisplayedSvg && _initialIdleSvg) {
   function disposeRuntime() {
     if (duck) { try { duck.dispose(); } catch {} duck = null; }
     if (engine) { try { engine.dispose(); } catch {} engine = null; }
-    if (music) { try { music.dispose(); } catch {} music = null; }
     if (audioContext) {
       try {
         const closing = audioContext.close && audioContext.close();
@@ -2897,7 +2893,6 @@ if (!currentDisplayedSvg && _initialIdleSvg) {
       } catch {}
       audioContext = null;
     }
-    loadedMusicSource = "";
   }
 
   function normalizeState(state) {
@@ -2927,22 +2922,6 @@ if (!currentDisplayedSvg && _initialIdleSvg) {
     catch (error) { logWarn("state binding failed", error); }
   }
 
-  function applyMusic() {
-    if (!music || !prefs) return;
-    const enabled = prefs.ambientMusicEnabled === true;
-    const source = String(prefs.ambientMusicSource || "").trim();
-    if (!enabled || !source || (typeof Music.isAllowedSource === "function" && !Music.isAllowedSource(source))) {
-      music.stop();
-      loadedMusicSource = "";
-      return;
-    }
-    if (loadedMusicSource !== source) {
-      loadedMusicSource = music.load(source) ? source : "";
-    }
-    music.setVolume(clamp01(prefs.ambientMusicVolume));
-    if (loadedMusicSource === source) music.play();
-  }
-
   function buildRuntime() {
     if (!prefs) return;
     if (prefs.ambientEnabled !== true || (gates && (gates.soundMuted || gates.doNotDisturb))) {
@@ -2960,12 +2939,10 @@ if (!currentDisplayedSvg && _initialIdleSvg) {
     if (!engine) engine = Synth.createLayerEngine(ctx, {
       masterVolume: clamp01(prefs.ambientMasterVolume),
     });
-    if (!music) music = Music.createMusicController();
     if (!duck) {
       duck = Duck.createDuckCoordinator({
         ctx,
         masterGain: engine.masterGain,
-        musicController: music,
         duckingMs: prefs.ambientDuckingMs,
         cooldownMs: prefs.ambientDuckCooldownMs,
       });
@@ -2975,12 +2952,10 @@ if (!currentDisplayedSvg && _initialIdleSvg) {
     }
     engine.setMasterVolume(clamp01(prefs.ambientMasterVolume));
     engine.applyLayerSet(prefs.ambientLayers || {});
-    applyMusic();
     applyStateBinding(ambientState);
     if (duck && typeof duck.setRestoreLevels === "function") {
       duck.setRestoreLevels({
         master: clamp01(prefs.ambientMasterVolume),
-        music: clamp01(prefs.ambientMusicVolume),
       });
     }
   }

@@ -62,7 +62,7 @@ const {
   PET_ACCESSORY_IDS,
 } = require("./pet-customization-catalog");
 
-const CURRENT_VERSION = 17;
+const CURRENT_VERSION = 18;
 const DEFAULT_INTEGRATION_INSTALLED_IDS = Object.freeze(["claude-code", "codex"]);
 const DEFAULT_INTEGRATION_INSTALLED_SET = new Set(DEFAULT_INTEGRATION_INSTALLED_IDS);
 
@@ -113,24 +113,6 @@ function normalizeAmbientStateBinding(value) {
   return out;
 }
 
-function isAllowedAmbientMusicSource(value) {
-  if (typeof value !== "string" || value.length > 4096) return false;
-  const source = value.trim();
-  if (!source) return true;
-  const normalized = source.replace(/\\/g, "/");
-  if (normalized.startsWith("/") || /^[A-Za-z]:\//.test(normalized)) return true;
-  if (/^\/\/[^/]+\/[^/]+/.test(normalized)) return true;
-  try {
-    const parsed = new URL(source);
-    if (/^https:\/\//i.test(source) && parsed.protocol === "https:" && parsed.hostname) return true;
-    return /^file:\/\//i.test(source)
-      && parsed.protocol === "file:"
-      && (!parsed.hostname || parsed.hostname.toLowerCase() === "localhost");
-  } catch {
-    return false;
-  }
-}
-
 function normalizeAmbientUserPresets(value) {
   if (!Array.isArray(value)) return [];
   const out = [];
@@ -138,13 +120,10 @@ function normalizeAmbientUserPresets(value) {
     if (!isPlainObject(entry)) continue;
     const name = typeof entry.name === "string" ? entry.name.trim().slice(0, 64) : "";
     if (!name) continue;
-    const musicSrc = isAllowedAmbientMusicSource(entry.musicSrc)
-      ? entry.musicSrc.trim()
-      : "";
     const master = typeof entry.master === "number" && Number.isFinite(entry.master)
       ? Math.max(0, Math.min(1, entry.master))
       : 0.6;
-    out.push({ name, layers: normalizeAmbientLayers(entry.layers), master, musicSrc });
+    out.push({ name, layers: normalizeAmbientLayers(entry.layers), master });
   }
   return out.slice(0, 32);
 }
@@ -342,8 +321,7 @@ const SCHEMA = {
     validate: (v) => Number.isFinite(v) && v >= 0 && v <= 1,
   },
   // Ambient sound is deliberately separate from theme.sounds. The renderer
-  // synthesizes these layers with Web Audio and the optional music source is
-  // played by an independent <audio> element.
+  // synthesizes these layers with Web Audio.
   ambientEnabled: { type: "boolean", default: false },
   ambientMasterVolume: {
     type: "number",
@@ -386,17 +364,6 @@ const SCHEMA = {
   // every layer that is not assigned to it; keeping it off by default means
   // the layer sliders behave as users expect immediately after enabling audio.
   ambientAutoStateBinding: { type: "boolean", default: false },
-  ambientMusicSource: {
-    type: "string",
-    default: "",
-    validate: isAllowedAmbientMusicSource,
-  },
-  ambientMusicEnabled: { type: "boolean", default: false },
-  ambientMusicVolume: {
-    type: "number",
-    default: 0.5,
-    validate: (v) => Number.isFinite(v) && v >= 0 && v <= 1,
-  },
   flashTaskbarOnComplete: { type: "boolean", default: true },
   flashIntervalMs: {
     type: "number",
@@ -992,6 +959,22 @@ function migrate(raw) {
       out.ambientAutoStateBinding = false;
     }
     out.version = 17;
+  }
+  // v17 -> v18: remove the optional background-music branch. Ambient layer
+  // preferences remain intact; obsolete music-only fields are deliberately
+  // dropped so they cannot be revived by a later settings write.
+  if (out.version < 18) {
+    delete out.ambientMusicSource;
+    delete out.ambientMusicEnabled;
+    delete out.ambientMusicVolume;
+    if (Array.isArray(out.ambientUserPresets)) {
+      out.ambientUserPresets = out.ambientUserPresets.map((entry) => {
+        if (!entry || typeof entry !== "object" || Array.isArray(entry)) return entry;
+        const { musicSrc: _removedMusicSource, ...withoutMusic } = entry;
+        return withoutMusic;
+      });
+    }
+    out.version = 18;
   }
   if ((typeof out.version === "number" ? out.version : 0) < CURRENT_VERSION) {
     out.version = CURRENT_VERSION;
@@ -1665,7 +1648,6 @@ module.exports = {
   normalizePetTintSaturation,
   normalizeAmbientLayers,
   normalizeAmbientStateBinding,
-  isAllowedAmbientMusicSource,
   normalizeAmbientUserPresets,
   normalizeShortcuts,
   normalizeOptionalHttpUrl,
