@@ -37,4 +37,37 @@ describe("Study Companion integration", () => {
     assert.match(renderer, /form\.className = "subtask-form"/);
     assert.match(renderer, /call\("addSubtask", task\.id/);
   });
+
+  it("exposes calendar, reports, schedule editing, and poster save actions", () => {
+    const html = read("src/study-dashboard.html");
+    const renderer = read("src/study-dashboard-renderer.js");
+    const preload = read("src/preload-study-dashboard.js");
+    for (const id of ["studyTabs", "calendarGrid", "calendarPanel", "reportStats", "reportBreakdown", "posterPreview"]) {
+      assert.match(html, new RegExp(`id="${id}"`));
+    }
+    assert.match(renderer, /moveCalendar/);
+    assert.match(renderer, /moveReport/);
+    assert.match(renderer, /saveReportPoster/);
+    assert.match(preload, /addSchedule/);
+    assert.match(preload, /setDailyGoal/);
+  });
+
+  it("keeps v5 poster, points, matrix, and focus-mode features in Study only", () => {
+    const html = read("src/study-dashboard.html");
+    const renderer = read("src/study-dashboard-renderer.js");
+    const ipc = read("src/study-ipc.js");
+    const preload = read("src/preload-study-dashboard.js");
+    assert.match(html, /quadrant-grid/);
+    assert.match(html, /pointsLevelFill/);
+    assert.match(html, /poster-lightbox/);
+    assert.match(html, /body\.focus-mode .*#resetButton/);
+    assert.match(renderer, /function renderQuadrantMatrix/);
+    assert.match(renderer, /getPosterActivePet/);
+    assert.match(renderer, /studyPosterCaption/);
+    assert.match(ipc, /study:get-poster-active-pet/);
+    assert.match(preload, /getPosterFont/);
+    const poster = read("src/report-poster-renderer.js");
+    assert.match(poster, /canvas\.width = W/);
+    assert.match(poster, /canvas\.height = H/);
+  });
 });

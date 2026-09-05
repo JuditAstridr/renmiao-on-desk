@@ -16,6 +16,9 @@ function registerStudyIpc(options = {}) {
   const getStudyWindow = typeof options.getStudyWindow === "function"
     ? options.getStudyWindow
     : () => null;
+  const posterAssets = options.posterAssets && typeof options.posterAssets === "object"
+    ? options.posterAssets
+    : null;
   const saveReportPoster = typeof options.saveReportPoster === "function"
     ? options.saveReportPoster
     : null;
@@ -51,6 +54,11 @@ function registerStudyIpc(options = {}) {
 
   handle("study:get-snapshot", () => studyRuntime.getSnapshot());
   handle("study:get-report", (_event, spec) => studyRuntime.getReport(spec));
+  if (posterAssets) {
+    handle("study:get-poster-active-pet", () => posterAssets.getActivePet());
+    handle("study:get-poster-assets", (_event, ids) => posterAssets.getPosterAssets(ids));
+    handle("study:get-poster-font", () => posterAssets.getPosterFont());
+  }
   handle("study:add-task", (_event, payload) => mutate("addTask", payload));
   handle("study:update-task", (_event, payload) => mutate(
     "updateTask",

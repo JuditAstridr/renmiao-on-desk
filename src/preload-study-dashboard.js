@@ -20,6 +20,9 @@ ipcRenderer.on("study:lang-change", (_event, payload) => {
 contextBridge.exposeInMainWorld("studyAPI", {
   getSnapshot: () => ipcRenderer.invoke("study:get-snapshot"),
   getReport: (spec) => ipcRenderer.invoke("study:get-report", spec),
+  getPosterActivePet: () => ipcRenderer.invoke("study:get-poster-active-pet"),
+  getPosterAssets: (ids) => ipcRenderer.invoke("study:get-poster-assets", ids),
+  getPosterFont: () => ipcRenderer.invoke("study:get-poster-font"),
   getI18n: () => ipcRenderer.invoke("dashboard:get-i18n"),
   addTask: (payload) => ipcRenderer.invoke("study:add-task", payload),
   updateTask: (id, patch) => ipcRenderer.invoke("study:update-task", { id, patch }),

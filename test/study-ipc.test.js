@@ -44,4 +44,27 @@ describe("study IPC boundary", () => {
     registration.dispose();
     assert.equal(ipcMain.handlers.size, 0);
   });
+
+  it("keeps poster resources behind the trusted Study sender boundary", async () => {
+    const ipcMain = makeIpcMain();
+    const webContents = {};
+    const studyWindow = { webContents, isDestroyed: () => false };
+    const posterAssets = {
+      getActivePet: () => ({ id: "renmi" }),
+      getPosterAssets: (ids) => ({ requested: ids }),
+      getPosterFont: () => ({ base64: "font" }),
+    };
+    const registration = registerStudyIpc({
+      ipcMain,
+      studyRuntime: { getSnapshot: () => ({}) },
+      posterAssets,
+      getStudyWindow: () => studyWindow,
+    });
+    const event = { sender: webContents };
+    assert.deepEqual(await ipcMain.handlers.get("study:get-poster-active-pet")(event), { id: "renmi" });
+    assert.deepEqual(await ipcMain.handlers.get("study:get-poster-assets")(event, ["icon-focus"]), { requested: ["icon-focus"] });
+    assert.deepEqual(await ipcMain.handlers.get("study:get-poster-font")(event), { base64: "font" });
+    assert.deepEqual(await ipcMain.handlers.get("study:get-poster-font")({ sender: {} }), { status: "error", message: "untrusted-study-sender" });
+    registration.dispose();
+  });
 });

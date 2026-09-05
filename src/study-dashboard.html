@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'self';">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'self'; img-src data:;">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Study Companion</title>
 <style>
@@ -52,8 +52,15 @@ input:focus, select:focus, button:focus-visible { outline: 2px solid color-mix(i
 .topbar-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 h1 { margin: 0; font-size: 20px; line-height: 1.2; }
 .subtitle { margin-top: 4px; color: var(--muted); font-size: 12px; }
-.points { flex: 0 0 auto; padding: 7px 10px; border-radius: 9px; background: var(--surface-alt); color: var(--muted); font-size: 11px; text-align: right; }
+.points { flex: 0 0 auto; min-width: 126px; padding: 7px 10px; border-radius: 9px; background: var(--surface-alt); color: var(--muted); font-size: 11px; text-align: right; }
 .points strong { display: block; color: var(--text); font-size: 13px; }
+.points-level { display: block; margin-top: 2px; color: var(--accent); font-size: 10px; font-weight: 700; }
+.points-level-bar { height: 4px; margin: 5px 0 3px; border-radius: 3px; background: var(--border); overflow: hidden; }
+.points-level-fill { width: 0; height: 100%; background: var(--accent); transition: width .25s ease; }
+.points-today { display: block; color: var(--muted); font-size: 10px; }
+.points-rules { margin-top: 4px; color: var(--subtle); font-size: 10px; text-align: left; }
+.points-rules summary { cursor: pointer; color: var(--muted); font-weight: 600; }
+.points-rules-body { padding-top: 3px; line-height: 1.35; }
 .content { flex: 1 1 auto; overflow-y: auto; padding: 16px 18px 26px; }
 .section { margin-bottom: 18px; }
 .section-title { margin: 0 0 9px; color: var(--muted); font-size: 11px; letter-spacing: .04em; text-transform: uppercase; }
@@ -109,6 +116,15 @@ h1 { margin: 0; font-size: 20px; line-height: 1.2; }
 .task-progress-fill { width: 0; height: 100%; background: var(--focus); }
 .task-actions { justify-content: flex-end; margin-top: 8px; }
 .task-actions button, .subtask-form button { min-height: 26px; padding: 0 8px; font-size: 11px; }
+.quadrant-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 10px; }
+.quadrant-cell { min-width: 0; min-height: 150px; padding: 9px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-alt); }
+.quadrant-cell.q0 { border-top: 3px solid #ef4444; }
+.quadrant-cell.q1 { border-top: 3px solid #f59e0b; }
+.quadrant-cell.q2 { border-top: 3px solid #3b82f6; }
+.quadrant-cell.q3 { border-top: 3px solid var(--subtle); }
+.quadrant-cell-title { margin: 0 0 7px; color: var(--muted); font-size: 11px; }
+.quadrant-cell-empty { padding: 18px 0; color: var(--subtle); text-align: center; }
+.quadrant-cell .task-card { background: var(--surface); }
 .subtasks { margin: 8px 0 0 24px; padding-left: 9px; border-left: 2px solid var(--surface-alt); }
 .subtask-row { display: flex; align-items: center; gap: 5px; margin: 5px 0; }
 .subtask-row input[type="checkbox"] { accent-color: var(--accent); }
@@ -142,6 +158,13 @@ h1 { margin: 0; font-size: 20px; line-height: 1.2; }
 .report-breakdown-list { display: grid; gap: 3px; margin-top: 5px; font-size: 11px; }
 .poster-preview { margin-top: 12px; text-align: center; }
 .poster-preview canvas { width: min(100%, 300px); height: auto; border: 1px solid var(--border); border-radius: 9px; box-shadow: 0 8px 24px rgba(0,0,0,.08); }
+.poster-preview canvas { cursor: zoom-in; }
+.poster-lightbox { position: fixed; inset: 0; z-index: 20; display: none; flex-direction: column; gap: 8px; padding: 12px; background: rgba(0, 0, 0, .78); }
+.poster-lightbox.open { display: flex; }
+.poster-lightbox-toolbar { display: flex; justify-content: flex-end; gap: 6px; }
+.poster-lightbox-toolbar button { min-width: 34px; }
+.poster-lightbox-stage { flex: 1 1 auto; min-height: 0; overflow: auto; display: flex; align-items: flex-start; justify-content: center; padding: 8px; }
+.poster-lightbox-stage img { display: block; max-width: none; height: auto; box-shadow: 0 8px 30px rgba(0,0,0,.35); }
 .calendar-weekdays, .calendar-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
 .calendar-weekdays { margin-bottom: 4px; }
 .calendar-weekday { color: var(--muted); font-size: 10px; text-align: center; }
@@ -160,20 +183,22 @@ h1 { margin: 0; font-size: 20px; line-height: 1.2; }
 .calendar-panel { margin-top: 12px; padding: 12px; border: 1px solid var(--border); border-radius: 9px; background: var(--surface); }
 .calendar-panel h3 { margin: 0 0 8px; font-size: 13px; }
 .calendar-list { display: grid; gap: 5px; margin-top: 8px; }
-.calendar-list-row { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.calendar-list-row { display: flex; align-items: center; gap: 6px; min-width: 0; flex-wrap: wrap; }
 .calendar-list-row span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.calendar-list-row .calendar-row-title { flex: 1 1 auto; }
+.calendar-list-row .calendar-row-title { flex: 1 1 120px; min-width: 120px; }
+.calendar-list-row input[type="date"] { width: 130px; }
+.calendar-list-row input[type="time"] { width: 90px; }
 .calendar-form { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
 .calendar-form input[type="text"] { flex: 1 1 150px; }
 .calendar-form input[type="time"] { width: 100px; }
 .calendar-form input[type="number"] { width: 70px; }
 .calendar-summary { margin-top: 8px; color: var(--muted); font-size: 11px; }
-body.focus-mode .topbar, body.focus-mode #tasksSection { display: none; }
+body.focus-mode .topbar, body.focus-mode .study-tabs, body.focus-mode #tasksSection { display: none; }
 body.focus-mode .content { padding: 0; display: flex; align-items: center; justify-content: center; overflow: hidden; }
 body.focus-mode #timerSection { width: min(760px, 100%); margin: 0; }
 body.focus-mode .timer-card { border: 0; background: transparent; }
 body.focus-mode .timer-value { font-size: clamp(72px, 13vw, 150px); }
-body.focus-mode .timer-settings { opacity: .25; }
+body.focus-mode .timer-settings, body.focus-mode #resetButton, body.focus-mode #skipButton { display: none; }
 @media (max-width: 620px) {
   .topbar { padding-left: 14px; padding-right: 14px; }
   .content { padding-left: 12px; padding-right: 12px; }
@@ -181,6 +206,7 @@ body.focus-mode .timer-settings { opacity: .25; }
   .timer-value { font-size: 48px; }
   .report-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .report-breakdown-grid { grid-template-columns: 1fr; }
+  .quadrant-grid { grid-template-columns: 1fr; }
   .task-fields { margin-left: 0; }
   .task-progress-label, .task-progress, .subtasks, .subtask-form { margin-left: 0; }
 }
@@ -191,7 +217,13 @@ body.focus-mode .timer-settings { opacity: .25; }
   <header class="topbar">
     <div class="topbar-row">
       <div><h1 id="title">Study Companion</h1><div id="subtitle" class="subtitle">Pomodoro &amp; task check-in</div></div>
-      <div id="points" class="points"><strong>0</strong><span>Points</span></div>
+      <div id="points" class="points">
+        <strong id="pointsValue">0</strong>
+        <span id="pointsLevel" class="points-level">LV 1 · 0/100</span>
+        <div class="points-level-bar"><div id="pointsLevelFill" class="points-level-fill"></div></div>
+        <span id="pointsToday" class="points-today">Today: 0</span>
+        <details class="points-rules"><summary id="pointsRules">How points work</summary><div id="pointsRulesBody" class="points-rules-body"></div></details>
+      </div>
     </div>
   </header>
   <nav id="studyTabs" class="study-tabs" aria-label="Study views">

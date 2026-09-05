@@ -156,6 +156,8 @@
       "assets/icons/agents/**/*",
       "assets/svg/**/*",
       "assets/accessories/**/*",
+      "assets/fonts/**/*",
+      "assets/poster/**/*",
       "assets/sounds/**/*",
       "assets/dock-icon.png",
       "assets/tray-icon*.png",

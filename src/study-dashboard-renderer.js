@@ -59,6 +59,12 @@ const reportFacts = $("reportFacts");
 const reportBreakdown = $("reportBreakdown");
 const posterPreview = $("posterPreview");
 const reportSaveStatus = $("reportSaveStatus");
+const pointsValue = $("pointsValue");
+const pointsLevel = $("pointsLevel");
+const pointsLevelFill = $("pointsLevelFill");
+const pointsToday = $("pointsToday");
+const pointsRules = $("pointsRules");
+const pointsRulesBody = $("pointsRulesBody");
 let activeTab = "tasks";
 let reportSpec = { unit: "week", offset: 0 };
 let reportData = null;
@@ -67,9 +73,54 @@ let calendarData = null;
 let selectedCalendarDay = null;
 let reportRequestId = 0;
 let calendarRequestId = 0;
+let posterPet = null;
+let posterPetPromise = null;
+let posterResourcesReady = false;
+let posterResourcesPromise = null;
+let posterDataUrl = null;
+let posterLightbox = null;
+let posterLightboxImage = null;
+let posterLightboxZoom = 1;
+
+const POSTER_STAT_ICONS = ["icon-focus", "icon-time", "icon-tasks", "icon-points"];
+const POSTER_DECO_IDS = ["deco-tomato", "deco-tomato-slice", "deco-wedge", "deco-chip"];
 
 function t(key) {
   return (i18nPayload.translations && i18nPayload.translations[key]) || key;
+}
+
+function label(key, fallback) {
+  const value = t(key);
+  return value === key ? fallback : value;
+}
+
+function levelThreshold(level) {
+  return 100 * (level - 1) * level / 2;
+}
+
+function levelInfo(total) {
+  const value = Math.max(0, Math.floor(Number(total) || 0));
+  let level = 1;
+  while (levelThreshold(level + 1) <= value) level += 1;
+  const current = levelThreshold(level);
+  const next = levelThreshold(level + 1);
+  return {
+    level,
+    total: value,
+    next,
+    pct: next > current ? Math.max(0, Math.min(100, ((value - current) / (next - current)) * 100)) : 100,
+  };
+}
+
+function renderPoints() {
+  const points = snapshot.points || {};
+  const info = levelInfo(points.total);
+  if (pointsValue) pointsValue.textContent = String(info.total);
+  if (pointsLevel) pointsLevel.textContent = `LV ${info.level} · ${info.total}/${info.next}`;
+  if (pointsLevelFill) pointsLevelFill.style.width = `${info.pct}%`;
+  if (pointsToday) pointsToday.textContent = label("studyPointsToday", "Today: {n}").replace("{n}", String(Number(points.today) || 0));
+  if (pointsRules) pointsRules.textContent = label("studyPointsRules", "How points work");
+  if (pointsRulesBody) pointsRulesBody.textContent = label("studyPointsRulesBody", "Focus earns points over time; completing tasks earns a bonus.");
 }
 
 function call(method, ...args) {
@@ -431,15 +482,41 @@ function renderTasks() {
   if (!sorted.length) {
     const empty = document.createElement("div"); empty.className = "empty"; empty.textContent = t("studyNoTasks"); taskList.appendChild(empty); return;
   }
+  if (view.groupBy === "quadrant") {
+    renderQuadrantMatrix(sorted);
+    return;
+  }
   for (const group of groupedTasks(sorted, view.groupBy)) {
     if (group.label) { const heading = document.createElement("div"); heading.className = "group-title"; heading.textContent = group.label; taskList.appendChild(heading); }
     for (const task of group.items) taskList.appendChild(createTaskCard(task));
   }
 }
 
-function label(key, fallback) {
-  const value = t(key);
-  return value === key ? fallback : value;
+// Eisenhower matrix: keep all four cells visible so moving a task between
+// quadrants never changes the surrounding layout. Tasks without an explicit
+// priority live in the fourth cell, matching the existing grouping behavior.
+function renderQuadrantMatrix(tasks) {
+  const matrix = document.createElement("div");
+  matrix.className = "quadrant-grid";
+  for (let quadrant = 0; quadrant < 4; quadrant += 1) {
+    const cell = document.createElement("section");
+    cell.className = `quadrant-cell q${quadrant}`;
+    const heading = document.createElement("h3");
+    heading.className = "quadrant-cell-title";
+    heading.textContent = groupName("quadrant", quadrant);
+    cell.appendChild(heading);
+    const items = tasks.filter((task) => (task.quadrant == null ? 3 : task.quadrant) === quadrant);
+    if (!items.length) {
+      const empty = document.createElement("div");
+      empty.className = "quadrant-cell-empty";
+      empty.textContent = "–";
+      cell.appendChild(empty);
+    } else {
+      for (const task of items) cell.appendChild(createTaskCard(task));
+    }
+    matrix.appendChild(cell);
+  }
+  taskList.appendChild(matrix);
 }
 
 function renderStudyTabs() {
@@ -575,34 +652,156 @@ function renderReport(data) {
   drawPoster(data);
 }
 
+function ensurePosterResources() {
+  if (posterResourcesReady) return Promise.resolve(true);
+  if (posterResourcesPromise) return posterResourcesPromise;
+  posterResourcesPromise = (async () => {
+    try {
+      const ids = POSTER_STAT_ICONS.concat(POSTER_DECO_IDS);
+      if (api && typeof api.getPosterAssets === "function") {
+        const assets = await api.getPosterAssets(ids);
+        await Promise.all(Object.entries(assets || {}).map(([id, src]) => new Promise((resolve) => {
+          const image = new Image();
+          image.onload = () => { posterResources[id] = image; resolve(); };
+          image.onerror = () => resolve();
+          image.src = src;
+        })));
+      }
+      if (api && typeof api.getPosterFont === "function" && typeof FontFace === "function") {
+        const font = await api.getPosterFont();
+        if (font && font.base64) {
+          const bytes = Uint8Array.from(atob(font.base64), (char) => char.charCodeAt(0));
+          const face = await new FontFace("YEFONTXiaoShiTou", bytes.buffer).load().catch(() => null);
+          if (face && document.fonts) document.fonts.add(face);
+        }
+      }
+    } catch (error) {
+      console.warn("study poster resources failed:", error);
+    }
+    posterResourcesReady = true;
+    return true;
+  })();
+  return posterResourcesPromise;
+}
+
+const posterResources = {};
+
+function ensurePosterPet(force = false) {
+  if (force) posterPetPromise = null;
+  if (posterPetPromise) return posterPetPromise;
+  if (!api || typeof api.getPosterActivePet !== "function") return Promise.resolve(null);
+  posterPetPromise = api.getPosterActivePet()
+    .then((pet) => { posterPet = pet || null; return posterPet; })
+    .catch((error) => {
+      posterPet = null;
+      console.warn("study poster pet failed:", error);
+      return null;
+    });
+  return posterPetPromise;
+}
+
+function posterPetFrame(pet, data) {
+  if (!pet || !pet.frames) return null;
+  const growth = data && data.trend ? Number(data.trend.growthPct) : 0;
+  const mood = growth > 0 ? "happy" : (growth < 0 ? "tired" : "thinking");
+  return pet.frames[mood] || pet.frames.idle || null;
+}
+
 function posterModel(data) {
   const facts = [];
   if (data.facts && data.facts.story) facts.push(`${data.facts.story.taskTitle} · ${reportDuration(data.facts.story.focusMinutes)}`);
   if (data.facts && data.facts.bestDay) facts.push(`Best day: ${new Date(data.facts.bestDay.day).toLocaleDateString()}`);
-  if (data.categories && data.categories[0]) facts.push(`Top category: ${data.categories[0].category || "Uncategorized"}`);
+  if (data.categories && data.categories[0]) facts.push(`Top category: ${data.categories[0].category || label("studyUncategorized", "Uncategorized")}`);
+  const hasData = Number(data.totals.focusCount) > 0 || Number(data.totals.taskCount) > 0;
   return {
+    brand: "Renmi",
     title: label("studyReportSectionTitle", "Study report"),
     range: dateRangeLabel(data.range),
-    stats: [
+    stats: hasData ? [
       { value: data.totals.focusCount, label: label("studyReportFocusCount", "Focus sessions") },
       { value: reportDuration(data.totals.focusMinutes), label: label("studyReportFocusTime", "Focus time") },
       { value: data.totals.taskCount, label: label("studyReportTasksDone", "Tasks completed") },
       { value: data.totals.points, label: label("studyReportPointsEarned", "Points earned"), cls: "accent" },
-    ],
+    ] : [],
     chartTitle: label("studyReportDailyTitle", "Focus by day"),
-    daily: data.daily.map((entry) => ({ day: entry.day, minutes: entry.focusMinutes })),
+    daily: (data.daily || []).map((entry) => ({ day: entry.day, minutes: entry.focusMinutes })),
     factsTitle: label("studyReportFactsTitle", "Highlights"),
     facts,
     noData: label("studyReportNoData", "No completed focus sessions yet."),
     footer: `LV · ${data.allTime.total} ${label("studyPoints", "points")}`,
+    petSvg: posterPetFrame(posterPet, data),
+    petTint: posterPet && posterPet.tint || "",
+    petAccessory: posterPet && posterPet.accessory || null,
+    caption: posterPet ? label("studyPosterCaption", "Keep going with Renmi!") : "",
+    statIcons: hasData ? POSTER_STAT_ICONS.map((id) => posterResources[id] || null) : [],
+    decoChart: posterResources["deco-tomato"] || null,
+    decoFacts: posterResources["deco-tomato-slice"] || null,
+    decoBg: POSTER_DECO_IDS.map((id) => posterResources[id] || null).filter(Boolean),
+    highlightIndex: hasData ? 3 : null,
   };
+}
+
+function applyPosterLightboxZoom() {
+  if (!posterLightboxImage || !window.ClawdReportPoster) return;
+  posterLightboxImage.style.width = `${Math.round(window.ClawdReportPoster.W * posterLightboxZoom)}px`;
+}
+
+function openPosterLightbox() {
+  if (!posterDataUrl) return;
+  if (!posterLightbox) {
+    posterLightbox = document.createElement("div");
+    posterLightbox.className = "poster-lightbox";
+    const toolbar = document.createElement("div");
+    toolbar.className = "poster-lightbox-toolbar";
+    const zoomOut = document.createElement("button"); zoomOut.type = "button"; zoomOut.textContent = "−";
+    zoomOut.addEventListener("click", () => { posterLightboxZoom = Math.max(.1, posterLightboxZoom / 1.25); applyPosterLightboxZoom(); });
+    const zoomIn = document.createElement("button"); zoomIn.type = "button"; zoomIn.textContent = "+";
+    zoomIn.addEventListener("click", () => { posterLightboxZoom = Math.min(8, posterLightboxZoom * 1.25); applyPosterLightboxZoom(); });
+    const close = document.createElement("button"); close.type = "button"; close.className = "primary"; close.textContent = "×";
+    close.addEventListener("click", () => posterLightbox.classList.remove("open"));
+    toolbar.append(zoomOut, zoomIn, close);
+    const stage = document.createElement("div"); stage.className = "poster-lightbox-stage";
+    posterLightboxImage = document.createElement("img");
+    posterLightboxImage.alt = label("studyReportSectionTitle", "Study report");
+    posterLightboxImage.addEventListener("wheel", (event) => {
+      event.preventDefault();
+      posterLightboxZoom = Math.min(8, Math.max(.1, posterLightboxZoom * (event.deltaY < 0 ? 1.15 : .87)));
+      applyPosterLightboxZoom();
+    }, { passive: false });
+    stage.appendChild(posterLightboxImage);
+    posterLightbox.append(toolbar, stage);
+    document.body.appendChild(posterLightbox);
+  }
+  posterLightboxImage.src = posterDataUrl;
+  posterLightboxZoom = Math.min(1, (window.innerHeight - 150) / (window.ClawdReportPoster ? window.ClawdReportPoster.H : 1620));
+  posterLightbox.classList.add("open");
+  applyPosterLightboxZoom();
 }
 
 async function drawPoster(data) {
   if (!window.ClawdReportPoster) return;
+  await ensurePosterResources();
+  // Refresh on each newly fetched report so a theme switch or newly unlocked
+  // Renmi accessory is reflected without adding another UI picker.
+  await ensurePosterPet(true);
   let canvas = posterPreview.querySelector("canvas");
-  if (!canvas) { canvas = document.createElement("canvas"); posterPreview.replaceChildren(canvas); }
-  try { await window.ClawdReportPoster.draw(canvas, posterModel(data)); } catch (error) { console.warn("study poster render failed:", error); }
+  if (!canvas) {
+    canvas = document.createElement("canvas");
+    posterPreview.replaceChildren(canvas);
+    canvas.title = label("studyPosterPreview", "Click to enlarge");
+    canvas.addEventListener("click", openPosterLightbox);
+  }
+  try {
+    await window.ClawdReportPoster.draw(canvas, posterModel(data));
+    posterDataUrl = canvas.toDataURL("image/png");
+    if (posterLightbox && posterLightbox.classList.contains("open")) {
+      posterLightboxImage.src = posterDataUrl;
+      applyPosterLightboxZoom();
+    }
+  } catch (error) {
+    posterDataUrl = null;
+    console.warn("study poster render failed:", error);
+  }
 }
 
 async function refreshReport(force = false) {
@@ -764,8 +963,7 @@ function render() {
   const selectedQuadrant = taskQuadrant.value;
   taskQuadrant.replaceChildren(...quadrantOptions(selectedQuadrant || null, true));
   for (const button of modeButtons.children) button.textContent = button.dataset.mode === "countup" ? t("studyModeCountup") : t("studyModeCountdown");
-  const points = snapshot.points || {};
-  pointsEl.innerHTML = `<strong>${Number(points.total) || 0}</strong><span>${t("studyPoints")}</span>`;
+  renderPoints();
   renderTimer();
   renderTasks();
   if (activeTab === "calendar") void refreshCalendar();
@@ -799,12 +997,13 @@ $("reportMonth").addEventListener("click", () => {
 $("reportPrev").addEventListener("click", () => moveReport(-1));
 $("reportNext").addEventListener("click", () => moveReport(1));
 $("reportSave").addEventListener("click", async () => {
-  const canvas = posterPreview.querySelector("canvas");
-  if (!canvas || !api || typeof api.saveReportPoster !== "function") return;
+  if (!api || typeof api.saveReportPoster !== "function" || !reportData) return;
   reportSaveStatus.textContent = label("studyReportSaving", "Saving…");
   try {
+    if (!posterDataUrl) await drawPoster(reportData);
+    if (!posterDataUrl) throw new Error("poster unavailable");
     const result = await api.saveReportPoster({
-      dataUrl: canvas.toDataURL("image/png"),
+      dataUrl: posterDataUrl,
       suggestedName: `renmi-study-${reportSpec.unit}-${new Date().toISOString().slice(0, 10)}.png`,
     });
     reportSaveStatus.textContent = result && result.status === "ok"

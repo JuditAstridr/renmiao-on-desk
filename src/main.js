@@ -192,6 +192,7 @@ const {
 } = require("./account-profile");
 const createStudyWindowRuntime = require("./study-window");
 const { registerStudyIpc } = require("./study-ipc");
+const { createStudyPosterAssets } = require("./study-poster-assets");
 const { createTestReactionHandler } = require("./test-reaction");
 const createMacHideController = require("./mac-hide");
 const {
@@ -2201,6 +2202,22 @@ const _studyRuntime = createStudyRuntime({
   },
 });
 
+// Poster resources are resolved in the main process so the Study renderer
+// never needs filesystem access.  This also keeps packaged builds and user
+// themes on the same contract as the development app.
+const _studyPosterAssets = createStudyPosterAssets({
+  themeLoader,
+  getActiveTheme,
+  getSettingsSnapshot: () => _settingsController.getSnapshot(),
+  nativeImage,
+  getPetTintIdForTheme,
+  resolvePetTintPayload,
+  getEffectivePetAccessoryIdForTheme,
+  buildPetAccessoryPayload,
+  getStudyPoints: () => _studyRuntime.getSnapshot().points.total,
+  rootDir: path.join(__dirname, ".."),
+});
+
 // ── Account profile synchronization ──
 // Authentication owns the session tokens; this layer owns the account-scoped
 // Renmiao state that must be loaded before the pet is shown and saved before a
@@ -2740,6 +2757,7 @@ broadcastStudySnapshot = _studyWindow.broadcastStudySnapshot;
 studyIpcRuntime = registerStudyIpc({
   ipcMain,
   studyRuntime: _studyRuntime,
+  posterAssets: _studyPosterAssets,
   getStudyWindow: () => _studyWindow.getWindow(),
   broadcast: (snapshot) => _studyWindow.broadcastStudySnapshot(snapshot),
   saveReportPoster: async (_event, payload) => {
