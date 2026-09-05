@@ -10,6 +10,7 @@ const {
   KOFFI_2163_TRIPLETS,
   isInside,
   pruneKoffiNative,
+  writePackagedAuthConfig,
 } = require("../scripts/after-pack-koffi");
 
 function tempDir() {
@@ -107,6 +108,28 @@ test("afterPack prune keeps one target addon and removes every lib/exp", async (
   assert.equal(report.retained.format, "PE");
   assert.deepEqual(report.retained.architectures, ["x64"]);
   assert.equal(fs.existsSync(output), true);
+});
+
+test("packaged auth config defaults to the shared Renmiao API and rejects placeholders", async (t) => {
+  const root = tempDir();
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const fixture = await makePackagedKoffi(root, "windows-x64");
+  const configPath = writePackagedAuthConfig({
+    appOutDir: fixture.appRoot,
+    targetId: "windows-x64",
+  });
+  assert.deepEqual(JSON.parse(fs.readFileSync(configPath, "utf8")), {
+    version: 1,
+    apiUrl: "https://auth.renmiao.org",
+  });
+  assert.throws(
+    () => writePackagedAuthConfig({
+      appOutDir: fixture.appRoot,
+      targetId: "windows-x64",
+      apiUrl: "https://auth.example.invalid",
+    }),
+    /real deployed authentication endpoint/i,
+  );
 });
 
 test("afterPack containment checks canonicalize parent path aliases", async (t) => {

@@ -3,6 +3,23 @@
 const defaultFs = require("node:fs");
 const defaultPath = require("node:path");
 
+// This is a public endpoint, not a secret. It lets release builds remain
+// usable when the build job does not provide a shell environment variable;
+// deployments can still override it with RENMI_AUTH_API_URL.
+const DEFAULT_AUTH_API_URL = "https://auth.renmiao.org";
+
+function isPlaceholderApiUrl(value) {
+  try {
+    const hostname = new URL(String(value || "")).hostname.toLowerCase();
+    return hostname === "auth.example.invalid"
+      || hostname === "auth.example.com"
+      || hostname === "auth.your-domain.example"
+      || hostname.endsWith(".example.invalid");
+  } catch {
+    return false;
+  }
+}
+
 function normalizeApiUrl(value) {
   const candidate = String(value || "").trim().replace(/\/+$/, "");
   if (!candidate) return "";
@@ -21,9 +38,10 @@ function resolveAuthApiUrl({
   path = defaultPath,
   resourcesPath = process.resourcesPath,
   userDataDir = "",
+  defaultApiUrl = "",
 } = {}) {
   const fromEnvironment = normalizeApiUrl(env.RENMI_AUTH_API_URL || env.CLAWD_AUTH_API_URL);
-  if (fromEnvironment) return fromEnvironment;
+  if (fromEnvironment && !isPlaceholderApiUrl(fromEnvironment)) return fromEnvironment;
 
   const candidates = [];
   if (resourcesPath) candidates.push(path.join(resourcesPath, "renmi-auth-config.json"));
@@ -32,12 +50,18 @@ function resolveAuthApiUrl({
     try {
       const parsed = JSON.parse(fs.readFileSync(filename, "utf8"));
       const resolved = normalizeApiUrl(parsed && (parsed.apiUrl || parsed.url));
-      if (resolved) return resolved;
+      if (resolved && !isPlaceholderApiUrl(resolved)) return resolved;
     } catch {
       // A missing or malformed optional config keeps legacy local startup.
     }
   }
-  return "";
+  const fallback = normalizeApiUrl(defaultApiUrl);
+  return fallback && !isPlaceholderApiUrl(fallback) ? fallback : "";
 }
 
-module.exports = { normalizeApiUrl, resolveAuthApiUrl };
+module.exports = {
+  DEFAULT_AUTH_API_URL,
+  isPlaceholderApiUrl,
+  normalizeApiUrl,
+  resolveAuthApiUrl,
+};

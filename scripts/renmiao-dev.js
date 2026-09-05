@@ -6,6 +6,7 @@ const net = require("node:net");
 const path = require("node:path");
 const { spawn } = require("node:child_process");
 const { constants: osConstants } = require("node:os");
+const { isPlaceholderApiUrl, normalizeApiUrl } = require("../src/auth-config");
 
 const ROOT = path.resolve(__dirname, "..");
 const API_START_PORT = 8787;
@@ -64,6 +65,30 @@ function waitForHealth(url, child, timeoutMs = 15000) {
   });
 }
 
+async function waitForRemoteHealth(url, timeoutMs = 15000, fetchImpl = globalThis.fetch) {
+  if (typeof fetchImpl !== "function") throw new Error("当前 Node 不支持 fetch，无法检查云端认证服务");
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < timeoutMs) {
+    try {
+      const response = await fetchImpl(`${url}/health`);
+      if (response.ok) return;
+    } catch {}
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+  throw new Error(`云端认证服务健康检查超时：${url}/health`);
+}
+
+function resolveRemoteAuthUrl(env = process.env) {
+  if (String(env.RENMI_LOCAL_AUTH || "").trim() === "1") return "";
+  const raw = String(env.RENMI_AUTH_API_URL || "").trim();
+  if (!raw) return "";
+  const normalized = normalizeApiUrl(raw);
+  if (!normalized || isPlaceholderApiUrl(normalized)) {
+    throw new Error("RENMI_AUTH_API_URL 必须是已部署的真实 http(s) 认证服务地址");
+  }
+  return normalized;
+}
+
 function terminate(child) {
   if (!child || child.exitCode !== null || child.killed) return;
   child.kill("SIGTERM");
@@ -73,22 +98,30 @@ function terminate(child) {
 }
 
 async function main() {
-  const port = await findApiPort();
-  const apiUrl = `http://127.0.0.1:${port}`;
+  const remoteApiUrl = resolveRemoteAuthUrl();
+  const useRemoteAuth = !!remoteApiUrl;
+  let api = null;
+  let apiUrl = remoteApiUrl;
   // Keep `npm start dev` compatible with the old launcher contract.  npm
   // passes positional arguments after the script name through process.argv;
   // forward them to Electron after the auth API is ready.
   const forwardedArgs = process.argv.slice(2);
-  const api = spawn(process.execPath, [path.join(ROOT, "cloud", "api", "index.js")], {
-    cwd: ROOT,
-    env: { ...process.env, AUTH_DEV_MODE: "1", AUTH_HOST: "127.0.0.1", AUTH_PORT: String(port) },
-    stdio: "inherit",
-  });
-  try {
-    await waitForHealth(`${apiUrl}/health`, api);
-  } catch (error) {
-    terminate(api);
-    throw error;
+  if (useRemoteAuth) {
+    await waitForRemoteHealth(apiUrl);
+  } else {
+    const port = await findApiPort();
+    apiUrl = `http://127.0.0.1:${port}`;
+    api = spawn(process.execPath, [path.join(ROOT, "cloud", "api", "index.js")], {
+      cwd: ROOT,
+      env: { ...process.env, AUTH_DEV_MODE: "1", AUTH_HOST: "127.0.0.1", AUTH_PORT: String(port) },
+      stdio: "inherit",
+    });
+    try {
+      await waitForHealth(`${apiUrl}/health`, api);
+    } catch (error) {
+      terminate(api);
+      throw error;
+    }
   }
 
   let electron = null;
@@ -99,9 +132,11 @@ async function main() {
   process.once("SIGINT", stopAll);
   process.once("SIGTERM", stopAll);
   try {
+    const electronEnv = { ...process.env, RENMI_AUTH_API_URL: apiUrl };
+    if (!useRemoteAuth) electronEnv.AUTH_DEV_MODE = "1";
     electron = spawn(process.execPath, [path.join(ROOT, "launch.js"), ...forwardedArgs], {
       cwd: ROOT,
-      env: { ...process.env, RENMI_AUTH_API_URL: apiUrl, AUTH_DEV_MODE: "1" },
+      env: electronEnv,
       stdio: "inherit",
     });
     const result = await new Promise((resolve, reject) => {
@@ -137,4 +172,10 @@ if (require.main === module) {
   });
 }
 
-module.exports = { canListen, findApiPort, waitForHealth };
+module.exports = {
+  canListen,
+  findApiPort,
+  resolveRemoteAuthUrl,
+  waitForHealth,
+  waitForRemoteHealth,
+};

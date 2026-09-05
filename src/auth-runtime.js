@@ -5,7 +5,7 @@ const defaultPath = require("node:path");
 
 const { createAuthClient } = require("./auth-client");
 const { createAuthSessionStore } = require("./auth-session-store");
-const { resolveAuthApiUrl } = require("./auth-config");
+const { DEFAULT_AUTH_API_URL, resolveAuthApiUrl } = require("./auth-config");
 
 function isLiveWindow(win) {
   return !!win && (typeof win.isDestroyed !== "function" || !win.isDestroyed());
@@ -33,6 +33,7 @@ function createAuthRuntime({
     ? resolveAuthApiUrl({
       userDataDir,
       resourcesPath: app.isPackaged ? process.resourcesPath : "",
+      defaultApiUrl: app.isPackaged ? DEFAULT_AUTH_API_URL : "",
     })
     : baseUrl;
   const configured = !!String(resolvedBaseUrl || "").trim() && process.env.RENMI_AUTH_DISABLED !== "1";

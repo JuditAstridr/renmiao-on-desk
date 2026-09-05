@@ -27,6 +27,19 @@ with a configuration error instead of exposing codes locally.
 The admin console is available at `http://127.0.0.1:<the-selected-port>/admin/`
 while the local service is running.
 
+Local development is intentionally computer-local. To test the same account
+database on multiple computers, first deploy the API in cloud mode with
+Supabase, then start the checkout with the shared public endpoint:
+
+```bash
+RENMI_AUTH_API_URL=https://auth.renmiao.org npm start
+```
+
+When this variable is present, `scripts/renmiao-dev.js` does not start a local
+`auth-dev.json` service; it waits for the shared API and launches Electron
+against it. Use `RENMI_LOCAL_AUTH=1 npm start` when you explicitly want an
+isolated local database again.
+
 In the administrator console, `重置密码` opens a form for the administrator
 to set a new password directly. It does not send a code to the user's email;
 the API hashes the new password and revokes the user's existing sessions.
@@ -61,13 +74,16 @@ reads that cache.
 5. Configure the email provider's SPF/DKIM records.
 6. Start the API with `node cloud/api/index.js`.
 7. Build the Electron app with `RENMI_AUTH_API_URL` set to the deployed HTTPS
-   API URL.
+   API URL. Release builds default to `https://auth.renmiao.org`, but setting
+   the variable explicitly is recommended:
 
 For example, use
-`RENMI_AUTH_API_URL=https://auth.example.com npm run build:mac` or the
+`RENMI_AUTH_API_URL=https://auth.renmiao.org npm run build:mac` or the
 corresponding Windows/Linux build command. The packaging hook embeds only this
-public endpoint; database keys and administrator credentials remain server-side
-secrets.
+public endpoint in the app's Resources directory; database keys and
+administrator credentials remain server-side secrets. A package built before
+this endpoint was embedded must be rebuilt; moving its local `.app` or DMG to
+another computer cannot move the source computer's local `auth-dev.json` data.
 
 For a hosted process, bind `AUTH_HOST` to `0.0.0.0` and set
 `AUTH_TRUST_PROXY=1` only when the platform puts a trusted reverse proxy in

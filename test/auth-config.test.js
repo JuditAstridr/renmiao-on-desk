@@ -3,7 +3,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 
-const { normalizeApiUrl, resolveAuthApiUrl } = require("../src/auth-config");
+const { DEFAULT_AUTH_API_URL, normalizeApiUrl, resolveAuthApiUrl } = require("../src/auth-config");
 
 test("auth API URL prefers the environment and normalizes trailing slashes", () => {
   assert.equal(normalizeApiUrl("https://auth.example.com///"), "https://auth.example.com");
@@ -20,7 +20,20 @@ test("auth API URL falls back to the packaged non-secret endpoint", () => {
     resourcesPath: "/app/resources",
     fs: { readFileSync(filename) {
       assert.equal(filename, "/app/resources/renmi-auth-config.json");
-      return JSON.stringify({ version: 1, apiUrl: "https://auth.example.com/" });
+      return JSON.stringify({ version: 1, apiUrl: "https://auth.example.net/" });
     } },
-  }), "https://auth.example.com");
+  }), "https://auth.example.net");
+});
+
+test("packaged startup can use the shared Renmiao endpoint when no build env is present", () => {
+  assert.equal(resolveAuthApiUrl({ env: {}, resourcesPath: "", userDataDir: "", defaultApiUrl: DEFAULT_AUTH_API_URL }), DEFAULT_AUTH_API_URL);
+});
+
+test("placeholder auth endpoints are ignored in favor of the real packaged default", () => {
+  assert.equal(resolveAuthApiUrl({
+    env: { RENMI_AUTH_API_URL: "https://auth.example.invalid" },
+    resourcesPath: "",
+    userDataDir: "",
+    defaultApiUrl: DEFAULT_AUTH_API_URL,
+  }), DEFAULT_AUTH_API_URL);
 });

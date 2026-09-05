@@ -5,6 +5,11 @@ const fs = require("node:fs");
 const path = require("node:path");
 const asar = require("@electron/asar");
 const { resolveReleaseTarget } = require("../src/native-package-target");
+const {
+  DEFAULT_AUTH_API_URL,
+  isPlaceholderApiUrl,
+  normalizeApiUrl,
+} = require("../src/auth-config");
 const { KOFFI_VERSION, KOFFI_TRIPLETS } = require("../src/koffi-package-contract");
 const { parseNativeFile, toPosix } = require("./audit-packaged-native");
 
@@ -227,19 +232,23 @@ function getContextPlatform(context) {
 }
 
 function writePackagedAuthConfig({ appOutDir, targetId, apiUrl, fsImpl = fs } = {}) {
-  const value = String(apiUrl || "").trim();
-  if (!value) return null;
-  let parsed;
-  try { parsed = new URL(value); } catch { throw new Error("RENMI_AUTH_API_URL must be a valid http(s) URL"); }
-  if (!/^https?:$/.test(parsed.protocol)) {
-    throw new Error("RENMI_AUTH_API_URL must use http or https");
+  const value = String(apiUrl || DEFAULT_AUTH_API_URL).trim();
+  const normalized = normalizeApiUrl(value);
+  if (!normalized || isPlaceholderApiUrl(normalized)) {
+    throw new Error("RENMI_AUTH_API_URL must be a real deployed authentication endpoint, not a placeholder");
+  }
+  const parsed = new URL(normalized);
+  const allowInsecure = process.env.RENMI_ALLOW_INSECURE_AUTH_URL === "1";
+  const localHost = new Set(["localhost", "127.0.0.1", "::1"]).has(parsed.hostname.toLowerCase());
+  if (parsed.protocol !== "https:" && !(allowInsecure && localHost)) {
+    throw new Error("Packaged renmiao builds require an HTTPS RENMI_AUTH_API_URL");
   }
   const target = require("../src/native-package-target").getReleaseTarget(targetId);
   const appRoot = locateAppRoot(appOutDir, target);
   const resourcesRoot = locateResourcesRoot(appRoot, target);
   assertDirectory(resourcesRoot, "packaged resources root");
   const configPath = path.join(resourcesRoot, "renmi-auth-config.json");
-  fsImpl.writeFileSync(configPath, `${JSON.stringify({ version: 1, apiUrl: value.replace(/\/+$/, "") }, null, 2)}\n`, "utf8");
+  fsImpl.writeFileSync(configPath, `${JSON.stringify({ version: 1, apiUrl: normalized }, null, 2)}\n`, "utf8");
   return configPath;
 }
 
