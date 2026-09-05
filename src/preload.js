@@ -3,12 +3,15 @@ const { contextBridge, ipcRenderer } = require("electron");
 // Parse theme config from additionalArguments (synchronous, available on first load)
 const themeArg = process.argv.find(a => a.startsWith("--theme-config="));
 const themeConfig = themeArg ? JSON.parse(themeArg.slice("--theme-config=".length)) : null;
+const isRenmiProfile = process.argv.includes("--renmi-profile=1");
 
 contextBridge.exposeInMainWorld("themeConfig", themeConfig);
 
 contextBridge.exposeInMainWorld("electronAPI", {
+  isRenmiProfile,
   // Theme config push (for hot-switch; additionalArguments won't update on reload)
   onThemeConfig: (cb) => ipcRenderer.on("theme-config", (_, cfg) => cb(cfg)),
+  onCharacterConfig: (cb) => ipcRenderer.on("character-config", (_, payload) => cb(payload)),
   // PR #751 Codex review #12 (rework batch B-8, non-blocking): normalize a
   // non-finite value (NaN, +/-Infinity, or anything main.js might someday
   // send that isn't a plain number) to 0 right at the IPC bridge boundary,
@@ -22,6 +25,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   onPetAccessoryChange: (cb) => ipcRenderer.on("pet-accessory-change", (_, payload) => cb(payload)),
   // State sync from main
   onStateChange: (callback) => ipcRenderer.on("state-change", (_, state, svg) => callback(state, svg)),
+  onTimerTick: (callback) => ipcRenderer.on("timer-tick", (_, payload) => callback(payload)),
   onKimiPermissionPulse: (callback) => ipcRenderer.on("kimi-permission-pulse", () => callback()),
   onEyeMove: (callback) => ipcRenderer.on("eye-move", (_, dx, dy) => callback(dx, dy)),
   onCloudlingPointer: (callback) => ipcRenderer.on("cloudling-pointer", (_, payload) => callback(payload)),

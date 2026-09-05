@@ -8,6 +8,12 @@ const facingStage = document.getElementById("pet-facing-stage") || container;
 const motionStage = document.getElementById("pet-motion-stage") || container;
 const assetDirectionStage = document.getElementById("pet-asset-direction-stage") || container;
 const mediaLayer = document.getElementById("pet-media-layer") || container;
+const skinLayer = document.getElementById("pet-skin-layer");
+const skinStage = skinLayer && typeof globalThis.createSkinStage === "function"
+  ? globalThis.createSkinStage(skinLayer)
+  : null;
+let characterPayload = null;
+let skinMode = false;
 const accessoryLayer = document.getElementById("pet-accessory-layer") || container;
 const particleLayer = document.getElementById("pet-particle-layer") || container;
 const accessoryEl = document.getElementById("clawd-accessory");
@@ -18,6 +24,7 @@ const LOW_POWER_IDLE_PAUSE_MS = 5000;
 const SWAP_LOAD_FALLBACK_MS = 3000;
 const SWAP_VISIBILITY_RESCUE_BUFFER_MS = 750;
 const EYE_ATTACH_RETRY_MS = 16;
+const EYE_ATTACH_MAX_RETRY_MS = 250;
 const EYE_ATTACH_MAX_ATTEMPTS = 60;
 const WAKE_OBJECT_RELOAD_RETRIES = 1;
 const LOW_POWER_PAUSE_STYLE_ID = "clawd-low-power-pause-svg";
@@ -37,6 +44,7 @@ const CODEX_PET_VISUAL_BY_FILE = Object.freeze({
   "codex-pet-review-loop.svg": "review-loop",
   "codex-pet-drag-directional-loop.svg": "drag-directional",
 });
+const isRenmiProfile = !!(window.electronAPI && window.electronAPI.isRenmiProfile === true);
 let lowPowerIdleMode = false;
 let lowPowerIdlePauseTimer = null;
 let lowPowerSvgPaused = false;
@@ -79,6 +87,9 @@ function initWithConfig(cfg) {
   _assetsPath = tc.assetsPath || "../assets/svg";
   _sourceAssetsPath = tc.sourceAssetsPath || null;
   _eyeIds = (tc.eyeTracking && tc.eyeTracking.ids) || { eyes: "eyes-js", body: "body-js", shadow: "shadow-js", dozeEyes: "eyes-doze" };
+  _headTilt = (tc.eyeTracking && tc.eyeTracking.headTilt && typeof tc.eyeTracking.headTilt === "object")
+    ? tc.eyeTracking.headTilt
+    : null;
   _bodyScale = (tc.eyeTracking && tc.eyeTracking.bodyScale) || 0.33;
   _shadowStretch = (tc.eyeTracking && tc.eyeTracking.shadowStretch) || 0.15;
   _shadowShift = (tc.eyeTracking && tc.eyeTracking.shadowShift) || 0.3;
@@ -351,7 +362,7 @@ function noteLowPowerActivity() {
 }
 
 function setLowPowerIdleMode(enabled) {
-  lowPowerIdleMode = !!enabled;
+  lowPowerIdleMode = isRenmiProfile ? false : !!enabled;
   if (lowPowerIdleMode) {
     scheduleLowPowerIdlePause();
   } else {
@@ -428,6 +439,7 @@ let _sourceAssetsPath;
 let _viewBox;
 let _layout;
 let _eyeIds;
+let _headTilt = null;
 let _bodyScale;
 let _shadowStretch;
 let _shadowShift;
@@ -583,6 +595,10 @@ window.electronAPI.onThemeConfig((newConfig) => {
   initWithConfig(newConfig);
   applyPetTintToAllMedia();
 });
+
+if (typeof window.electronAPI.onCharacterConfig === "function") {
+  window.electronAPI.onCharacterConfig(applyCharacterPayload);
+}
 
 window.electronAPI.onViewportOffset((offsetY) => {
   setViewportOffset(offsetY);
@@ -1096,6 +1112,39 @@ let currentRequestedSvg = null; // original state file from main, before low-pow
 let lastCloudlingPointerPayload = null;
 let dndEnabled = false;
 let miniLeftFlip = false;
+
+function getSkinStateKey(state) {
+  if (state === "sleeping" || state === "dozing" || state === "collapsing") {
+    return "sleeping";
+  }
+  if (state === "working" || state === "thinking" || state === "waiting") {
+    return "studying";
+  }
+  if (state === "attention" || state === "notification" || state === "waving") {
+    return "reward";
+  }
+  return "idle";
+}
+
+function renderCharacterSkin() {
+  if (!skinStage) return;
+  const active = characterPayload
+    && characterPayload.active === true
+    && characterPayload.skin;
+  skinMode = !!active;
+  mediaLayer.classList.toggle("skin-mode", skinMode);
+  skinStage.update({
+    skin: active ? characterPayload.skin : null,
+    config: active ? characterPayload.config : null,
+    stateKey: getSkinStateKey(currentState),
+    showPlaceholders: false,
+  });
+}
+
+function applyCharacterPayload(payload) {
+  characterPayload = payload && typeof payload === "object" ? payload : null;
+  renderCharacterSkin();
+}
 
 if (window.electronAPI && typeof window.electronAPI.onLowPowerIdleModeChange === "function") {
   window.electronAPI.onLowPowerIdleModeChange(setLowPowerIdleMode);
@@ -1879,6 +1928,7 @@ function renderStateFile(state, svg) {
   // Track the latest state name so the Kimi permission pulse can re-trigger
   // swapToFile() with the matching state for eye-tracking decisions.
   currentState = state;
+  if (skinMode) renderCharacterSkin();
   currentRequestedSvg = svg;
   const requestedSvg = svg;
   const lowPowerStaticImageOverride = resolveLowPowerStaticImageOverride(state, requestedSvg);
@@ -1984,15 +2034,35 @@ window.electronAPI.onKimiPermissionPulse(() => {
 //      Used when tc.eyeTracking.trackingLayers is defined (e.g. calico theme)
 
 let eyeTarget = null;
+let headTarget = null;
 let bodyTarget = null;
 let shadowTarget = null;
 let lastEyeDx = 0;
 let lastEyeDy = 0;
 let eyeAttachToken = 0;
+let eyeAttachInFlight = false;
+let eyeAttachObject = null;
+let eyeAttachRetryTimer = null;
+let eyeAttachLoadObject = null;
+let eyeAttachLoadHandler = null;
 
 // ── Single-target eye tracking (legacy) ──
 
 function applyEyeMove(dx, dy) {
+  if (headTarget && _headTilt && _headTilt.enabled === true) {
+    const maxAngle = Number(_headTilt.maxAngle);
+    const maxOffset = Number(_themeMaxOffset);
+    if (Number.isFinite(maxAngle) && maxAngle > 0 && Number.isFinite(maxOffset) && maxOffset > 0) {
+      const normalizedDx = Math.max(-maxOffset, Math.min(maxOffset, Number(dx) || 0));
+      const angle = Math.round((normalizedDx / maxOffset) * maxAngle * 100) / 100;
+      const pivotX = Number(_headTilt.pivotX);
+      const pivotY = Number(_headTilt.pivotY);
+      const transform = Number.isFinite(pivotX) && Number.isFinite(pivotY)
+        ? `rotate(${angle} ${pivotX} ${pivotY})`
+        : `rotate(${angle})`;
+      headTarget.setAttribute("transform", transform);
+    }
+  }
   if (eyeTarget) {
     eyeTarget.setAttribute("transform", `translate(${dx}, ${dy})`);
   }
@@ -2199,29 +2269,77 @@ function _cleanupLayeredTracking() {
 
 function attachEyeTracking(objectEl) {
   if (!objectEl || objectEl.tagName !== "OBJECT") return;
+  if (eyeAttachInFlight && eyeAttachObject === objectEl) return;
+  if (eyeAttachInFlight && eyeAttachObject !== objectEl) detachEyeTracking();
   const token = ++eyeAttachToken;
+  eyeAttachInFlight = true;
+  eyeAttachObject = objectEl;
   eyeTarget = null;
+  headTarget = null;
   bodyTarget = null;
   shadowTarget = null;
 
+  const clearRetryTimer = () => {
+    if (eyeAttachRetryTimer) {
+      clearTimeout(eyeAttachRetryTimer);
+      eyeAttachRetryTimer = null;
+    }
+  };
+
+  const clearLoadListener = () => {
+    if (eyeAttachLoadObject !== objectEl || !eyeAttachLoadHandler) return;
+    if (typeof eyeAttachLoadObject.removeEventListener === "function") {
+      eyeAttachLoadObject.removeEventListener("load", eyeAttachLoadHandler);
+    }
+    eyeAttachLoadObject = null;
+    eyeAttachLoadHandler = null;
+  };
+
+  const clearAttachInFlight = () => {
+    if (token !== eyeAttachToken) return;
+    clearRetryTimer();
+    clearLoadListener();
+    eyeAttachInFlight = false;
+    eyeAttachObject = null;
+  };
+
+  const scheduleRetry = (attempt) => {
+    if (token !== eyeAttachToken || !objectEl.isConnected || eyeAttachRetryTimer) return;
+    const delay = Math.min(
+      EYE_ATTACH_MAX_RETRY_MS,
+      EYE_ATTACH_RETRY_MS * (2 ** Math.min(attempt, 4))
+    );
+    eyeAttachRetryTimer = setTimeout(() => {
+      eyeAttachRetryTimer = null;
+      tryAttach(attempt + 1);
+    }, delay);
+  };
+
   const tryAttach = (attempt) => {
     if (token !== eyeAttachToken) return;
-    if (!objectEl || !objectEl.isConnected) return;
+    if (!objectEl || !objectEl.isConnected) {
+      clearAttachInFlight();
+      return;
+    }
 
     try {
       const svgDoc = objectEl.contentDocument;
       if (!svgDoc) {
-        if (attempt < EYE_ATTACH_MAX_ATTEMPTS) setTimeout(() => tryAttach(attempt + 1), EYE_ATTACH_RETRY_MS);
+        scheduleRetry(attempt);
         return;
       }
 
       // Layered tracking: wrap elements and start RAF loop
       if (_useLayeredTracking) {
         // Skip if already tracking this exact <object> element
-        if (_trackingLayers && _layeredTrackingObj === objectEl) return;
+        if (_trackingLayers && _layeredTrackingObj === objectEl) {
+          clearAttachInFlight();
+          return;
+        }
         _initLayeredTracking(svgDoc);
         _layeredTrackingObj = objectEl;
         _layeredTrackingDocument = svgDoc;
+        clearAttachInFlight();
         return;
       }
 
@@ -2229,34 +2347,70 @@ function attachEyeTracking(objectEl) {
       const eyes = svgDoc && svgDoc.getElementById(_eyeIds.eyes);
       if (eyes) {
         eyeTarget = eyes;
+        headTarget = _eyeIds.head ? svgDoc.getElementById(_eyeIds.head) : null;
         bodyTarget = svgDoc.getElementById(_eyeIds.body);
         shadowTarget = svgDoc.getElementById(_eyeIds.shadow);
+        clearAttachInFlight();
         applyEyeMove(lastEyeDx, lastEyeDy);
         return;
       }
     } catch (e) {
-      console.warn("Cannot access SVG contentDocument for eye tracking:", e.message);
+      scheduleRetry(attempt);
+      if (attempt === 0) {
+        console.warn("Cannot access SVG contentDocument for eye tracking:", e.message);
+      }
       return;
     }
 
-    if (attempt >= EYE_ATTACH_MAX_ATTEMPTS) {
-      console.warn("Timed out waiting for SVG eye targets");
-      return;
-    }
-    setTimeout(() => tryAttach(attempt + 1), EYE_ATTACH_RETRY_MS);
+    // The object can expose its document before the SVG's target nodes are
+    // available. Keep retrying with a small capped backoff instead of
+    // declaring a terminal timeout; a later load event also retries instantly.
+    scheduleRetry(attempt);
   };
 
+  const onObjectLoad = () => {
+    if (token !== eyeAttachToken) return;
+    clearRetryTimer();
+    tryAttach(0);
+  };
+  eyeAttachLoadObject = objectEl;
+  eyeAttachLoadHandler = onObjectLoad;
+  objectEl.addEventListener("load", onObjectLoad);
   tryAttach(0);
 }
 
 function detachEyeTracking() {
   eyeAttachToken++;
+  if (eyeAttachRetryTimer) {
+    clearTimeout(eyeAttachRetryTimer);
+    eyeAttachRetryTimer = null;
+  }
+  if (eyeAttachLoadObject && eyeAttachLoadHandler
+    && typeof eyeAttachLoadObject.removeEventListener === "function") {
+    eyeAttachLoadObject.removeEventListener("load", eyeAttachLoadHandler);
+  }
+  eyeAttachLoadObject = null;
+  eyeAttachLoadHandler = null;
+  eyeAttachInFlight = false;
+  eyeAttachObject = null;
   // Single-target cleanup
   eyeTarget = null;
+  headTarget = null;
   bodyTarget = null;
   shadowTarget = null;
   // Layered tracking cleanup
   _cleanupLayeredTracking();
+}
+
+function isSvgTargetReady(target, currentDocument) {
+  if (!target || target.ownerDocument !== currentDocument || !currentDocument.defaultView) return false;
+  const root = currentDocument.documentElement;
+  if (!root || typeof root.contains !== "function") return true;
+  try {
+    return root.contains(target);
+  } catch {
+    return false;
+  }
 }
 
 function isEyeTrackingReady() {
@@ -2271,9 +2425,10 @@ function isEyeTrackingReady() {
   if (_trackingLayers && _layeredTrackingObj === clawdEl) {
     return _layeredTrackingDocument === currentDocument;
   }
-  return !!(eyeTarget
-    && eyeTarget.ownerDocument === currentDocument
-    && eyeTarget.ownerDocument.defaultView);
+  if (!isSvgTargetReady(eyeTarget, currentDocument)) return false;
+  if (_headTilt && _headTilt.enabled === true && _eyeIds.head && headTarget
+    && !isSvgTargetReady(headTarget, currentDocument)) return false;
+  return true;
 }
 
 function waitForWakeEyeTrackingReady(callback, attempt = 0) {
@@ -2442,10 +2597,21 @@ window.electronAPI.onEyeMove((dx, dy) => {
     return;
   }
 
+  const needsEyeObject = clawdEl && clawdEl.isConnected
+    && clawdEl.tagName === "OBJECT"
+    && tracksEyesForFile(currentState, currentDisplayedSvg);
+
+  // A delayed or transiently replaced SVG document can exhaust the initial
+  // attach retry window before exposing #eyes-js. Keep the eye path
+  // self-healing, but never restart the same in-flight retry on every tick.
+  if (needsEyeObject && !eyeTarget && !_trackingLayers && !eyeAttachInFlight) {
+    attachEyeTracking(clawdEl);
+    return;
+  }
+
   if ((eyeTarget || _trackingLayers) && !isEyeTrackingReady()) {
     detachEyeTracking();
-    if (clawdEl && clawdEl.isConnected && clawdEl.tagName === "OBJECT"
-      && tracksEyesForFile(currentState, currentDisplayedSvg)) attachEyeTracking(clawdEl);
+    if (needsEyeObject) attachEyeTracking(clawdEl);
     return;
   }
 
@@ -2480,6 +2646,65 @@ if (window.electronAPI && typeof window.electronAPI.onRoamHeading === "function"
     // creation is stale — refresh both the on-screen and the pending element.
     applyMiniFlip(clawdEl, currentState);
   });
+}
+
+// --- Study Companion timer HUD ---
+// This is a decorative readout owned by the render window.  The hit window
+// remains the only input surface, so the timer can never interfere with drag
+// or click handling.  The Study dashboard remains the full control surface.
+let studyTimerHud = null;
+
+function formatStudyTimer(seconds) {
+  const value = Math.max(0, Math.floor(Number(seconds) || 0));
+  const hours = Math.floor(value / 3600);
+  const minutes = String(Math.floor((value % 3600) / 60)).padStart(2, "0");
+  const secs = String(value % 60).padStart(2, "0");
+  return hours > 0 ? `${hours}:${minutes}:${secs}` : `${minutes}:${secs}`;
+}
+
+function ensureStudyTimerHud() {
+  if (studyTimerHud) return studyTimerHud;
+  const element = document.createElement("div");
+  element.id = "clawd-timer-hud";
+  element.style.position = "fixed";
+  element.style.left = "50%";
+  element.style.bottom = "0";
+  element.style.transform = "translateX(-50%)";
+  element.style.padding = "3px 8px";
+  element.style.borderRadius = "5px";
+  element.style.background = "rgba(16, 16, 20, 0.85)";
+  element.style.border = "1px solid rgba(255, 255, 255, 0.18)";
+  element.style.color = "#fff";
+  element.style.fontFamily = "ui-monospace, SFMono-Regular, Menlo, monospace";
+  element.style.fontSize = "12px";
+  element.style.fontWeight = "700";
+  element.style.fontVariantNumeric = "tabular-nums";
+  element.style.letterSpacing = "0.04em";
+  element.style.lineHeight = "1.2";
+  element.style.zIndex = "2147483647";
+  element.style.pointerEvents = "none";
+  element.style.userSelect = "none";
+  element.style.display = "none";
+  document.body.appendChild(element);
+  studyTimerHud = element;
+  return element;
+}
+
+function updateStudyTimerHud(payload) {
+  const element = ensureStudyTimerHud();
+  if (!payload || payload.running !== true || payload.phase !== "focus") {
+    element.style.display = "none";
+    return;
+  }
+  const seconds = payload.mode === "countup"
+    ? payload.elapsedSeconds
+    : payload.remainingSeconds;
+  element.textContent = formatStudyTimer(seconds);
+  element.style.display = "block";
+}
+
+if (window.electronAPI && typeof window.electronAPI.onTimerTick === "function") {
+  window.electronAPI.onTimerTick(updateStudyTimerHud);
 }
 
 // --- Sound playback (IPC from main, receives { url, volume } from theme) ---

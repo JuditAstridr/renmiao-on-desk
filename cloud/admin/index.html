@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>renmiao Admin</title>
+  <link rel="stylesheet" href="/admin/admin.css">
+</head>
+<body>
+  <main class="shell">
+    <section id="login-view" class="card auth-card">
+    <div class="brand">RENMIAO</div>
+      <h1>管理员后台</h1>
+      <p class="muted">使用管理员密码和绑定邮箱验证码登录。</p>
+      <form id="admin-login-form">
+        <label>管理员邮箱<input id="admin-email" type="email" autocomplete="username" value="judit.astridr@gmail.com" required></label>
+        <label>管理员密码<input id="admin-password" type="password" autocomplete="current-password" required></label>
+        <button id="send-admin-code" type="button">发送验证码</button>
+        <label>邮箱验证码<input id="admin-code" inputmode="text" maxlength="6" autocomplete="one-time-code" placeholder="6位验证码"></label>
+        <button class="primary" type="submit">进入后台</button>
+        <p id="login-message" class="message" role="status"></p>
+      </form>
+    </section>
+
+    <section id="dashboard-view" hidden>
+      <header class="topbar">
+      <div><div class="brand">RENMIAO</div><h1>用户管理</h1></div>
+        <button id="admin-logout" class="secondary">退出登录</button>
+      </header>
+      <div class="toolbar card">
+        <input id="user-query" placeholder="搜索用户名或邮箱" autocomplete="off">
+        <select id="user-status"><option value="">全部状态</option><option value="active">正常</option><option value="pending">待验证</option><option value="suspended">已封禁</option><option value="deleted">已注销</option></select>
+        <button id="refresh-users" class="primary">刷新</button>
+      </div>
+      <p id="dashboard-message" class="message" role="status"></p>
+      <section class="card table-wrap">
+        <table>
+          <thead><tr><th>用户名</th><th>邮箱</th><th>状态</th><th>注册时间</th><th>操作</th></tr></thead>
+          <tbody id="users-body"></tbody>
+        </table>
+      </section>
+      <section class="card audit-card">
+        <div class="section-heading"><h2>管理员审计日志</h2><button id="refresh-audit" class="secondary">刷新日志</button></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>时间</th><th>操作</th><th>目标用户</th><th>IP</th><th>详情</th></tr></thead>
+            <tbody id="audit-body"></tbody>
+          </table>
+        </div>
+      </section>
+    </section>
+  </main>
+  <script src="/admin/admin.js"></script>
+</body>
+</html>

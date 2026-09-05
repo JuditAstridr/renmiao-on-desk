@@ -2,8 +2,8 @@
 
 const path = require("path");
 
-const WINDOWS_APP_USER_MODEL_ID = "com.clawd.on-desk";
-const SETTINGS_WINDOW_TITLE = "Clawd Settings";
+const WINDOWS_APP_USER_MODEL_ID = "com.renmiao.app";
+const SETTINGS_WINDOW_TITLE = "renmiao Settings";
 const SETTINGS_WINDOW_LAUNCH_ARG = "--open-settings-window";
 
 function quoteWindowsCommandArg(value) {

@@ -1,0 +1,311 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1254 1254" width="1254" height="1254">
+  <defs>
+    <style>
+      #head-js { transition: transform 0.18s ease-out; }
+      #eyes-js { transition: transform 0.16s ease-out; }
+      .eyes-blink {
+        transform-box: fill-box;
+        transform-origin: center;
+        animation: eye-blink 4.8s infinite ease-in-out;
+      }
+      @keyframes eye-blink {
+        0%, 86%, 100% { transform: scaleY(1); }
+        89% { transform: scaleY(0.08); }
+        92% { transform: scaleY(1); }
+      }
+    </style>
+
+    <mask id="original-silhouette-mask" maskUnits="userSpaceOnUse" x="0" y="0" width="1254" height="1254" mask-type="alpha">
+      <rect x="0" y="0" width="1254" height="1254" fill="#000000" fill-opacity="0" />
+      <image href="renmi.png" x="0" y="0" width="1254" height="1254" />
+    </mask>
+
+    <clipPath id="body-clip" clipPathUnits="userSpaceOnUse">
+      <path d="M 0 588 H 1254 V 1254 H 0 Z" />
+    </clipPath>
+
+    <!-- The real rear-half tail section: it crosses the tail at the middle
+         bend and continues around the full curl to the lower tip. The inner
+         edge is inset so the body-facing outline remains stationary. -->
+    <clipPath id="tail-distal-clip" clipPathUnits="userSpaceOnUse">
+      <path d="M 970 1020
+        C 1015 1025 1060 1015 1112 1003
+        C 1118 1042 1110 1080 1093 1119
+        C 1072 1158 1035 1188 985 1202
+        C 930 1218 870 1210 825 1194
+        C 800 1184 785 1158 786 1133
+        C 787 1098 810 1075 845 1057
+        C 885 1042 930 1030 970 1020 Z" />
+    </clipPath>
+
+    <!-- Stationary upper tail/root overlap hides the internal split. -->
+    <clipPath id="tail-root-cover-clip" clipPathUnits="userSpaceOnUse">
+      <path d="M 930 820
+        C 986 810 1045 830 1080 872
+        C 1112 912 1124 970 1118 1018
+        C 1115 1040 1108 1058 1094 1072
+        C 1070 1048 1038 1033 1000 1027
+        C 972 1023 944 1016 914 1004
+        C 936 956 940 888 930 820 Z" />
+    </clipPath>
+
+    <!-- The body/paws are composited in front of the tail at every frame. -->
+    <clipPath id="torso-front-clip" clipPathUnits="userSpaceOnUse">
+      <path d="M 180 588
+        C 330 650 700 666 930 600
+        C 945 680 956 760 960 825
+        C 968 880 974 938 968 988
+        C 962 1018 938 1031 900 1038
+        C 858 1046 820 1066 797 1096
+        C 778 1121 772 1150 781 1168
+        C 764 1187 742 1202 720 1212
+        L 720 1254 L 180 1254 Z" />
+    </clipPath>
+
+    <clipPath id="head-overlap-clip" clipPathUnits="userSpaceOnUse">
+      <rect x="180" y="0" width="900" height="830" />
+    </clipPath>
+
+    <clipPath id="neck-front-clip" clipPathUnits="userSpaceOnUse">
+      <path d="M 196 560
+        C 275 596 317 618 390 641
+        C 471 666 551 680 627 681
+        C 708 680 790 666 869 641
+        C 942 618 989 593 1058 550
+        C 1045 615 1010 671 955 713
+        C 867 780 752 802 627 802
+        C 500 802 382 780 294 713
+        C 242 673 208 617 196 560 Z" />
+    </clipPath>
+  </defs>
+
+  <!-- Original body raster. -->
+  <image href="renmi.png" x="0" y="0" width="1254" height="1254" clip-path="url(#body-clip)" />
+
+  <!-- White underlay removes the old baked tail edge and keeps the tail
+       continuous while its visible rear contour moves. It is fenced by the
+       original alpha, so no rectangular or opaque background is introduced. -->
+  <g mask="url(#original-silhouette-mask)">
+    <path d="M 940 828
+      C 1000 808 1063 829 1098 875
+      C 1130 918 1138 981 1125 1038
+      C 1112 1090 1081 1140 1039 1172
+      C 997 1204 945 1222 891 1222
+      C 845 1221 806 1209 779 1184
+      C 755 1162 744 1131 751 1095
+      C 759 1053 790 1029 832 1016
+      C 874 1004 922 999 944 979
+      C 970 956 974 928 970 900
+      C 967 870 957 843 940 828 Z" fill="#ffffff" />
+  </g>
+
+  <!-- Only the long, real rear half of the curled tail is moved. The source
+       PNG remains transparent outside the clipped tail pixels. -->
+  <g>
+    <g id="tail-swing-js">
+      <image href="renmi.png" x="0" y="0" width="1254" height="1254" clip-path="url(#tail-distal-clip)" />
+    </g>
+  </g>
+
+  <!-- Restore the fixed connection and body foreground after the moving
+       layer, preventing the body outline from being cut or carried away. -->
+  <image href="renmi.png" x="0" y="0" width="1254" height="1254" clip-path="url(#tail-root-cover-clip)" />
+  <image href="renmi.png" x="0" y="0" width="1254" height="1254" clip-path="url(#torso-front-clip)" />
+
+  <!-- Head, eyes and blink. The head keeps only its local overlap clip: the
+       fixed full-silhouette mask would cut off the ears and crown after the
+       head tilts. The neck/body foreground below still restores that seam. -->
+  <g id="head-js">
+    <image href="renmi.png" x="0" y="0" width="1254" height="1254" clip-path="url(#head-overlap-clip)" />
+    <g fill="#ffffff">
+      <ellipse cx="477" cy="421" rx="52" ry="48" />
+      <ellipse cx="698" cy="421" rx="52" ry="48" />
+    </g>
+    <g id="eyes-js">
+      <g class="eyes-blink">
+        <g fill="#5a3a2f">
+          <ellipse cx="477" cy="421" rx="31" ry="33" />
+          <ellipse cx="698" cy="421" rx="31" ry="33" />
+        </g>
+        <g fill="#ffffff" opacity="0.82">
+          <ellipse cx="467" cy="410" rx="7" ry="8" />
+          <ellipse cx="688" cy="410" rx="7" ry="8" />
+        </g>
+      </g>
+    </g>
+  </g>
+  <image href="renmi.png" x="0" y="0" width="1254" height="1254" clip-path="url(#neck-front-clip)" />
+
+  <!-- A single deadline controls each rest. RAF is used only while the
+       1.9-second action is active. Visibility and low-power recovery cancel
+       stale timers and recompute the remaining deadline, avoiding permanent
+       stalls after timer throttling. -->
+  <script type="application/ecmascript"><![CDATA[
+    (() => {
+      const tail = document.getElementById("tail-swing-js");
+      if (!tail) return;
+
+      const PIVOT_X = 1045;
+      const PIVOT_Y = 1015;
+      const ACTION_MS = 1900;
+      const MIN_REST_MS = 10000;
+      const MAX_REST_MS = 60000;
+      const WAG_KEYS = [
+        { at: 0.00, angle: 0 },
+        { at: 0.16, angle: 16 },
+        { at: 0.34, angle: -16 },
+        { at: 0.52, angle: 13 },
+        { at: 0.68, angle: -11 },
+        { at: 0.82, angle: 7 },
+        { at: 1.00, angle: 0 },
+      ];
+
+      let phase = "rest";
+      let lowPowerPaused = false;
+      let restTimer = 0;
+      let restDeadline = 0;
+      let restRemaining = 0;
+      let rafId = 0;
+      let actionStart = 0;
+      let actionElapsed = 0;
+
+      const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+      const isDocumentVisible = () => document.visibilityState !== "hidden";
+
+      function setTailAngle(angle) {
+        tail.setAttribute("transform", `rotate(${angle} ${PIVOT_X} ${PIVOT_Y})`);
+      }
+
+      function clearRestTimer() {
+        if (restTimer) clearTimeout(restTimer);
+        restTimer = 0;
+        restDeadline = 0;
+      }
+
+      function randomRestMs() {
+        return MIN_REST_MS + Math.floor(Math.random() * (MAX_REST_MS - MIN_REST_MS + 1));
+      }
+
+      function easeInOut(value) {
+        return value * value * (3 - 2 * value);
+      }
+
+      function angleAt(progress) {
+        const t = clamp(progress, 0, 1);
+        for (let index = 1; index < WAG_KEYS.length; index += 1) {
+          const next = WAG_KEYS[index];
+          if (t > next.at) continue;
+          const previous = WAG_KEYS[index - 1];
+          const segment = (t - previous.at) / (next.at - previous.at);
+          const eased = easeInOut(clamp(segment, 0, 1));
+          return previous.angle + (next.angle - previous.angle) * eased;
+        }
+        return WAG_KEYS[WAG_KEYS.length - 1].angle;
+      }
+
+      function requestActionFrame() {
+        if (!lowPowerPaused && phase === "wag" && !rafId) {
+          rafId = requestAnimationFrame(step);
+        }
+      }
+
+      function scheduleRest(delayMs = randomRestMs()) {
+        clearRestTimer();
+        phase = "rest";
+        actionElapsed = 0;
+        const requested = Number(delayMs);
+        restRemaining = Number.isFinite(requested) ? Math.max(0, requested) : MIN_REST_MS;
+        if (lowPowerPaused) return;
+
+        restDeadline = performance.now() + restRemaining;
+        restTimer = setTimeout(() => {
+          restTimer = 0;
+          restDeadline = 0;
+          restRemaining = 0;
+          if (!lowPowerPaused && isDocumentVisible()) startWag();
+        }, restRemaining);
+      }
+
+      function startWag() {
+        if (lowPowerPaused || !isDocumentVisible()) return;
+        phase = "wag";
+        actionStart = performance.now() - actionElapsed;
+        requestActionFrame();
+      }
+
+      function recoverFromAnimationError() {
+        if (rafId) cancelAnimationFrame(rafId);
+        rafId = 0;
+        setTailAngle(0);
+        scheduleRest();
+      }
+
+      function step(now) {
+        rafId = 0;
+        if (lowPowerPaused || phase !== "wag") return;
+        try {
+          actionElapsed = clamp(now - actionStart, 0, ACTION_MS);
+          setTailAngle(angleAt(actionElapsed / ACTION_MS));
+          if (actionElapsed < ACTION_MS) {
+            requestActionFrame();
+            return;
+          }
+          setTailAngle(0);
+          scheduleRest();
+        } catch {
+          recoverFromAnimationError();
+        }
+      }
+
+      function pauseForHiddenDocument() {
+        if (phase === "rest") {
+          if (restTimer) restRemaining = Math.max(0, restDeadline - performance.now());
+          clearRestTimer();
+        } else if (phase === "wag") {
+          actionElapsed = clamp(performance.now() - actionStart, 0, ACTION_MS);
+          if (rafId) cancelAnimationFrame(rafId);
+          rafId = 0;
+        }
+      }
+
+      window.__clawdSetLowPowerPaused = (paused) => {
+        const next = !!paused;
+        if (next === lowPowerPaused) return;
+        lowPowerPaused = next;
+        if (next) {
+          if (phase === "rest" && restTimer) restRemaining = Math.max(0, restDeadline - performance.now());
+          clearRestTimer();
+          if (rafId) cancelAnimationFrame(rafId);
+          rafId = 0;
+          return;
+        }
+        if (!isDocumentVisible()) return;
+        if (phase === "rest") {
+          if (restRemaining <= 0) startWag();
+          else scheduleRest(restRemaining);
+        } else {
+          actionStart = performance.now() - actionElapsed;
+          requestActionFrame();
+        }
+      };
+
+      document.addEventListener("visibilitychange", () => {
+        if (!isDocumentVisible()) {
+          pauseForHiddenDocument();
+          return;
+        }
+        if (lowPowerPaused) return;
+        if (phase === "rest") {
+          if (restRemaining <= 0) startWag();
+          else scheduleRest(restRemaining);
+        } else {
+          actionStart = performance.now() - actionElapsed;
+          requestActionFrame();
+        }
+      });
+
+      setTailAngle(0);
+      scheduleRest();
+    })();
+  ]]></script>
+</svg>

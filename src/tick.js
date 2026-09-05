@@ -20,6 +20,7 @@ let lastPointerBridgePayload = null;
 let mainTickTimer = null;
 let mainTickActive = false;
 let nextMainTickAt = 0;
+let lastMainTickErrorAt = 0;
 
 // ── Spin detection: tracks cursor circling to trigger dizzy animation ──
 let lastCursorAngle = null;             // last cursor angle (radians) relative to eye-tracking origin
@@ -174,8 +175,23 @@ function shouldSuppressPassiveIpc() {
 function runMainTick() {
   mainTickTimer = null;
   nextMainTickAt = 0;
-  const delay = runMainTickOnce();
-  if (mainTickActive && !mainTickTimer) scheduleNextTick(delay);
+  let delay = BACKGROUND_TICK_MS;
+  try {
+    delay = runMainTickOnce();
+  } catch (error) {
+    // A native cursor/window query or a renderer IPC call can fail
+    // transiently while displays/windows are changing. Keep the scheduler
+    // alive so one bad tick cannot permanently disable eye tracking.
+    const now = Date.now();
+    if (now - lastMainTickErrorAt >= 5000) {
+      lastMainTickErrorAt = now;
+      try {
+        console.warn("Clawd: main tick recovered after transient error:", error && error.message);
+      } catch {}
+    }
+  } finally {
+    if (mainTickActive && !mainTickTimer) scheduleNextTick(delay);
+  }
 }
 
 function runMainTickOnce() {

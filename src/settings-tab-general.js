@@ -1,6 +1,7 @@
 "use strict";
 
 (function initSettingsTabGeneral(root) {
+  const IS_RENMI_PROFILE = !!(root && root.settingsAPI && root.settingsAPI.isRenmiProfile);
   const GENERAL_IN_PLACE_KEYS = new Set([
     "size",
     "textScale",
@@ -406,15 +407,19 @@
       // has no mounted control). The rowFullscreenOverlay[Desc] i18n keys remain.
     ]));
 
-    // System & startup: machine-level toggles (low-power idle throttling and
-    // blocking OS sleep while working) plus launch-at-login. Set-once, near bottom.
-    parent.appendChild(helpers.buildSection(t("sectionSystemStartup"), [
+    // System & startup: machine-level toggles plus launch-at-login. Renmi is
+    // intentionally always-live, so its low-power idle control is not shown.
+    const systemStartupRows = [
       ...buildMacAppPresenceRows(),
-      helpers.buildSwitchRow({
+    ];
+    if (!IS_RENMI_PROFILE) {
+      systemStartupRows.push(helpers.buildSwitchRow({
         key: "lowPowerIdleMode",
         labelKey: "rowLowPowerIdleMode",
         descKey: "rowLowPowerIdleModeDesc",
-      }),
+      }));
+    }
+    systemStartupRows.push(
       helpers.buildSwitchRow({
         key: "keepAwakeWhileWorking",
         labelKey: "rowKeepAwakeWhileWorking",
@@ -425,7 +430,8 @@
         labelKey: "rowOpenAtLogin",
         descKey: "rowOpenAtLoginDesc",
       }),
-    ]));
+    );
+    parent.appendChild(helpers.buildSection(t("sectionSystemStartup"), systemStartupRows));
 
     // Permission automation stays last: both automatic modes carry a broad
     // trust boundary and require an explicit confirmation.

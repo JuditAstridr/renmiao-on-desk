@@ -1,0 +1,88 @@
+{
+  "schemaVersion": 1,
+  "name": "Renmi",
+  "author": "renmi-on-desk",
+  "version": "1.0.0",
+  "description": "A clean white sitting cat with a curled tail.",
+  "customization": {
+    "petTint": false
+  },
+  "trustedRuntime": {
+    "scriptedSvgFiles": [
+      "renmi-idle-follow.svg"
+    ]
+  },
+  "viewBox": {
+    "x": 0,
+    "y": 0,
+    "width": 1254,
+    "height": 1254
+  },
+  "layout": {
+    "contentBox": {
+      "x": 208,
+      "y": 46,
+      "width": 998,
+      "height": 1172
+    },
+    "centerX": 627,
+    "baselineY": 1242,
+    "visibleHeightRatio": 0.86,
+    "baselineBottomRatio": 0.04
+  },
+  "eyeTracking": {
+    "enabled": true,
+    "states": ["idle"],
+    "eyeRatioX": 0.468,
+    "eyeRatioY": 0.336,
+    "maxOffset": 20,
+    "headTilt": {
+      "enabled": true,
+      "maxAngle": 8,
+      "pivotX": 627,
+      "pivotY": 640
+    },
+    "ids": {
+      "eyes": "eyes-js",
+      "head": "head-js"
+    }
+  },
+  "sleepSequence": {
+    "mode": "direct"
+  },
+  "states": {
+    "idle": ["renmi-idle-follow.svg"],
+    "thinking": ["renmi.png"],
+    "working": ["renmi.png"],
+    "juggling": ["renmi.png"],
+    "sweeping": ["renmi.png"],
+    "error": ["renmi.png"],
+    "attention": ["renmi.png"],
+    "notification": ["renmi.png"],
+    "carrying": ["renmi.png"],
+    "sleeping": ["renmi.png"]
+  },
+  "hitBoxes": {
+    "default": {
+      "x": 208,
+      "y": 46,
+      "w": 998,
+      "h": 1172
+    },
+    "sleeping": {
+      "x": 208,
+      "y": 46,
+      "w": 998,
+      "h": 1172
+    },
+    "wide": {
+      "x": 180,
+      "y": 25,
+      "w": 1054,
+      "h": 1220
+    }
+  },
+  "miniMode": {
+    "supported": false
+  }
+}

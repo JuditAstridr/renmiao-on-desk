@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "name": "伴学小猫",
+  "version": "1.0.0",
+  "description": "Q版坐姿小猫，支持调色盘换色、花纹图层、配饰叠加",
+  "isColoringSkin": true,
+  "_skinOnly": true,
+  "viewBox": {
+    "x": 0,
+    "y": 0,
+    "width": 512,
+    "height": 512
+  },
+  "baseImage": "./assets/base_cat.png",
+  "states": {
+    "idle": ["./assets/base_cat.png"],
+    "working": ["./assets/studying.png"],
+    "thinking": ["./assets/base_cat.png"],
+    "attention": ["./assets/reward.png"],
+    "notification": { "fallbackTo": "attention" },
+    "error": { "fallbackTo": "attention" },
+    "sweeping": { "fallbackTo": "working" },
+    "carrying": { "fallbackTo": "working" },
+    "sleeping": ["./assets/idle.png"]
+  },
+  "sleepSequence": { "mode": "direct" },
+  "eyeTracking": { "enabled": false },
+  "patterns": [
+    {
+      "id": "stripe",
+      "src": "./assets/patterns/stripe.png",
+      "name": "条纹花纹"
+    },
+    {
+      "id": "dot",
+      "src": "./assets/patterns/dot.png",
+      "name": "圆点花纹"
+    }
+  ],
+  "accessories": [
+    {
+      "id": "brooch",
+      "src": "./assets/accessories/brooch.png",
+      "name": "校徽胸针"
+    },
+    {
+      "id": "scarf",
+      "src": "./assets/accessories/scarf.png",
+      "name": "小围巾"
+    }
+  ],
+  "style": {
+    "category": "cartoon",
+    "line_style": "simple_dark_outline",
+    "texture": "flat",
+    "mood": "cute_healing",
+    "pose": "sitting"
+  },
+  "tags": ["cat", "q_version", "transparent_background", "study_companion"]
+}

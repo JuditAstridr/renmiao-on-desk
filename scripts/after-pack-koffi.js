@@ -226,8 +226,30 @@ function getContextPlatform(context) {
     (context.packager && context.packager.platform && context.packager.platform.nodeName) || "";
 }
 
+function writePackagedAuthConfig({ appOutDir, targetId, apiUrl, fsImpl = fs } = {}) {
+  const value = String(apiUrl || "").trim();
+  if (!value) return null;
+  let parsed;
+  try { parsed = new URL(value); } catch { throw new Error("RENMI_AUTH_API_URL must be a valid http(s) URL"); }
+  if (!/^https?:$/.test(parsed.protocol)) {
+    throw new Error("RENMI_AUTH_API_URL must use http or https");
+  }
+  const target = require("../src/native-package-target").getReleaseTarget(targetId);
+  const appRoot = locateAppRoot(appOutDir, target);
+  const resourcesRoot = locateResourcesRoot(appRoot, target);
+  assertDirectory(resourcesRoot, "packaged resources root");
+  const configPath = path.join(resourcesRoot, "renmi-auth-config.json");
+  fsImpl.writeFileSync(configPath, `${JSON.stringify({ version: 1, apiUrl: value.replace(/\/+$/, "") }, null, 2)}\n`, "utf8");
+  return configPath;
+}
+
 async function afterPack(context) {
   const target = resolveReleaseTarget(getContextPlatform(context), context.arch);
+  writePackagedAuthConfig({
+    appOutDir: context.appOutDir,
+    targetId: target.id,
+    apiUrl: process.env.RENMI_AUTH_API_URL,
+  });
   const outDir = path.resolve(context.outDir || path.dirname(context.appOutDir));
   const outputPath = path.join(outDir, "koffi-prune-manifests", `${target.id}.json`);
   const report = pruneKoffiNative({
@@ -256,3 +278,4 @@ module.exports.listLogicalKoffiNative = listLogicalKoffiNative;
 module.exports.assertSafeKoffiRoot = assertSafeKoffiRoot;
 module.exports.pruneKoffiNative = pruneKoffiNative;
 module.exports.getContextPlatform = getContextPlatform;
+module.exports.writePackagedAuthConfig = writePackagedAuthConfig;

@@ -212,6 +212,7 @@ function registerSettingsIpc(options = {}) {
   const getDoNotDisturb = options.getDoNotDisturb || (() => false);
   const getSoundMuted = options.getSoundMuted || (() => false);
   const getSoundVolume = options.getSoundVolume || (() => 1);
+  const isRenmiProfile = options.isRenmiProfile === true;
   const saveFeishuApproverByEmail = requiredDependency(
     options.saveFeishuApproverByEmail,
     "saveFeishuApproverByEmail",
@@ -434,6 +435,9 @@ function registerSettingsIpc(options = {}) {
     return rejected || roamFenceSettings.clearFence();
   });
   handle("settings:update", (_event, payload) => {
+    if (isRenmiProfile && payload && payload.key === "lowPowerIdleMode") {
+      return { status: "ok", noop: true };
+    }
     if (!payload || typeof payload !== "object") {
       return { status: "error", message: "settings:update payload must be { key, value }" };
     }

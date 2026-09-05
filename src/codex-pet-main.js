@@ -103,6 +103,9 @@ function createCodexPetMain(options = {}) {
   const path = options.path || defaultPath;
   const codexPetAdapter = options.codexPetAdapter || defaultCodexPetAdapter;
   const codexPetImporter = options.codexPetImporter || defaultCodexPetImporter;
+  const protocolScheme = typeof options.protocolScheme === "string" && options.protocolScheme
+    ? options.protocolScheme
+    : CLAWD_PROTOCOL_SCHEME;
 
   const pendingImportUrls = [];
   let importFlushRunning = false;
@@ -341,7 +344,9 @@ function createCodexPetMain(options = {}) {
   }
 
   function enqueueImportUrlsFromArgv(argv) {
-    for (const rawUrl of extractClawdProtocolUrls(argv)) {
+    for (const rawUrl of (Array.isArray(argv) ? argv : []).filter(
+      (arg) => typeof arg === "string" && arg.toLowerCase().startsWith(`${protocolScheme}:`)
+    )) {
       enqueueImportUrl(rawUrl);
     }
   }
@@ -349,14 +354,14 @@ function createCodexPetMain(options = {}) {
   function registerProtocolClient() {
     try {
       if (app.isPackaged) {
-        return app.setAsDefaultProtocolClient(CLAWD_PROTOCOL_SCHEME);
+        return app.setAsDefaultProtocolClient(protocolScheme);
       }
       if (process.argv.includes(REGISTER_PROTOCOL_DEV_ARG) || process.env.CLAWD_REGISTER_PROTOCOL_DEV === "1") {
         const appRoot = path.resolve(__dirname, "..");
-        return app.setAsDefaultProtocolClient(CLAWD_PROTOCOL_SCHEME, process.execPath, [appRoot]);
+        return app.setAsDefaultProtocolClient(protocolScheme, process.execPath, [appRoot]);
       }
     } catch (err) {
-      console.warn("Clawd: failed to register clawd:// protocol:", err && err.message);
+      console.warn(`Clawd: failed to register ${protocolScheme}:// protocol:`, err && err.message);
     }
     return false;
   }
@@ -756,11 +761,13 @@ function createCodexPetMain(options = {}) {
 
   return {
     REGISTER_PROTOCOL_DEV_ARG,
-    CLAWD_PROTOCOL_SCHEME,
+    CLAWD_PROTOCOL_SCHEME: protocolScheme,
     decorateThemeMetadata,
     enqueueImportUrl,
     enqueueImportUrlsFromArgv,
-    extractClawdProtocolUrls,
+    extractClawdProtocolUrls: (argv) => (Array.isArray(argv) ? argv : []).filter(
+      (arg) => typeof arg === "string" && arg.toLowerCase().startsWith(`${protocolScheme}:`)
+    ),
     flushPendingImportUrls,
     getLastSyncSummary: () => lastSyncSummary,
     importCodexPetZip,

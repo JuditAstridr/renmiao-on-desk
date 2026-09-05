@@ -73,10 +73,26 @@ module.exports = function initServer(ctx) {
 const createHttpServer = ctx.createHttpServer || http.createServer.bind(http);
 const setImmediateFn = ctx.setImmediate || setImmediate;
 const nowFn = typeof ctx.now === "function" ? ctx.now : Date.now;
-const clearRuntimeConfigFn = ctx.clearRuntimeConfig || clearRuntimeConfig;
-const getPortCandidatesFn = ctx.getPortCandidates || getPortCandidates;
-const readRuntimePortFn = ctx.readRuntimePort || readRuntimePort;
-const writeRuntimeConfigFn = ctx.writeRuntimeConfig || writeRuntimeConfig;
+// Keep the runtime identity scoped to the owning Electron profile. Injected
+// seams remain untouched for tests; production defaults receive the profile's
+// explicit path instead of falling back to ~/.clawd/runtime.json.
+const runtimeConfigPath = typeof ctx.runtimeConfigPath === "string" && ctx.runtimeConfigPath
+  ? ctx.runtimeConfigPath
+  : undefined;
+const clearRuntimeConfigFn = ctx.clearRuntimeConfig
+  || (() => clearRuntimeConfig(runtimeConfigPath));
+const getPortCandidatesFn = ctx.getPortCandidates
+  || ((preferredPort, options = {}) => getPortCandidates(preferredPort, {
+    ...options,
+    runtimeConfigPath,
+  }));
+const readRuntimePortFn = ctx.readRuntimePort
+  || (() => readRuntimePort({ runtimeConfigPath }));
+const writeRuntimeConfigFn = ctx.writeRuntimeConfig
+  || ((port, options = {}) => writeRuntimeConfig(port, {
+    ...options,
+    runtimeConfigPath,
+  }));
 // #681. Injectable so tests never read the developer's real ~/.clawd/runtime.json
 // (whose contents depend on whether Clawd happens to be running right now).
 const readRuntimeIdentityFn = ctx.readRuntimeIdentity

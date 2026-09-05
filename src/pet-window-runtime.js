@@ -2103,6 +2103,7 @@ function createPetWindowRuntime(options = {}) {
         backgroundThrottling: false,
         additionalArguments: [
           "--theme-config=" + JSON.stringify(optionsArg.themeConfig),
+          ...(optionsArg.isRenmiProfile ? ["--renmi-profile=1"] : []),
         ],
       },
     });

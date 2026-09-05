@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'self';">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Study Companion</title>
+<style>
+* { box-sizing: border-box; }
+:root {
+  --bg: #f5f5f7;
+  --surface: #fff;
+  --surface-alt: #ececef;
+  --text: #18181b;
+  --muted: #6b6b70;
+  --subtle: #9b9ba0;
+  --border: rgba(0, 0, 0, .08);
+  --accent: #d97757;
+  --accent-hover: #bd6045;
+  --focus: #16803c;
+  --break: #2563eb;
+  --danger: #b45309;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1c1c1f;
+    --surface: #232327;
+    --surface-alt: #18181b;
+    --text: #f4f4f5;
+    --muted: #a1a1aa;
+    --subtle: #71717a;
+    --border: rgba(255, 255, 255, .09);
+    --accent: #d97757;
+    --accent-hover: #ed916d;
+    --focus: #22c55e;
+    --break: #60a5fa;
+    --danger: #f59e0b;
+  }
+}
+html, body { height: 100%; margin: 0; background: var(--bg); color: var(--text); font: 13px -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; }
+body { overflow: hidden; user-select: none; }
+button, input, select { font: inherit; }
+button { border: 1px solid var(--border); border-radius: 7px; background: var(--surface-alt); color: var(--text); min-height: 30px; padding: 0 10px; cursor: pointer; }
+button:hover:not(:disabled) { background: var(--accent); color: #fff; border-color: transparent; }
+button:disabled { opacity: .45; cursor: default; }
+button.primary { background: var(--accent); color: #fff; border-color: transparent; }
+button.danger:hover:not(:disabled) { background: var(--danger); }
+input, select { min-width: 0; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--text); padding: 5px 7px; }
+input:focus, select:focus, button:focus-visible { outline: 2px solid color-mix(in srgb, var(--accent) 55%, transparent); outline-offset: 1px; }
+.app { height: 100%; display: flex; flex-direction: column; min-width: 0; }
+.topbar { flex: 0 0 auto; padding: 17px 20px 13px; background: var(--surface); border-bottom: 1px solid var(--border); }
+.topbar-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+h1 { margin: 0; font-size: 20px; line-height: 1.2; }
+.subtitle { margin-top: 4px; color: var(--muted); font-size: 12px; }
+.points { flex: 0 0 auto; padding: 7px 10px; border-radius: 9px; background: var(--surface-alt); color: var(--muted); font-size: 11px; text-align: right; }
+.points strong { display: block; color: var(--text); font-size: 13px; }
+.content { flex: 1 1 auto; overflow-y: auto; padding: 16px 18px 26px; }
+.section { margin-bottom: 18px; }
+.section-title { margin: 0 0 9px; color: var(--muted); font-size: 11px; letter-spacing: .04em; text-transform: uppercase; }
+.timer-card { padding: 20px 18px 16px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); text-align: center; }
+.phase { color: var(--muted); font-weight: 700; }
+.phase.focus { color: var(--focus); }
+.phase.break { color: var(--break); }
+.timer-value { margin: 8px 0 5px; font-size: 60px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; letter-spacing: 2px; }
+.timer-target { min-height: 18px; margin-bottom: 9px; color: var(--accent); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.progress { height: 7px; max-width: 420px; margin: 0 auto 12px; border-radius: 4px; background: var(--surface-alt); overflow: hidden; }
+.progress-fill { width: 0; height: 100%; background: var(--focus); transition: width .35s linear; }
+.timer-meta { min-height: 18px; margin-bottom: 12px; color: var(--muted); font-size: 12px; }
+.timer-controls, .segmented, .timer-settings, .task-form, .task-actions, .subtask-form, .view-controls { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+.timer-controls { justify-content: center; }
+.timer-controls button { min-width: 72px; }
+.timer-settings { justify-content: center; margin-top: 13px; color: var(--muted); font-size: 12px; }
+.setting-group { display: inline-flex; align-items: center; gap: 5px; }
+.setting-group label { color: var(--muted); }
+.segmented button { min-width: 64px; min-height: 26px; padding: 0 8px; font-size: 11px; }
+.segmented button.active { background: var(--accent); border-color: transparent; color: #fff; }
+.check { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); }
+.check input { accent-color: var(--accent); }
+.task-form { padding: 10px; border: 1px solid var(--border); border-radius: 9px; background: var(--surface); }
+.task-form .title-input { flex: 1 1 180px; }
+.task-form input[type="number"] { width: 82px; }
+.task-form input[type="date"] { width: 137px; }
+.task-form input[type="text"] { width: 120px; }
+.task-form select { max-width: 150px; }
+.view-controls { justify-content: space-between; margin: 10px 0; color: var(--muted); }
+.view-tabs { display: flex; gap: 4px; align-items: center; }
+.view-tabs button { min-height: 26px; padding: 0 8px; font-size: 11px; }
+.view-tabs button.active { background: var(--surface-alt); color: var(--accent); border-color: var(--accent); }
+.sort-label { display: inline-flex; align-items: center; gap: 5px; }
+.sort-label select { min-height: 26px; padding: 3px 6px; }
+.group-title { margin: 13px 0 6px; color: var(--muted); font-size: 11px; font-weight: 700; }
+.task-card { padding: 11px; margin-bottom: 8px; border: 1px solid var(--border); border-radius: 9px; background: var(--surface); }
+.task-card.done { opacity: .66; }
+.task-head { display: flex; align-items: flex-start; gap: 7px; }
+.task-check { margin: 3px 0 0; accent-color: var(--accent); }
+.task-title { flex: 1 1 auto; min-width: 0; font-weight: 700; }
+.task-title.done { text-decoration: line-through; }
+.task-title-input { width: 100%; font-weight: 700; }
+.task-badges { display: flex; flex: 0 0 auto; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
+.badge { padding: 2px 5px; border-radius: 4px; background: var(--surface-alt); color: var(--muted); font-size: 10px; white-space: nowrap; }
+.badge.overdue { color: var(--danger); }
+.task-fields { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; margin: 8px 0 0 24px; }
+.task-fields input[type="number"] { width: 72px; }
+.task-fields input[type="date"] { width: 132px; }
+.task-fields input[type="text"] { width: 115px; }
+.task-fields select { max-width: 145px; padding: 4px 6px; }
+.task-progress-label { margin: 8px 0 4px 24px; color: var(--muted); font-size: 11px; }
+.task-progress { height: 5px; margin-left: 24px; border-radius: 3px; background: var(--surface-alt); overflow: hidden; }
+.task-progress-fill { width: 0; height: 100%; background: var(--focus); }
+.task-actions { justify-content: flex-end; margin-top: 8px; }
+.task-actions button, .subtask-form button { min-height: 26px; padding: 0 8px; font-size: 11px; }
+.subtasks { margin: 8px 0 0 24px; padding-left: 9px; border-left: 2px solid var(--surface-alt); }
+.subtask-row { display: flex; align-items: center; gap: 5px; margin: 5px 0; }
+.subtask-row input[type="checkbox"] { accent-color: var(--accent); }
+.subtask-row input[type="text"] { flex: 1 1 100px; }
+.subtask-row input[type="number"] { width: 62px; }
+.subtask-row .done { text-decoration: line-through; opacity: .65; }
+.subtask-form { margin: 7px 0 0 24px; }
+.subtask-form input[type="text"] { flex: 1 1 120px; }
+.subtask-form input[type="number"] { width: 65px; }
+.empty { padding: 28px 10px; color: var(--muted); text-align: center; }
+.hidden { display: none !important; }
+body.focus-mode .topbar, body.focus-mode #tasksSection { display: none; }
+body.focus-mode .content { padding: 0; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+body.focus-mode #timerSection { width: min(760px, 100%); margin: 0; }
+body.focus-mode .timer-card { border: 0; background: transparent; }
+body.focus-mode .timer-value { font-size: clamp(72px, 13vw, 150px); }
+body.focus-mode .timer-settings { opacity: .25; }
+@media (max-width: 620px) {
+  .topbar { padding-left: 14px; padding-right: 14px; }
+  .content { padding-left: 12px; padding-right: 12px; }
+  .points { display: none; }
+  .timer-value { font-size: 48px; }
+  .task-fields { margin-left: 0; }
+  .task-progress-label, .task-progress, .subtasks, .subtask-form { margin-left: 0; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="topbar-row">
+      <div><h1 id="title">Study Companion</h1><div id="subtitle" class="subtitle">Pomodoro &amp; task check-in</div></div>
+      <div id="points" class="points"><strong>0</strong><span>Points</span></div>
+    </div>
+  </header>
+  <main class="content">
+    <section id="timerSection" class="section">
+      <h2 id="timerTitle" class="section-title">Pomodoro</h2>
+      <div class="timer-card">
+        <div id="phase" class="phase">Ready</div>
+        <div id="timerValue" class="timer-value">25:00</div>
+        <div id="timerTarget" class="timer-target"></div>
+        <div class="progress"><div id="progressFill" class="progress-fill"></div></div>
+        <div id="timerMeta" class="timer-meta"></div>
+        <div class="timer-controls">
+          <button id="startButton" class="primary" type="button">Start</button>
+          <button id="resetButton" type="button">Reset</button>
+          <button id="skipButton" type="button">Skip</button>
+          <button id="focusButton" type="button">Fullscreen focus</button>
+        </div>
+        <div class="timer-settings">
+          <span id="modeLabel">Timer mode</span>
+          <div id="modeButtons" class="segmented"></div>
+          <span id="focusLabel">Focus length</span>
+          <div id="focusButtons" class="segmented"></div>
+          <span class="setting-group"><label for="breakMinutes" id="breakLabel">Short break</label><input id="breakMinutes" type="number" min="1" max="60" value="5"></span>
+          <label class="check"><input id="splitLong" type="checkbox"><span id="splitLabel">Split long subtasks</span></label>
+          <label class="check"><input id="continuous" type="checkbox"><span id="continuousLabel">Continuous focus</span></label>
+        </div>
+      </div>
+    </section>
+    <section id="tasksSection" class="section">
+      <h2 id="tasksTitle" class="section-title">Tasks</h2>
+      <form id="taskForm" class="task-form">
+        <input id="taskTitle" class="title-input" type="text" maxlength="500" placeholder="Add a task…" required>
+        <input id="taskEstimate" type="number" min="1" max="600" placeholder="min" title="Estimated minutes">
+        <input id="taskDeadline" type="date" title="Deadline">
+        <input id="taskCategory" type="text" maxlength="80" placeholder="Tag" title="Category">
+        <select id="taskQuadrant" title="Priority quadrant"><option value="">Priority</option><option value="0">Urgent &amp; important</option><option value="1">Urgent, not important</option><option value="2">Not urgent, important</option><option value="3">Not urgent, not important</option></select>
+        <button id="addTaskButton" class="primary" type="submit">Add</button>
+      </form>
+      <div id="viewControls" class="view-controls"></div>
+      <div id="taskList"></div>
+    </section>
+  </main>
+</div>
+<script src="./study-dashboard-renderer.js"></script>
+</body>
+</html>

@@ -1,4 +1,20 @@
 const { app, BrowserWindow, Notification, screen, ipcMain, globalShortcut, nativeTheme, dialog, shell, nativeImage, powerSaveBlocker, powerMonitor, clipboard, safeStorage } = require("electron");
+const path = require("path");
+const { configureElectronApp } = require("./renmi-profile");
+// Configure the independent Electron profile before any app.getPath("userData")
+// call. This keeps Renmi's prefs, logs, runtime identity, and single-instance
+// scope separate from an installed Clawd on Desk process.
+const renmiProfile = configureElectronApp(app);
+const isRenmiProfile = !!renmiProfile;
+if (renmiProfile) {
+  // The roam-fence modules are also used by small test/runtime factories and
+  // resolve their default path independently of Electron. Give those default
+  // resolvers the same isolated profile path without changing their public API.
+  process.env.RENMI_ON_DESK_ROAM_FENCE_PATH = path.join(
+    renmiProfile.userDataDir,
+    "roam-area.json",
+  );
+}
 const { maybeRunPackageKoffiSmoke } = require("./package-koffi-smoke");
 if (maybeRunPackageKoffiSmoke({ app, BrowserWindow })) {
   return;
@@ -71,7 +87,6 @@ if (_xwaylandRelaunch) {
 }
 
 const { clampTextScale, scaleWidth, scaleHeight, resolveTextScaleForKey } = require("./text-scale");
-const path = require("path");
 const fs = require("fs");
 const crypto = require("crypto");
 const { pathToFileURL } = require("url");
@@ -163,9 +178,16 @@ const createTopmostRuntime = require("./topmost-runtime");
 const { WIN_TOPMOST_LEVEL } = createTopmostRuntime;
 const createThemeFadeSequencer = require("./theme-fade-sequencer");
 const createThemeRuntime = require("./theme-runtime");
+const { createAuthRuntime } = require("./auth-runtime");
+const createCharacterSelect = require("./character-select");
+const characterConfig = require("./character-config");
+const characterLoader = require("./character-loader");
 const createAgentRuntimeMain = require("./agent-runtime-main");
 const createFloatingWindowRuntime = require("./floating-window-runtime");
 const createPetWindowRuntime = require("./pet-window-runtime");
+const { createStudyRuntime } = require("./study-runtime");
+const createStudyWindowRuntime = require("./study-window");
+const { registerStudyIpc } = require("./study-ipc");
 const { createTestReactionHandler } = require("./test-reaction");
 const createMacHideController = require("./mac-hide");
 const {
@@ -305,10 +327,14 @@ const _initialPrefsRecovered = _initialPrefsLoad.recovered === true;
 const _initialPrefsRecoveryBackupFailed = _initialPrefsLoad.recoveryBackupFailed === true;
 
 function _persistCodexAutoStartGate(enabled) {
+  // Renmi is a visual development profile. It must never publish or alter the
+  // shared ~/.clawd/codex-auto-start.json gate used by the deployed Clawd app.
+  if (isRenmiProfile) return true;
   return writeCodexAutoStartGate(enabled === true);
 }
 
 function _syncCodexAutoStartGate(snapshot, source) {
+  if (isRenmiProfile) return true;
   const codex = snapshot && snapshot.agents && snapshot.agents.codex;
   if (_persistCodexAutoStartGate(!!(codex && codex.enabled === true))) return true;
   console.warn(`Clawd: failed to sync Codex auto-start gate (${source})`);
@@ -450,33 +476,55 @@ const _settingsController = createSettingsController({
     installAutoStart: _installAutoStartHook,
     uninstallAutoStart: _uninstallAutoStartHook,
     resolveTextScaleDisplayKey: () => getSettingsDisplayKey(),
-    syncClaudeHooksNow: () => _server.syncClawdHooks({ source: "settings", automatic: false }),
-    setClaudeQuotaCollectionEnabled: (enabled) => _server.setClaudeQuotaCollectionEnabled({
-      enabled,
-      source: "settings-quota-collection",
-    }),
-    uninstallClaudeHooksNow: _uninstallClaudeHooksNow,
-    startClaudeSettingsWatcher: () => _server.startClaudeSettingsWatcher(),
-    stopClaudeSettingsWatcher: () => _server.stopClaudeSettingsWatcher(),
+    syncClaudeHooksNow: () => isRenmiProfile
+      ? false
+      : _server.syncClawdHooks({ source: "settings", automatic: false }),
+    setClaudeQuotaCollectionEnabled: (enabled) => {
+      if (isRenmiProfile) {
+        return enabled === true
+          ? { status: "error", message: "Renmi profile does not manage external integrations" }
+          : { status: "ok", noop: true };
+      }
+      return _server.setClaudeQuotaCollectionEnabled({
+        enabled,
+        source: "settings-quota-collection",
+      });
+    },
+    uninstallClaudeHooksNow: () => isRenmiProfile ? false : _uninstallClaudeHooksNow(),
+    startClaudeSettingsWatcher: () => isRenmiProfile ? false : _server.startClaudeSettingsWatcher(),
+    stopClaudeSettingsWatcher: () => isRenmiProfile ? false : _server.stopClaudeSettingsWatcher(),
     setOpenAtLogin: _writeSystemOpenAtLogin,
     startMonitorForAgent: (id) => agentRuntime && agentRuntime.startMonitorForAgent(id),
     stopMonitorForAgent: (id) => agentRuntime && agentRuntime.stopMonitorForAgent(id),
     syncIntegrationForAgent: (id, options) =>
-      agentRuntime ? agentRuntime.syncIntegrationForAgent(id, options) : false,
+      isRenmiProfile ? false : (agentRuntime ? agentRuntime.syncIntegrationForAgent(id, options) : false),
     repairIntegrationForAgent: (id, options) =>
-      agentRuntime ? agentRuntime.repairIntegrationForAgent(id, options) : false,
-    stopIntegrationForAgent: (id) => agentRuntime ? agentRuntime.stopIntegrationForAgent(id) : false,
-    uninstallIntegrationForAgent: (id) => agentRuntime ? agentRuntime.uninstallIntegrationForAgent(id) : false,
+      isRenmiProfile ? false : (agentRuntime ? agentRuntime.repairIntegrationForAgent(id, options) : false),
+    stopIntegrationForAgent: (id) => isRenmiProfile
+      ? false
+      : (agentRuntime ? agentRuntime.stopIntegrationForAgent(id) : false),
+    uninstallIntegrationForAgent: (id) => isRenmiProfile
+      ? false
+      : (agentRuntime ? agentRuntime.uninstallIntegrationForAgent(id) : false),
     writeCodexAutoStartGate: _persistCodexAutoStartGate,
     deployHooksToWsl: async (distro, agentId) => {
+      if (isRenmiProfile) return false;
       const { deployToWsl } = require("./wsl-deploy");
       return deployToWsl(distro, { agentId, isPackaged: app.isPackaged, resourcesPath: process.resourcesPath });
     },
     removeHooksFromWsl: async (distro, agentId) => {
+      if (isRenmiProfile) return false;
       const { removeFromWsl } = require("./wsl-deploy");
       return removeFromWsl(distro, { agentId, isPackaged: app.isPackaged, resourcesPath: process.resourcesPath });
     },
     cleanupIntegrations: async (options = {}) => {
+      if (isRenmiProfile) {
+        return {
+          status: "skipped",
+          reason: "renmi-profile",
+          message: "Renmi profile does not manage external integrations",
+        };
+      }
       // Claude hooks + statusline unregister as one queue task, awaited here so
       // it settles (and any in-flight repair drains) before the generic cleaner
       // runs. hooks/cleanup-integrations.js records this precomputed result
@@ -551,6 +599,12 @@ const _settingsController = createSettingsController({
     },
   },
 });
+// Renmi is a continuously animated development profile. Remove any stale
+// low-power preference from this isolated profile so an older Renmi setting
+// cannot pause the SVG after the app has been idle for a few seconds.
+if (isRenmiProfile && _settingsController.get("lowPowerIdleMode") === true) {
+  _settingsController.applyUpdate("lowPowerIdleMode", false);
+}
 _settingsController.subscribeKey("agents", (_agents, snapshot) => {
   // A readable future-version prefs file may still change in memory for the
   // current process. An unreadable prefs file rejects mutations earlier in the
@@ -742,6 +796,8 @@ function safeConsoleError(...args) {
 const themeLoader = require("./theme-loader");
 const createCodexPetMain = require("./codex-pet-main");
 themeLoader.init(__dirname, app.getPath("userData"));
+characterLoader.init(__dirname, app.getPath("userData"));
+characterConfig.init(app.getPath("userData"));
 themeRuntime = createThemeRuntime({
   themeLoader,
   settingsController: _settingsController,
@@ -791,6 +847,7 @@ const settingsWindowRuntime = createSettingsWindowRuntime({
   nativeTheme,
   path,
   discordDefaultAppIdPresent: !!discordPresenceSettings.DEFAULT_CLAWD_DISCORD_APP_ID,
+  isRenmiProfile,
   getPetWindowBounds: () => getPetWindowBounds(),
   getNearestWorkArea: (cx, cy) => getNearestWorkArea(cx, cy),
   getTextScale: (bounds) => effectiveTextScaleForKey(
@@ -865,6 +922,7 @@ codexPetMain = createCodexPetMain({
   getMainWindow: () => win,
   getSettingsWindow,
   path,
+  protocolScheme: isRenmiProfile ? "renmi" : "clawd",
   reloadActiveTheme: () => themeRuntime.reloadActiveTheme(),
   rebuildAllMenus: () => rebuildAllMenus(),
   settingsController: _settingsController,
@@ -872,15 +930,16 @@ codexPetMain = createCodexPetMain({
   themeLoader,
 });
 const REGISTER_PROTOCOL_DEV_ARG = codexPetMain.REGISTER_PROTOCOL_DEV_ARG;
+const DEFAULT_THEME_ID = isRenmiProfile ? "renmi" : "clawd";
 // Lenient load so a missing/corrupt user-selected theme can't brick boot.
-// If lenient fell back to "clawd" OR the variant fell back to "default",
+// If lenient fell back to the profile default OR the variant fell back to "default",
 // hydrate prefs to match so the store stays truth.
 //
 // Startup runs BEFORE the window is ready, so we call the runtime's initial
 // load path, not activateTheme (which requires ready windows) and not the
 // setThemeSelection command (which goes through activateTheme). The runtime
 // switch path via UI goes through setThemeSelection post-window-ready.
-let _requestedThemeId = _settingsController.get("theme") || "clawd";
+let _requestedThemeId = _settingsController.get("theme") || DEFAULT_THEME_ID;
 const _initialVariantMap = _settingsController.get("themeVariant") || {};
 let _requestedVariantId = _initialVariantMap[_requestedThemeId] || "default";
 const _initialThemeOverrides = _settingsController.get("themeOverrides") || {};
@@ -894,6 +953,7 @@ if (codexPetMain.summaryHasActiveOrphan(_startupCodexPetSyncSummary, _requestedT
   delete nextOverrides[orphanThemeId];
 
   _requestedThemeId = "clawd";
+  if (isRenmiProfile) _requestedThemeId = DEFAULT_THEME_ID;
   _requestedVariantId = nextVariantMap[_requestedThemeId] || "default";
   _requestedThemeOverrides = nextOverrides[_requestedThemeId] || null;
   const result = _settingsController.hydrate({
@@ -913,6 +973,7 @@ if (codexPetMain.summaryHasActiveOrphan(_startupCodexPetSyncSummary, _requestedT
 const _loadedStartupTheme = themeRuntime.loadInitialTheme(_requestedThemeId, {
   variant: _requestedVariantId,
   overrides: _requestedThemeOverrides,
+  fallbackThemeId: DEFAULT_THEME_ID,
 });
 if (_loadedStartupTheme._id !== _requestedThemeId || _loadedStartupTheme._variantId !== _requestedVariantId) {
   const nextVariantMap = { ...(_settingsController.get("themeVariant") || {}) };
@@ -962,6 +1023,7 @@ const petWindowRuntime = createPetWindowRuntime({
   isWin,
   isMac,
   isLinux,
+  isRenmiProfile,
   linuxWindowType: LINUX_WINDOW_TYPE,
   topmostLevel: WIN_TOPMOST_LEVEL,
   getRenderWindow: () => win,
@@ -1028,6 +1090,45 @@ function getAssetPointerPayload(bounds, point) {
 
 let win;
 let hitWin;  // input window — small opaque rect over hitbox, receives all pointer events
+let studyWindowRuntime = null;
+let authRuntime = null;
+let characterSelectRuntime = null;
+
+function resolveCharacterPayload() {
+  return characterConfig.resolvePayload(characterLoader);
+}
+
+function ensureCharacterSelectRuntime() {
+  if (characterSelectRuntime) return characterSelectRuntime;
+  characterSelectRuntime = createCharacterSelect({
+    t: (key) => translate(key),
+    resolveCharacterPayload,
+    saveCharacterConfig: (patch) => characterConfig.saveConfig(patch),
+    sendToRenderer,
+    iconPath: settingsWindowRuntime.getIconPath(),
+  });
+  return characterSelectRuntime;
+}
+
+function maybeShowCharacterSelector() {
+  if (characterConfig.isConfigured()) return false;
+  try {
+    return !!ensureCharacterSelectRuntime().showSelectWindow();
+  } catch (error) {
+    console.warn("Renmiao character selector unavailable:", error && error.message);
+    return false;
+  }
+}
+
+function setMainWindowsVisible(visible) {
+  for (const currentWindow of [win, hitWin]) {
+    if (!currentWindow || currentWindow.isDestroyed()) continue;
+    try {
+      if (visible) currentWindow.show();
+      else currentWindow.hide();
+    } catch {}
+  }
+}
 
 // Tray icon flash state
 let trayFlashTimer = null;
@@ -1155,7 +1256,7 @@ let workingStaleMs = _settingsController.get("workingStaleMs");
 let detachedIdleStaleMs = _settingsController.get("detachedIdleStaleMs");
 let soundMuted = _settingsController.get("soundMuted");
 let soundVolume = _settingsController.get("soundVolume");
-let lowPowerIdleMode = _settingsController.get("lowPowerIdleMode");
+let lowPowerIdleMode = isRenmiProfile ? false : _settingsController.get("lowPowerIdleMode");
 let keepAwakeWhileWorking = _settingsController.get("keepAwakeWhileWorking");
 let petTint = _settingsController.get("petTint");
 let petAccessory = _settingsController.get("petAccessory");
@@ -1241,6 +1342,13 @@ function applyTextScaleNow() {
     }
   } catch (err) {
     console.warn("Clawd: dashboard text scale failed:", err && err.message);
+  }
+  try {
+    if (studyWindowRuntime && typeof studyWindowRuntime.applyTextScaleToWindow === "function") {
+      studyWindowRuntime.applyTextScaleToWindow();
+    }
+  } catch (err) {
+    console.warn("Clawd: Study Companion text scale failed:", err && err.message);
   }
   repositionAnchoredFloatingSurfaces();
 }
@@ -1569,7 +1677,7 @@ function setForceEyeResend(value) {
 }
 
 function setLowPowerIdlePaused(value) {
-  const next = !!value;
+  const next = isRenmiProfile ? false : !!value;
   if (lowPowerIdlePaused === next) return;
   lowPowerIdlePaused = next;
   if (!next) setForceEyeResend(true);
@@ -1852,7 +1960,10 @@ function syncSessionHudVisibilityAndBubbles() {
 // ── State machine — delegated to src/state.js ──
 let showDashboard = () => {};
 let broadcastDashboardSessionSnapshot = () => {};
+let showStudyDashboard = () => {};
+let broadcastStudySnapshot = () => {};
 let sendDashboardI18n = () => {};
+let studyIpcRuntime = null;
 
 // Forward hook for the #329 updater scheduler. State/mini ctxs reference
 // this via notifyUpdaterSilentExit; the actual implementation is wired
@@ -1895,7 +2006,9 @@ const _stateCtx = {
   get win() { return win; },
   get hitWin() { return hitWin; },
   // Last-known account quota survives app restarts (state-account-quota.js).
-  accountQuotaPersistPath: require("./state-account-quota").DEFAULT_PERSIST_PATH,
+  accountQuotaPersistPath: renmiProfile
+    ? path.join(app.getPath("userData"), "account-quota.json")
+    : require("./state-account-quota").DEFAULT_PERSIST_PATH,
   get claudeQuotaCollectionEnabled() { return claudeQuotaCollectionEnabled; },
   get kimiQuotaCollectionEnabled() { return kimiQuotaCollectionEnabled; },
   get quotaMergeSources() { return quotaMergeSources; },
@@ -1993,10 +2106,18 @@ const _stateCtx = {
   hasAnyEnabledAgent: () => _runtimeAgentGate.hasAnyEnabledAgent(),
 };
 const _state = require("./state")(_stateCtx);
-const _kimiQuotaCredentialStore = createKimiQuotaCredentialStore({ safeStorage });
+const _kimiQuotaCredentialStore = createKimiQuotaCredentialStore({
+  safeStorage,
+  recordPath: renmiProfile
+    ? path.join(app.getPath("userData"), "kimi-code-quota-credential.json")
+    : undefined,
+});
 const _kimiQuotaRuntime = createKimiQuotaRuntime({
   credentialStore: _kimiQuotaCredentialStore,
   client: createKimiQuotaClient({ appVersion: app.getVersion() }),
+  bindingStoreOptions: renmiProfile
+    ? { recordPath: path.join(app.getPath("userData"), "kimi-quota-runtime.json") }
+    : undefined,
   getSettingsSnapshot: () => _settingsController.getSnapshot(),
   setCollectionEnabled: (enabled) => _settingsController.applyCommand(
     "setKimiQuotaCollectionEnabled",
@@ -2020,6 +2141,68 @@ const { setState, applyState, updateSession, resolveDisplayState, getSvgOverride
         startWakePoll, stopWakePoll, detectRunningAgentProcesses,
         startStartupRecovery: _startStartupRecovery } = _state;
 const sessions = _state.sessions;
+
+// ── Study companion runtime ──
+// Study data is deliberately separate from the Agent session state.  A
+// Pomodoro can drive the pet while no coding-agent session is active; when an
+// agent is visible, the existing agent state remains the visual authority.
+function studyPhaseToPetState(phase, running) {
+  if (!running) return "idle";
+  return phase === "focus" ? "working" : "idle";
+}
+
+function syncStudyPetState() {
+  try {
+    const pomodoro = _studyRuntime.getSnapshot().pomodoro;
+    if (!pomodoro || sessions.size > 0) return;
+    applyState(studyPhaseToPetState(pomodoro.phase, pomodoro.running), getSvgOverride(
+      studyPhaseToPetState(pomodoro.phase, pomodoro.running),
+    ));
+  } catch (error) {
+    console.warn("Clawd: study phase → pet state failed:", error && error.message);
+  }
+}
+
+const _studyRuntime = createStudyRuntime({
+  dataPath: path.join(app.getPath("userData"), "study-data.json"),
+  onPhaseChange: () => syncStudyPetState(),
+  onFocusComplete: ({ taskId, taskFinished }) => {
+    try {
+      if (taskFinished || !taskId) {
+        if (sessions.size === 0) applyState("attention", getSvgOverride("attention"));
+        else playSound("complete");
+      } else {
+        playSound("confirm");
+      }
+    } catch (error) {
+      console.warn("Clawd: study focus completion celebration failed:", error && error.message);
+    }
+  },
+});
+
+let studyBroadcastTimer = setInterval(() => {
+  const studySnapshot = _studyRuntime.getSnapshot();
+  broadcastStudySnapshot(studySnapshot);
+  const pomodoro = studySnapshot.pomodoro;
+  if (pomodoro) {
+    sendToRenderer("timer-tick", {
+      running: pomodoro.running,
+      phase: pomodoro.phase,
+      mode: pomodoro.mode,
+      totalSeconds: pomodoro.totalSeconds,
+      remainingSeconds: pomodoro.remainingSeconds,
+      elapsedSeconds: pomodoro.elapsedSeconds,
+    });
+  }
+}, 1000);
+if (studyBroadcastTimer && typeof studyBroadcastTimer.unref === "function") studyBroadcastTimer.unref();
+// The shared state machine may auto-return one-shot visuals.  Reassert the
+// persistent focus visual occasionally without resetting it every second.
+let studyPetStateTimer = setInterval(() => {
+  const pomodoro = _studyRuntime.getSnapshot().pomodoro;
+  if (pomodoro && pomodoro.running && pomodoro.phase !== "idle") syncStudyPetState();
+}, 15000);
+if (studyPetStateTimer && typeof studyPetStateTimer.unref === "function") studyPetStateTimer.unref();
 
 async function showSessionAutomationWarning(entry) {
   const parent = selectSessionAutomationDialogParent({
@@ -2254,6 +2437,27 @@ showDashboard = _dashboard.showDashboard;
 broadcastDashboardSessionSnapshot = _dashboard.broadcastSessionSnapshot;
 sendDashboardI18n = _dashboard.sendI18n;
 
+// Study has its own window so the established Sessions Dashboard and its
+// session IPC contract remain unchanged.
+const _studyWindow = createStudyWindowRuntime({
+  t: (key) => translate(key),
+  getStudySnapshot: () => _studyRuntime.getSnapshot(),
+  getI18n: () => getDashboardI18nPayload(),
+  getPetWindowBounds,
+  getNearestWorkArea,
+  getTextScale: () => getTextScaleForPetWindows(),
+  iconPath: settingsWindowRuntime.getIconPath(),
+});
+studyWindowRuntime = _studyWindow;
+showStudyDashboard = _studyWindow.showStudyDashboard;
+broadcastStudySnapshot = _studyWindow.broadcastStudySnapshot;
+studyIpcRuntime = registerStudyIpc({
+  ipcMain,
+  studyRuntime: _studyRuntime,
+  getStudyWindow: () => _studyWindow.getWindow(),
+  broadcast: (snapshot) => _studyWindow.broadcastStudySnapshot(snapshot),
+});
+
 // ── First-run onboarding tutorial ──
 // Buckets the installable agents for the tutorial's step 2. We call the
 // detector with skipDefaultIntegrations:false so the default integrations are
@@ -2420,7 +2624,10 @@ agentRuntime = createAgentRuntimeMain({
 
 // ── HTTP server — delegated to src/server.js ──
 const _serverCtx = {
-  get manageClaudeHooksAutomatically() { return manageClaudeHooksAutomatically; },
+  runtimeConfigPath: renmiProfile ? renmiProfile.runtimeConfigPath : undefined,
+  get manageClaudeHooksAutomatically() {
+    return isRenmiProfile ? false : manageClaudeHooksAutomatically;
+  },
   get autoStartWithClaude() { return autoStartWithClaude; },
   get claudeQuotaCollectionEnabled() { return claudeQuotaCollectionEnabled; },
   get doNotDisturb() { return doNotDisturb; },
@@ -2453,7 +2660,7 @@ const _serverCtx = {
   recordWindowsProcessChainShadow: (record) => recordWindowsProcessChainShadow(record),
   isAgentEnabled: (agentId) => _runtimeAgentGate.isAgentEnabled(agentId),
   shouldSyncAgentIntegration: (agentId) =>
-    _runtimeAgentGate.shouldSyncAgentIntegration(agentId),
+    isRenmiProfile ? false : _runtimeAgentGate.shouldSyncAgentIntegration(agentId),
   getAgentIntegrationOptions: _getAgentIntegrationOptions,
   isAgentPermissionsEnabled: (agentId) => _runtimeAgentGate.isAgentPermissionsEnabled(agentId),
   isAgentSubagentPermissionsEnabled: (agentId) => _runtimeAgentGate.isAgentSubagentPermissionsEnabled(agentId),
@@ -3940,11 +4147,26 @@ const _menuCtx = {
   reapplyMacVisibility,
   getSettingsWindow,
   discoverThemes: () => themeLoader.discoverThemes(),
-  getActiveThemeId: () => themeRuntime.getActiveThemeId("clawd"),
+  getActiveThemeId: () => themeRuntime.getActiveThemeId(isRenmiProfile ? "renmi" : "clawd"),
   getActiveThemeCapabilities: () => themeRuntime.getActiveThemeCapabilities(),
   ensureUserThemesDir: () => themeLoader.ensureUserThemesDir(),
   openSettingsWindow: () => settingsWindowRuntime.open(),
+  openStudyDashboard: () => showStudyDashboard(),
   showTutorial: () => _tutorial.open(),
+  isAuthConfigured: () => !!(authRuntime && authRuntime.isConfigured()),
+  getAuthUser: () => {
+    const session = authRuntime && authRuntime.getSession();
+    return session && session.user ? session.user : null;
+  },
+  openCharacterSelector: () => {
+    ensureCharacterSelectRuntime().showSelectWindow();
+  },
+  openAuthWindow: () => authRuntime && authRuntime.openAuthWindow(),
+  openAdminDashboard: () => authRuntime && authRuntime.openAdminWindow(),
+  logoutAuth: () => authRuntime ? authRuntime.logout().then(() => {
+    rebuildAllMenus();
+    authRuntime.openAuthWindow();
+  }) : undefined,
 };
 const _menu = require("./menu")(_menuCtx);
 const { t, buildContextMenu, buildTrayMenu, rebuildAllMenus, createTray,
@@ -3972,7 +4194,7 @@ const SETTINGS_MIRROR_SETTERS = {
   sessionHudPinned: (v) => { sessionHudPinned = v; },
   sessionStaleMs: (v) => { sessionStaleMs = v; }, workingStaleMs: (v) => { workingStaleMs = v; },
   detachedIdleStaleMs: (v) => { detachedIdleStaleMs = v; },
-  soundMuted: (v) => { soundMuted = v; }, soundVolume: (v) => { soundVolume = v; }, lowPowerIdleMode: (v) => { lowPowerIdleMode = v; },
+  soundMuted: (v) => { soundMuted = v; }, soundVolume: (v) => { soundVolume = v; }, lowPowerIdleMode: (v) => { lowPowerIdleMode = isRenmiProfile ? false : v; },
   keepAwakeWhileWorking: (v) => { keepAwakeWhileWorking = v; },
   petTint: (v) => { petTint = v; },
   petAccessory: (v) => { petAccessory = v; },
@@ -4012,6 +4234,7 @@ const settingsEffectRouter = createSettingsEffectRouter({
   applyDockVisibility,
   sendToRenderer,
   sendDashboardI18n: () => sendDashboardI18n(),
+  sendStudyI18n: () => _studyWindow.sendI18n(),
   sendSessionHudI18n: () => sendSessionHudI18n(),
   syncWindowTitles: () => {
     settingsWindowRuntime.applyTitleToWindow();
@@ -4158,6 +4381,7 @@ registerSettingsAnimationOverridesIpc({
 });
 // ── Auto-updater — delegated to src/updater.js ──
 const _updaterCtx = {
+  updatesDisabled: isRenmiProfile,
   get doNotDisturb() { return doNotDisturb; },
   get miniMode() { return _mini.getMiniMode(); },
   get lang() { return lang; },
@@ -4317,6 +4541,7 @@ const settingsIpcRuntime = registerSettingsIpc({
   fs,
   path,
   settingsController: _settingsController,
+  isRenmiProfile,
   getQuotaSourceCount: () => _state.getQuotaSourceCount(),
   getQuotaRingProviders: () => _ringGeom.listQuotaRingProviders(
     _state.buildSessionSnapshot(),
@@ -4633,6 +4858,7 @@ function createWindow() {
   });
   win.webContents.on("did-finish-load", () => {
     sendToRenderer("theme-config", buildRendererThemeConfig());
+    sendToRenderer("character-config", resolveCharacterPayload());
     petWindowRuntime.resendViewportOffsets();
     if (themeRuntime.isReloadInProgress()) return;
     syncRendererStateAfterLoad();
@@ -4862,6 +5088,10 @@ const EXT_VERSION = "0.1.1";
 const EXT_DIR_NAME = `${EXT_ID}-${EXT_VERSION}`;
 
 function installTerminalFocusExtension() {
+  if (isRenmiProfile) {
+    console.log("Renmi: terminal-focus extension auto-install disabled for isolated profile");
+    return;
+  }
   const os = require("os");
   const home = os.homedir();
 
@@ -4915,7 +5145,10 @@ if (!gotTheLock) {
     const protocolRegistered = codexPetMain.registerProtocolClient();
     console.log(`Clawd: clawd:// dev protocol registration ${protocolRegistered ? "succeeded" : "failed"}`);
   }
-  // Another instance is already running — quit silently
+  // Another instance is already running. Keep this visible in the terminal;
+  // otherwise the launcher looks like it crashed even though the single-
+  // instance guard intentionally rejected this process.
+  console.warn("Renmi: another instance is already running; this launch is exiting.");
   app.quit();
 } else {
   // Only the winning instance may publish the startup gate. A losing instance
@@ -5089,7 +5322,51 @@ if (!gotTheLock) {
     try { syncDiscordPresence("startup"); }
     catch (err) { console.warn("Clawd: discord presence startup failed:", err && err.message); }
     queueFeishuApprovalSync("startup");
+    // Development checkouts may run without an API URL, but a packaged
+    // renmiao app must never silently become an unauthenticated desktop pet.
+    // The build pipeline embeds the public HTTPS endpoint in Resources; if it
+    // is missing, stop with an actionable desktop error.
+    const packagedAuthRequired = app.isPackaged && isRenmiProfile;
+    try {
+      authRuntime = createAuthRuntime({
+        app,
+        BrowserWindow,
+        ipcMain,
+        safeStorage,
+        userDataDir: app.getPath("userData"),
+        getMainWindows: () => [win, hitWin],
+        setMainWindowsVisible,
+        onAuthenticated: () => {
+          rebuildAllMenus();
+          maybeShowCharacterSelector();
+        },
+      });
+    } catch (error) {
+      console.warn("Renmi auth runtime unavailable; continuing without cloud login:", error && error.message);
+    }
+    if (packagedAuthRequired && (!authRuntime || !authRuntime.isConfigured())) {
+      dialog.showErrorBox(
+        "renmiao 无法启动",
+        "此安装包没有配置认证服务地址。请使用 RENMI_AUTH_API_URL=https://你的认证域名 npm run build:mac 重新打包。",
+      );
+      app.quit();
+      return;
+    }
+    ensureCharacterSelectRuntime();
     createWindow();
+    // Restore a persisted Study focus visual once the pet windows exist.  An
+    // active coding-agent session still wins through the guard in
+    // syncStudyPetState().
+    syncStudyPetState();
+    if (authRuntime && authRuntime.isConfigured()) {
+      void authRuntime.start().catch((error) => {
+        console.warn("Renmi auth startup failed:", error && error.message);
+        authRuntime.openAuthWindow();
+      });
+      rebuildAllMenus();
+    } else {
+      maybeShowCharacterSelector();
+    }
     // Reconcile the local quota binding only after the app has visible UI.
     // initialize() reads opaque credential metadata but never decrypts the key
     // or performs a network request, so ordinary startup cannot be held behind
@@ -5143,17 +5420,30 @@ if (!gotTheLock) {
     // pet. Pet windows are setCanHide:NO, so the OS marks the app hidden but the
     // windows refuse to vanish, and an inactive-app Dock Hide fires no
     // did-resign-active — so we poll app.isHidden() and drive setPetHidden(). (#416)
-    if (isMac) {
-      macHideController = createMacHideController({
+  if (isMac) {
+    macHideController = createMacHideController({
         isMac,
         app,
         getShowDock: () => showDock,
         isPetHidden: () => petWindowRuntime.isPetHidden(),
         setPetHidden: (hidden) => petWindowRuntime.setPetHidden(hidden),
-      });
-      macHideController.start();
-      app.on("activate", () => { if (macHideController) macHideController.onActivate(); });
-    }
+    });
+    macHideController.start();
+    app.on("activate", () => {
+      if (macHideController) macHideController.onActivate();
+      // Closing the login window must not leave a configured Renmiao app
+      // unreachable when the tray icon is disabled. Reopen login from the
+      // normal macOS Dock activation while no session is present.
+      if (
+        isRenmiProfile
+        && authRuntime
+        && authRuntime.isConfigured()
+        && !authRuntime.getSession()
+      ) {
+        authRuntime.openAuthWindow();
+      }
+    });
+  }
     if (shouldOpenSettingsWindowFromArgv(process.argv)) {
       settingsWindowRuntime.open();
     }
@@ -5234,9 +5524,21 @@ if (!gotTheLock) {
       void _telegramMigrationController.dispose();
     }
     if (discordPresenceBridge) discordPresenceBridge.stop();
-    stopFeishuApprovalClient();
-    _perm.cleanup();
-    _server.cleanup();
+  stopFeishuApprovalClient();
+  _perm.cleanup();
+  if (authRuntime) authRuntime.dispose();
+  if (studyIpcRuntime) studyIpcRuntime.dispose();
+  if (studyWindowRuntime) studyWindowRuntime.close();
+  if (studyBroadcastTimer) {
+    clearInterval(studyBroadcastTimer);
+    studyBroadcastTimer = null;
+  }
+  if (studyPetStateTimer) {
+    clearInterval(studyPetStateTimer);
+    studyPetStateTimer = null;
+  }
+  _studyRuntime.dispose();
+  _server.cleanup();
     if (_lanWss) _lanWss.cleanup();
     _updateBubble.cleanup();
     _state.cleanup();

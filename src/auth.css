@@ -1,0 +1,31 @@
+:root { color-scheme: light; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #3e3431; background: #f8f4f0; }
+* { box-sizing: border-box; }
+body { margin: 0; min-height: 100vh; background: radial-gradient(circle at 18% 8%, #fff 0, #f8f4f0 44%, #eee6df 100%); }
+.auth-shell { width: min(360px, calc(100% - 44px)); margin: 0 auto; padding: 42px 0 28px; }
+.brand-mark { width: 48px; height: 48px; display: grid; place-items: center; border-radius: 16px 16px 16px 5px; color: #fff; background: #c96d6d; font-size: 27px; font-weight: 800; box-shadow: 0 8px 18px rgba(169, 82, 82, .22); }
+.eyebrow { margin: 20px 0 6px; color: #b46565; font-size: 11px; font-weight: 800; letter-spacing: .22em; }
+h1 { margin: 0; font-size: 29px; letter-spacing: -.03em; }
+h2 { margin: 10px 0 6px; font-size: 22px; }
+.subtitle { margin: 9px 0 0; color: #887a72; font-size: 13px; line-height: 1.6; }
+.switcher { display: flex; gap: 3px; padding: 4px; margin: 26px 0 18px; border-radius: 12px; background: rgba(232, 222, 215, .72); }
+.switch { flex: 1; border: 0; padding: 9px; border-radius: 9px; color: #887a72; background: transparent; font: inherit; font-size: 13px; cursor: pointer; }
+.switch.active { color: #4b3c38; background: #fff; box-shadow: 0 2px 7px rgba(80, 54, 42, .09); font-weight: 700; }
+.form { display: grid; gap: 13px; margin-top: 20px; }
+label { display: grid; gap: 7px; color: #62534c; font-size: 12px; font-weight: 700; }
+input { width: 100%; padding: 12px 13px; border: 1px solid #dfd2ca; border-radius: 10px; outline: none; color: #3e3431; background: rgba(255,255,255,.82); font: inherit; font-size: 14px; transition: border-color .15s, box-shadow .15s; }
+input:focus { border-color: #c96d6d; box-shadow: 0 0 0 3px rgba(201,109,109,.12); }
+button { font: inherit; }
+.primary, .secondary { width: 100%; padding: 12px; border-radius: 10px; cursor: pointer; font-size: 13px; font-weight: 750; }
+.primary { border: 1px solid #c96d6d; color: #fff; background: #c96d6d; box-shadow: 0 7px 16px rgba(169, 82, 82, .16); }
+.secondary { border: 1px solid #ddc8c0; color: #98605f; background: #fffaf7; }
+.links { display: flex; justify-content: space-between; gap: 16px; margin-top: 18px; }
+.links button, .back-link { border: 0; padding: 0; color: #a65e5e; background: transparent; cursor: pointer; font-size: 12px; }
+.back-link { display: block; margin-top: 18px; }
+.admin-link { margin-top: 12px; color: #887a72; }
+.hint { margin: 18px 0 0; color: #887a72; font-size: 12px; line-height: 1.6; }
+.code-input { text-align: center; letter-spacing: .42em; font-size: 20px; font-weight: 750; }
+.verify-icon { display: grid; place-items: center; width: 48px; height: 48px; margin-top: 28px; border-radius: 50%; color: #c96d6d; background: #f3dfda; font-size: 24px; }
+.message { min-height: 22px; margin: 22px 0 0; color: #ad5959; font-size: 12px; line-height: 1.5; }
+.message.success { color: #3a7c55; }
+.footer-note { margin: 46px 0 0; color: #a4968f; text-align: center; font-size: 11px; }
+[hidden] { display: none !important; }

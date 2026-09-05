@@ -9,6 +9,7 @@
 // This launcher strips that variable before spawning the real Electron binary.
 
 const { spawn } = require("child_process");
+const { constants: osConstants } = require("node:os");
 const {
   verifyElectronInstall,
   formatElectronInstallFailure,
@@ -25,10 +26,33 @@ const { buildElectronLaunchConfig } = require("./hooks/shared-process");
 
 const forwardedArgs = process.argv.slice(2);
 const launchConfig = buildElectronLaunchConfig(__dirname, { forwardedArgs });
+const renmiProfileFlag = process.env.RENMI_ON_DESK_PROFILE || "1";
 const child = spawn(electron, launchConfig.args, {
   stdio: "inherit",
-  env: launchConfig.env,
+  // Keep this checkout's Electron profile explicit so `npm start` and direct
+  // launcher invocations both use Renmi's isolated userData/runtime paths.
+  env: { ...launchConfig.env, RENMI_ON_DESK_PROFILE: renmiProfileFlag },
   cwd: launchConfig.cwd,
 });
 
-child.on("close", (code) => process.exit(code ?? 0));
+child.once("error", (error) => {
+  process.stderr.write(`renmiao Electron 启动失败：${error && error.message ? error.message : error}\n`);
+});
+
+child.once("close", (code, signal) => {
+  // Preserve signal exits instead of turning a native crash (for example
+  // SIGABRT) into a misleading successful exit. The dev wrapper uses this
+  // distinction to tell an intentional close from an Electron failure.
+  const signalNumber = signal && osConstants.signals && osConstants.signals[signal];
+  const exitCode = Number.isInteger(code)
+    ? code
+    : signal
+      ? 128 + (Number.isInteger(signalNumber) ? signalNumber : 1)
+      : 1;
+  if (code !== 0 || signal) {
+    process.stderr.write(
+      `renmiao Electron 已退出：code=${code ?? "null"} signal=${signal ?? "none"}\n`,
+    );
+  }
+  process.exitCode = exitCode;
+});

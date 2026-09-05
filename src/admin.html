@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'none'; img-src 'self' data:">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>renmiao 管理后台</title>
+  <link rel="stylesheet" href="admin.css">
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div>
+        <div class="brand">RENMIAO</div>
+        <h1>账号管理</h1>
+        <p class="subtitle">管理员可以查看和管理所有普通用户账号。</p>
+      </div>
+      <div class="topbar-actions">
+        <span class="admin-badge">管理员</span>
+        <button id="admin-logout" class="secondary" type="button">退出登录</button>
+      </div>
+    </header>
+
+    <section class="stats-grid" aria-label="账号统计">
+      <div class="card stat-card"><span>账号总数</span><strong id="total-count">—</strong></div>
+      <div class="card stat-card"><span>当前页</span><strong id="page-count">—</strong></div>
+      <div class="card stat-card"><span>显示范围</span><strong id="range-count">—</strong></div>
+    </section>
+
+    <section class="toolbar card">
+      <label class="search-field"><span>搜索</span><input id="user-query" placeholder="用户名或邮箱" autocomplete="off"></label>
+      <label><span>状态</span><select id="user-status"><option value="">全部状态</option><option value="active">正常</option><option value="pending">待验证</option><option value="suspended">已封禁</option><option value="deleted">已注销</option></select></label>
+      <button id="refresh-users" class="primary" type="button">刷新账号</button>
+    </section>
+
+    <p id="dashboard-message" class="message" role="status" aria-live="polite"></p>
+
+    <section class="card table-card">
+      <div class="section-heading">
+        <div><h2>普通用户</h2><p>密码不会显示；修改绑定邮箱后，用户必须完成新邮箱验证。</p></div>
+        <div class="pagination"><button id="previous-page" class="secondary" type="button">上一页</button><span id="page-info">第 1 页</span><button id="next-page" class="secondary" type="button">下一页</button></div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>用户名</th><th>绑定邮箱</th><th>状态</th><th>注册时间</th><th>最后登录</th><th>操作</th></tr></thead>
+          <tbody id="users-body"><tr><td colspan="6" class="empty">正在加载…</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card table-card audit-card">
+      <div class="section-heading"><div><h2>管理员审计日志</h2><p>记录账号状态、资料和会话管理操作。</p></div><button id="refresh-audit" class="secondary" type="button">刷新日志</button></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>时间</th><th>操作</th><th>目标用户</th><th>IP</th><th>详情</th></tr></thead>
+          <tbody id="audit-body"><tr><td colspan="5" class="empty">正在加载…</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+  <script src="admin-renderer.js"></script>
+</body>
+</html>

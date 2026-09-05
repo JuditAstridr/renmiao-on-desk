@@ -87,6 +87,7 @@ function createSettingsWindowRuntime(options = {}) {
   const settingsHtmlPath = options.settingsHtmlPath || path.join(__dirname, "settings.html");
   const preloadPath = options.preloadPath || path.join(__dirname, "preload-settings.js");
   const discordDefaultAppIdPresent = !!options.discordDefaultAppIdPresent;
+  const isRenmiProfile = options.isRenmiProfile === true;
   const scheduleLater = typeof options.setTimeout === "function" ? options.setTimeout : setTimeout;
   const clearScheduled = typeof options.clearTimeout === "function" ? options.clearTimeout : clearTimeout;
 
@@ -387,6 +388,7 @@ function createSettingsWindowRuntime(options = {}) {
         // Sandboxed preloads can't require app modules; pass build-time flags by value.
         additionalArguments: [
           `--discord-default-app-id-present=${discordDefaultAppIdPresent ? "1" : "0"}`,
+          ...(isRenmiProfile ? ["--renmi-profile=1"] : []),
         ],
       },
     };

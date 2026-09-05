@@ -100,6 +100,7 @@ logs/
 
 # GIF recording tools (not part of main project)
 scripts/*
+!scripts/renmiao-dev.js
 !scripts/manual/
 scripts/manual/*
 !scripts/manual/README.md
@@ -129,6 +130,9 @@ scripts/manual/*
 !scripts/run-packaged-koffi-smoke.js
 !scripts/verify-updater-metadata.js
 !scripts/verify-appimage-apprun.js
+
+# Local authentication/deployment secrets
+cloud/.env
 
 # oh-my-cursor state
 .omc/

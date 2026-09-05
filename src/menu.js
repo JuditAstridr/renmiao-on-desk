@@ -204,6 +204,20 @@ module.exports = function initMenu(ctx) {
     };
   }
 
+  function buildAuthMenuItem() {
+    if (typeof ctx.isAuthConfigured !== "function" || !ctx.isAuthConfigured()) return null;
+    const user = typeof ctx.getAuthUser === "function" ? ctx.getAuthUser() : null;
+    const submenu = user ? [] : [{ label: t("login"), click: () => ctx.openAuthWindow() }];
+    if (user && user.role === "admin" && typeof ctx.openAdminDashboard === "function") {
+      submenu.push({ label: t("adminDashboard"), click: () => ctx.openAdminDashboard() });
+    }
+    if (user) submenu.push({ label: t("logout"), click: () => ctx.logoutAuth() });
+    return {
+      label: user ? `${t("account")}: ${user.username || user.emailMasked || ""}` : t("login"),
+      submenu,
+    };
+  }
+
   // ── System tray ──
   function createTray() {
     if (ctx.tray) return;
@@ -215,7 +229,7 @@ module.exports = function initMenu(ctx) {
       iconPath: path.join(__dirname, "../assets/icon.png"),
     });
     ctx.tray = new Tray(icon);
-    ctx.tray.setToolTip("Clawd Desktop Pet");
+  ctx.tray.setToolTip("renmiao");
     buildTrayMenu();
   }
 
@@ -270,6 +284,12 @@ module.exports = function initMenu(ctx) {
           if (typeof ctx.openDashboard === "function") ctx.openDashboard();
         },
       },
+      {
+        label: t("openStudyDashboard"),
+        click: () => {
+          if (typeof ctx.openStudyDashboard === "function") ctx.openStudyDashboard();
+        },
+      },
       buildPermissionAutomationMenuItem(),
     ];
 
@@ -307,12 +327,20 @@ module.exports = function initMenu(ctx) {
       click: (menuItem) => { ctx.openAtLogin = menuItem.checked; },
     });
 
-    const appGroup = [
-      {
-        label: t("settings"),
-        click: () => ctx.openSettingsWindow(),
-      },
-    ];
+  const appGroup = [
+    {
+      label: t("settings"),
+      click: () => ctx.openSettingsWindow(),
+    },
+  ];
+  if (typeof ctx.openCharacterSelector === "function") {
+    appGroup.push({
+      label: t("characterSelect"),
+      click: () => ctx.openCharacterSelector(),
+    });
+  }
+  const authItem = buildAuthMenuItem();
+    if (authItem) appGroup.push(authItem);
     // #329: surface the update item alongside the app actions. The label
     // switches to "Update available · vX" / "Update Ready" when applicable.
     if (typeof ctx.getUpdateMenuItem === "function") {
@@ -484,6 +512,12 @@ module.exports = function initMenu(ctx) {
         },
       },
       {
+        label: t("openStudyDashboard"),
+        click: () => {
+          if (typeof ctx.openStudyDashboard === "function") ctx.openStudyDashboard();
+        },
+      },
+      {
         label: t("newSession"),
         submenu: [
           {
@@ -519,12 +553,20 @@ module.exports = function initMenu(ctx) {
       });
     }
 
-    const appGroup = [
-      {
-        label: t("settings"),
-        click: () => ctx.openSettingsWindow(),
-      },
-    ];
+  const appGroup = [
+    {
+      label: t("settings"),
+      click: () => ctx.openSettingsWindow(),
+    },
+  ];
+  if (typeof ctx.openCharacterSelector === "function") {
+    appGroup.push({
+      label: t("characterSelect"),
+      click: () => ctx.openCharacterSelector(),
+    });
+  }
+  const authItem = buildAuthMenuItem();
+    if (authItem) appGroup.push(authItem);
     // #329: surface the update item alongside the other app actions when one is
     // available.
     if (typeof ctx.getUpdateMenuItem === "function") {

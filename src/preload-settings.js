@@ -36,6 +36,7 @@ const DISCORD_DEFAULT_APP_ID_FLAG = "--discord-default-app-id-present=";
 const discordDefaultAppIdArg = process.argv.find((a) => a.startsWith(DISCORD_DEFAULT_APP_ID_FLAG));
 const discordDefaultAppIdPresent =
   !!discordDefaultAppIdArg && discordDefaultAppIdArg.slice(DISCORD_DEFAULT_APP_ID_FLAG.length) === "1";
+const isRenmiProfile = process.argv.includes("--renmi-profile=1");
 
 const listeners = new Set();
 const shortcutFailureListeners = new Set();
@@ -96,6 +97,7 @@ ipcRenderer.on("settings:update-check-status", (_event, payload) => {
 });
 
 contextBridge.exposeInMainWorld("settingsAPI", {
+  isRenmiProfile,
   // Capability flag: true when a default Discord App ID is hardcoded (maintainer-
   // shipped), so the presence enable switch can be ready without a user-saved App ID.
   discordDefaultAppIdPresent,

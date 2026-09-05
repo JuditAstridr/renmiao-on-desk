@@ -429,8 +429,9 @@ describe("package build config", () => {
   });
 
   describe("Telegram legacy retirement packaging", () => {
-    it("starts directly without fetching a retired executable", () => {
-      assert.strictEqual(pkg.scripts.start, "node launch.js");
+    it("starts through the local auth-aware launcher without fetching a retired executable", () => {
+      assert.strictEqual(pkg.scripts.start, "node scripts/renmiao-dev.js");
+      assert.strictEqual(pkg.scripts.dev, "node scripts/renmiao-dev.js");
     });
 
     it("contains no retired scripts, prebuild hooks, or extraResources", () => {

@@ -69,6 +69,7 @@ function createSettingsEffectRouter(options = {}) {
   const applyDockVisibility = options.applyDockVisibility || noop;
   const sendToRenderer = options.sendToRenderer || noop;
   const sendDashboardI18n = options.sendDashboardI18n || noop;
+  const sendStudyI18n = options.sendStudyI18n || noop;
   const sendSessionHudI18n = options.sendSessionHudI18n || noop;
   const syncWindowTitles = options.syncWindowTitles || noop;
   const emitSessionSnapshot = options.emitSessionSnapshot || noop;
@@ -180,6 +181,7 @@ function createSettingsEffectRouter(options = {}) {
     }
     if ("lang" in changes) {
       safeCall(logWarn, "Clawd: dashboard lang broadcast failed:", sendDashboardI18n);
+      safeCall(logWarn, "Clawd: Study Companion lang broadcast failed:", sendStudyI18n);
       safeCall(logWarn, "Clawd: session HUD lang broadcast failed:", sendSessionHudI18n);
       safeCall(logWarn, "Clawd: window title sync failed:", syncWindowTitles);
     }

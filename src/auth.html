@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'none'; img-src 'self' data:">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>renmiao</title>
+  <link rel="stylesheet" href="auth.css">
+</head>
+<body>
+  <main class="auth-shell">
+    <div class="brand-mark" aria-hidden="true">R</div>
+    <p class="eyebrow">RENMIAO</p>
+    <h1 id="title">登录 renmiao</h1>
+    <p id="subtitle" class="subtitle">使用人大邮箱继续使用桌宠。</p>
+
+    <div id="login-view" class="view">
+      <div class="switcher" role="tablist">
+        <button id="password-tab" class="switch active" type="button">密码登录</button>
+        <button id="code-tab" class="switch" type="button">验证码登录</button>
+      </div>
+      <form id="login-form" class="form">
+        <label>人大邮箱<input id="login-email" type="email" autocomplete="username" placeholder="name@ruc.edu.cn" required></label>
+        <label id="login-password-field">密码<input id="login-password" type="password" autocomplete="current-password" required></label>
+        <button id="send-login-code" class="secondary" type="button" hidden>发送验证码</button>
+        <label id="login-code-field" hidden><span id="login-code-label">验证码</span><input id="login-code" class="code-input" inputmode="text" maxlength="6" autocomplete="one-time-code" placeholder="6位验证码"></label>
+        <button id="login-submit" class="primary" type="submit">登录</button>
+      </form>
+      <div class="links"><button id="show-register" type="button">注册新账号</button><button id="show-reset" type="button">忘记密码</button></div>
+      <button id="show-email-verify" class="back-link" type="button">验证绑定邮箱</button>
+      <button id="show-admin-login" class="back-link admin-link" type="button">管理员邮箱登录</button>
+    </div>
+
+    <div id="register-view" class="view" hidden>
+      <form id="register-form" class="form">
+        <label>用户名<input id="register-username" type="text" maxlength="32" autocomplete="nickname" required></label>
+        <label>人大邮箱<input id="register-email" type="email" autocomplete="email" placeholder="name@ruc.edu.cn" required></label>
+        <label>密码<input id="register-password" type="password" autocomplete="new-password" required></label>
+        <label>确认密码<input id="register-password-confirm" type="password" autocomplete="new-password" required></label>
+        <button class="primary" type="submit">发送注册验证码</button>
+      </form>
+      <button class="back-link" data-view="login" type="button">返回登录</button>
+    </div>
+
+    <div id="verify-view" class="view" hidden>
+      <div class="verify-icon">✦</div>
+      <h2>验证你的邮箱</h2>
+      <p id="verify-hint" class="subtitle"></p>
+      <form id="verify-form" class="form">
+        <label>6位验证码<input id="verify-code" class="code-input" inputmode="text" maxlength="6" autocomplete="one-time-code" required></label>
+        <button class="primary" type="submit">验证并进入</button>
+      </form>
+      <button id="resend-code" class="back-link" type="button">重新发送</button>
+    </div>
+
+    <div id="reset-view" class="view" hidden>
+      <form id="reset-request-form" class="form">
+        <label>人大邮箱<input id="reset-email" type="email" autocomplete="email" placeholder="name@ruc.edu.cn" required></label>
+        <button class="primary" type="submit">发送重置验证码</button>
+      </form>
+      <form id="reset-confirm-form" class="form" hidden>
+        <label>验证码<input id="reset-code" class="code-input" inputmode="text" maxlength="6" autocomplete="one-time-code" required></label>
+        <label>新密码<input id="reset-password" type="password" autocomplete="new-password" required></label>
+        <label>确认新密码<input id="reset-password-confirm" type="password" autocomplete="new-password" required></label>
+        <button class="primary" type="submit">重置并登录</button>
+      </form>
+      <button class="back-link" data-view="login" type="button">返回登录</button>
+    </div>
+
+    <div id="email-verify-view" class="view" hidden>
+      <form id="email-verify-form" class="form">
+        <label>人大邮箱<input id="email-verify-email" type="email" autocomplete="email" placeholder="name@ruc.edu.cn" required></label>
+        <label>验证码<input id="email-verify-code" class="code-input" inputmode="text" maxlength="6" autocomplete="one-time-code" placeholder="6位验证码" required></label>
+        <button class="primary" type="submit">验证并恢复登录</button>
+      </form>
+      <p class="hint">如果管理员修改了你的绑定邮箱，请在新邮箱中找到验证码后完成验证。</p>
+      <button class="back-link" data-view="login" type="button">返回登录</button>
+    </div>
+
+    <p id="message" class="message" role="status" aria-live="polite"></p>
+    <p class="footer-note">仅支持已验证的 @ruc.edu.cn 邮箱</p>
+  </main>
+  <script src="auth-renderer.js"></script>
+</body>
+</html>

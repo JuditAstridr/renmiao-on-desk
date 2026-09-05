@@ -494,7 +494,7 @@ function getPortCandidates(preferredPort, options = {}) {
   const runtimePort = normalizePort(
     Object.prototype.hasOwnProperty.call(options, "runtimePort")
       ? options.runtimePort
-      : readRuntimePort()
+      : readRuntimePort(options)
   );
   const add = (value) => {
     const port = normalizePort(value);
@@ -519,7 +519,7 @@ function splitPortCandidates(preferredPort, options = {}) {
   const runtimePort = normalizePort(
     Object.prototype.hasOwnProperty.call(options, "runtimePort")
       ? options.runtimePort
-      : readRuntimePort()
+      : readRuntimePort(options)
   );
   const all = getPortCandidates(preferredPort, { runtimePort });
   const direct = [];

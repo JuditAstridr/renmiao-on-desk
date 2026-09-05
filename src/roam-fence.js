@@ -150,9 +150,12 @@ module.exports = function createRoamFenceLoader(deps = {}) {
     }
   };
   const warn = deps.warn || ((message) => console.warn(message));
+  const profileFencePath = process.env.RENMI_ON_DESK_ROAM_FENCE_PATH;
   const filePath =
     deps.filePath ||
-    require("path").join(require("os").homedir(), ".clawd", "roam-area.json");
+    (typeof profileFencePath === "string" && profileFencePath
+      ? profileFencePath
+      : require("path").join(require("os").homedir(), ".clawd", "roam-area.json"));
 
   // null = UNKNOWN: nothing confirmed yet. Roam treats it as "hold this
   // round" — see pickRandomTarget() in src/roam.js.

@@ -1,10 +1,13 @@
 {
-  "name": "clawd-on-desk",
+  "name": "renmiao",
   "version": "0.16.0",
   "description": "A desktop pet that reacts to your Claude Code sessions in real-time.",
   "main": "src/main.js",
   "scripts": {
-    "start": "node launch.js",
+    "start": "node scripts/renmiao-dev.js",
+    "dev": "node scripts/renmiao-dev.js",
+    "cloud:dev": "node cloud/api/index.js",
+    "cloud:hash-password": "node cloud/api/cli.js hash-password",
     "build": "electron-builder --win",
     "build:win:x64": "electron-builder --win nsis:x64",
     "build:win:arm64": "electron-builder --win nsis:arm64",
@@ -74,21 +77,21 @@
   "license": "AGPL-3.0-only",
   "type": "commonjs",
   "build": {
-    "appId": "com.clawd.on-desk",
-    "productName": "Clawd on Desk",
+    "appId": "com.renmiao.app",
+    "productName": "renmiao",
     "afterPack": "scripts/after-pack-koffi.js",
     "protocols": [
       {
-        "name": "Clawd Import Protocol",
+        "name": "Renmi Import Protocol",
         "schemes": [
-          "clawd"
+          "renmi"
         ]
       }
     ],
     "mac": {
       "icon": "assets/icon.png",
       "identity": "-",
-      "artifactName": "Clawd-on-Desk-${version}-${arch}.${ext}",
+      "artifactName": "renmiao-${version}-${arch}.${ext}",
       "target": [
         {
           "target": "dmg",
@@ -105,7 +108,7 @@
     },
     "win": {
       "icon": "assets/icon.ico",
-      "artifactName": "Clawd-on-Desk-Setup-${version}-${arch}.${ext}",
+      "artifactName": "renmiao-Setup-${version}-${arch}.${ext}",
       "target": [
         {
           "target": "nsis",
@@ -120,7 +123,7 @@
       "maintainer": "rullerzhou-afk <rullerzhou-afk@users.noreply.github.com>",
       "icon": "assets/icons",
       "category": "Utility",
-      "artifactName": "Clawd-on-Desk-${version}-${arch}.${ext}",
+      "artifactName": "renmiao-${version}-${arch}.${ext}",
       "target": [
         {
           "target": "AppImage",

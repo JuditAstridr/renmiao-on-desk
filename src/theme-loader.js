@@ -133,8 +133,9 @@ function _scanThemesDir(dir, builtin, themes, seen) {
       try {
         cfg = JSON.parse(fs.readFileSync(jsonPath, "utf8"));
       } catch { continue; }
-      if (builtin && cfg && cfg._scaffoldOnly === true) continue;
-      themes.push({ id: entry.name, name: cfg.name || entry.name, path: jsonPath, builtin });
+    if (builtin && cfg && cfg._scaffoldOnly === true) continue;
+    if (cfg && cfg._skinOnly === true) continue;
+    themes.push({ id: entry.name, name: cfg.name || entry.name, path: jsonPath, builtin });
       seen.add(entry.name);
     }
   } catch { /* dir not found */ }
@@ -156,6 +157,9 @@ function _scanThemesDir(dir, builtin, themes, seen) {
  */
 function loadTheme(themeId, opts = {}) {
   const strict = !!opts.strict;
+  const fallbackThemeId = typeof opts.fallbackThemeId === "string" && opts.fallbackThemeId
+    ? opts.fallbackThemeId
+    : "clawd";
   const requestedVariant = typeof opts.variant === "string" && opts.variant ? opts.variant : "default";
   const userOverrides = _isPlainObject(opts.overrides) ? opts.overrides : null;
   const { raw, isBuiltin, themeDir } = _readThemeJson(themeId);
@@ -164,8 +168,8 @@ function loadTheme(themeId, opts = {}) {
     const msg = `Theme "${themeId}" not found`;
     if (strict) throw new Error(msg);
     console.error(`[theme-loader] ${msg}`);
-    if (themeId !== "clawd") return loadTheme("clawd");
-    throw new Error("Default theme 'clawd' not found");
+    if (themeId !== fallbackThemeId) return loadTheme(fallbackThemeId, opts);
+    throw new Error(`Default theme '${fallbackThemeId}' not found`);
   }
 
   const errors = validateTheme(raw);
@@ -173,7 +177,7 @@ function loadTheme(themeId, opts = {}) {
     const msg = `Theme "${themeId}" validation errors: ${errors.join("; ")}`;
     if (strict) throw new Error(msg);
     console.error(`[theme-loader] ${msg}`);
-    if (themeId !== "clawd") return loadTheme("clawd");
+    if (themeId !== fallbackThemeId) return loadTheme(fallbackThemeId, opts);
   }
 
   // Resolve variant + apply patch BEFORE mergeDefaults so that geometry

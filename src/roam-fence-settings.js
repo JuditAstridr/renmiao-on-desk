@@ -54,9 +54,12 @@ function createRoamFenceSettings(options = {}) {
   if (!loader || typeof loader.refresh !== "function" || typeof loader.get !== "function") {
     throw new Error("roam fence settings requires the live roam fence loader");
   }
+  const profileFencePath = process.env.RENMI_ON_DESK_ROAM_FENCE_PATH;
   const filePath = options.filePath
     || loader.filePath
-    || path.join((options.os || defaultOs).homedir(), ".clawd", "roam-area.json");
+    || (typeof profileFencePath === "string" && profileFencePath
+      ? profileFencePath
+      : path.join((options.os || defaultOs).homedir(), ".clawd", "roam-area.json"));
   const platform = options.platform || process.platform;
   let writeSerial = Promise.resolve();
 

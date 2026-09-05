@@ -229,6 +229,7 @@ function initUpdater(ctx, deps = {}) {
   const runtimePlatform = deps.platform || process.platform;
   const runtimeArch = deps.arch || process.arch;
   const isMac = runtimePlatform === "darwin";
+  const updatesDisabled = ctx.updatesDisabled === true;
 
   let updateStatus = "idle";
   let updateCheckSnapshot = Object.freeze({ state: "idle" });
@@ -1208,6 +1209,10 @@ function initUpdater(ctx, deps = {}) {
   }
 
   function startUpdateScheduler() {
+    if (updatesDisabled) {
+      log("scheduler: skip — updates disabled for isolated profile");
+      return;
+    }
     // Primary guard: only packaged builds. !app.isPackaged covers the
     // zip-source-drop / mid-build-artifacts case that getRepoRoot() misses.
     if (!app.isPackaged) {
@@ -1242,6 +1247,10 @@ function initUpdater(ctx, deps = {}) {
   }
 
   function setupAutoUpdater() {
+    if (updatesDisabled) {
+      log("auto-updater: skip — updates disabled for isolated profile");
+      return;
+    }
     if (isRunningX64OnWindowsArm64()) {
       Promise.resolve()
         .then(fetchLatestRelease)
@@ -1389,6 +1398,10 @@ function initUpdater(ctx, deps = {}) {
   }
 
   async function checkForUpdates(arg = true) {
+    if (updatesDisabled) {
+      log("check skipped — updates disabled for isolated profile");
+      return getUpdateCheckSnapshot();
+    }
     const hasActiveAvailableFlow = updateStatus === "available" && !!activeCheck;
     if (["checking", "downloading", "ready"].includes(updateStatus) || hasActiveAvailableFlow) {
       log(`Check skipped: already ${updateStatus}`);
@@ -1538,6 +1551,7 @@ function initUpdater(ctx, deps = {}) {
   }
 
   function getUpdateMenuItem() {
+    if (updatesDisabled) return null;
     const hasActiveAvailableFlow = updateStatus === "available" && !!activeCheck;
     return {
       label: getUpdateMenuLabel(),
