@@ -3,6 +3,7 @@
 const {
   getPetTintIdForTheme,
   resolvePetTintPayload,
+  getPetTintSaturationForTheme,
   buildPetAccessoryPayload,
 } = require("./pet-customization-catalog");
 const {
@@ -164,6 +165,13 @@ function createSettingsEffectRouter(options = {}) {
       const activeTheme = getActiveTheme();
       const tintId = getPetTintIdForTheme(changes.petTint, activeTheme && activeTheme._id);
       sendToRenderer("pet-tint-change", resolvePetTintPayload(tintId, activeTheme));
+    }
+    if ("petTintSaturation" in changes) {
+      const activeTheme = getActiveTheme();
+      sendToRenderer(
+        "pet-tint-saturation-change",
+        getPetTintSaturationForTheme(changes.petTintSaturation, activeTheme)
+      );
     }
     if ("petAccessory" in changes || "holidayAccessoryEnabled" in changes) {
       const activeTheme = getActiveTheme();

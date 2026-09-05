@@ -269,6 +269,7 @@
     mountedCustomizationControls = {
       themeId: theme.id,
       petTint: null,
+      petTintSaturation: null,
       petAccessory: null,
       holidayAccessoryEnabled: null,
     };
@@ -312,6 +313,9 @@
     section.appendChild(title);
     const caps = theme.capabilities || {};
     if (caps.petTint === true) section.appendChild(buildThemeTintRow(theme));
+    if (caps.petTintSaturation && caps.petTintSaturation.enabled === true) {
+      section.appendChild(buildThemeTintSaturationRow(theme));
+    }
     if (caps.accessories === true) {
       section.appendChild(buildThemeAccessoryRow(theme));
       section.appendChild(buildHolidayAccessoryRow(theme));
@@ -319,9 +323,14 @@
     parent.appendChild(section);
   }
 
-  function getTintOptions() {
-    return Array.isArray(runtime.petTintOptions)
-      ? runtime.petTintOptions.filter((entry) => (
+  function getTintOptions(theme = null) {
+    const themeOptions = theme
+      && theme.capabilities
+      && Array.isArray(theme.capabilities.petTintOptions)
+      ? theme.capabilities.petTintOptions
+      : runtime.petTintOptions;
+    return Array.isArray(themeOptions)
+      ? themeOptions.filter((entry) => (
         entry
         && typeof entry.id === "string"
         && /^[a-z][a-z0-9-]{0,31}$/.test(entry.id)
@@ -376,7 +385,7 @@
 
     const control = document.createElement("div");
     control.className = "row-control";
-    const options = getTintOptions();
+    const options = getTintOptions(theme);
     const pickerOptions = options.length > 0
       ? options.map((entry) => ({ value: entry.id, label: t(entry.labelKey) }))
       : [{ value: "none", label: t("tintNone") }];
@@ -421,6 +430,104 @@
     }
 
     control.appendChild(picker.element);
+    row.appendChild(text);
+    row.appendChild(control);
+    syncFromSnapshot();
+    return row;
+  }
+
+  function buildThemeTintSaturationRow(theme) {
+    const config = theme
+      && theme.capabilities
+      && theme.capabilities.petTintSaturation;
+    const min = Number.isFinite(config && config.min) ? config.min : 0;
+    const max = Number.isFinite(config && config.max) ? config.max : 200;
+    const step = Number.isFinite(config && config.step) ? config.step : 1;
+    const defaultValue = Number.isFinite(config && config.default) ? config.default : 100;
+    const row = document.createElement("div");
+    row.className = "row theme-customization-row pet-tint-saturation-row";
+
+    const text = document.createElement("div");
+    text.className = "row-text";
+    const label = document.createElement("span");
+    label.className = "row-label";
+    label.textContent = t("rowPetColorSaturation");
+    const desc = document.createElement("span");
+    desc.className = "row-desc";
+    desc.textContent = t("themePetColorSaturationDesc");
+    text.appendChild(label);
+    text.appendChild(desc);
+
+    const control = document.createElement("div");
+    control.className = "row-control volume-control pet-tint-saturation-control";
+    const slider = document.createElement("input");
+    slider.type = "range";
+    slider.className = "volume-slider pet-tint-saturation-slider";
+    slider.min = String(min);
+    slider.max = String(max);
+    slider.step = String(step);
+    slider.setAttribute("aria-label", t("rowPetColorSaturation"));
+    const readout = document.createElement("span");
+    readout.className = "volume-readout pet-tint-saturation-readout";
+    control.appendChild(slider);
+    control.appendChild(readout);
+
+    function getSnapshotValue() {
+      const selections = state.snapshot && state.snapshot.petTintSaturation;
+      const value = selections && typeof selections === "object" && !Array.isArray(selections)
+        ? selections[theme.id]
+        : undefined;
+      return Number.isFinite(value) && value >= min && value <= max ? value : defaultValue;
+    }
+
+    function applyVisual(value) {
+      const normalized = max > min ? ((value - min) / (max - min)) * 100 : 0;
+      slider.value = String(value);
+      slider.style.setProperty("--volume-fill", `${Math.max(0, Math.min(100, normalized))}%`);
+      readout.textContent = `${Math.round(value)}%`;
+    }
+
+    function syncFromSnapshot() {
+      applyVisual(getSnapshotValue());
+      control.classList.remove("pending");
+      slider.disabled = false;
+    }
+
+    slider.addEventListener("input", () => {
+      applyVisual(Number(slider.value));
+    });
+    slider.addEventListener("change", () => {
+      const value = Number(slider.value);
+      const current = state.snapshot && state.snapshot.petTintSaturation;
+      const nextMap = current && typeof current === "object" && !Array.isArray(current)
+        ? { ...current }
+        : {};
+      if (value === defaultValue) delete nextMap[theme.id];
+      else nextMap[theme.id] = value;
+      control.classList.add("pending");
+      slider.disabled = true;
+      Promise.resolve(window.settingsAPI.update("petTintSaturation", nextMap))
+        .then((result) => {
+          if (result && result.status === "ok") return;
+          const message = (result && result.message) || "unknown error";
+          ops.showToast(t("toastSaveFailed") + message, { error: true });
+          applyVisual(getSnapshotValue());
+        })
+        .catch((err) => {
+          const message = (err && err.message) || "unknown error";
+          ops.showToast(t("toastSaveFailed") + message, { error: true });
+          applyVisual(getSnapshotValue());
+        })
+        .finally(() => {
+          control.classList.remove("pending");
+          slider.disabled = false;
+        });
+    });
+
+    if (mountedCustomizationControls && mountedCustomizationControls.themeId === theme.id) {
+      mountedCustomizationControls.petTintSaturation = syncFromSnapshot;
+    }
+
     row.appendChild(text);
     row.appendChild(control);
     syncFromSnapshot();
@@ -590,6 +697,7 @@
     const keys = Object.keys(changes);
     const customizationKeys = new Set([
       "petTint",
+      "petTintSaturation",
       "petAccessory",
       "holidayAccessoryEnabled",
     ]);

@@ -111,6 +111,7 @@ const { createKimiQuotaRuntime } = require("./kimi-quota-runtime");
 const {
   getPetTintIdForTheme,
   resolvePetTintPayload,
+  getPetTintSaturationForTheme,
   buildPetAccessoryPayload,
   resolvePetAccessoryPayload,
 } = require("./pet-customization-catalog");
@@ -1232,6 +1233,7 @@ let soundVolume = _settingsController.get("soundVolume");
 let lowPowerIdleMode = isRenmiProfile ? false : _settingsController.get("lowPowerIdleMode");
 let keepAwakeWhileWorking = _settingsController.get("keepAwakeWhileWorking");
 let petTint = _settingsController.get("petTint");
+let petTintSaturation = _settingsController.get("petTintSaturation");
 let petAccessory = _settingsController.get("petAccessory");
 let allowEdgePinningCached = _settingsController.get("allowEdgePinning");
 let disableMiniModeCached = _settingsController.get("disableMiniMode");
@@ -1453,6 +1455,10 @@ function syncRendererStateAfterLoad({ includeStartupRecovery = true } = {}) {
   const activeTheme = getActiveTheme();
   const tintId = getPetTintIdForTheme(petTint, activeTheme && activeTheme._id);
   sendToRenderer("pet-tint-change", resolvePetTintPayload(tintId, activeTheme));
+  sendToRenderer(
+    "pet-tint-saturation-change",
+    getPetTintSaturationForTheme(petTintSaturation, activeTheme)
+  );
   const accessoryId = getEffectivePetAccessoryIdForTheme({
     petAccessory,
     holidayAccessoryEnabled: _settingsController.get("holidayAccessoryEnabled"),
@@ -1969,6 +1975,10 @@ function buildRendererThemeConfig() {
     });
     cfg.idleDefaultVisual = getIdleVisualChoice();
     cfg.petTintPayload = resolvePetTintPayload(tintId, activeTheme);
+    cfg.petTintSaturationValue = getPetTintSaturationForTheme(
+      _settingsController.get("petTintSaturation"),
+      activeTheme
+    );
     cfg.accessoryPayload = resolvePetAccessoryPayload(accessoryId, activeTheme);
   }
   return cfg;
@@ -4374,6 +4384,7 @@ const SETTINGS_MIRROR_SETTERS = {
   soundMuted: (v) => { soundMuted = v; }, soundVolume: (v) => { soundVolume = v; }, lowPowerIdleMode: (v) => { lowPowerIdleMode = isRenmiProfile ? false : v; },
   keepAwakeWhileWorking: (v) => { keepAwakeWhileWorking = v; },
   petTint: (v) => { petTint = v; },
+  petTintSaturation: (v) => { petTintSaturation = v; },
   petAccessory: (v) => { petAccessory = v; },
   allowEdgePinning: (v) => { allowEdgePinningCached = v; }, disableMiniMode: (v) => { disableMiniModeCached = v; }, keepSizeAcrossDisplays: (v) => { keepSizeAcrossDisplaysCached = v; resetKeepSizeFrozen(); },
   fullscreenOverlay: (v) => { fullscreenOverlayCached = v; },
@@ -5511,9 +5522,11 @@ if (!gotTheLock) {
         userDataDir: app.getPath("userData"),
         getMainWindows: () => [win, hitWin],
         setMainWindowsVisible,
-        onAuthenticated: () => {
+        onAuthenticated: async (user) => {
+          if (user && user.role === "user") await hydrateAccountProfileForUser(user);
           rebuildAllMenus();
         },
+        onBeforeLoggedOut: (user) => deactivateAccountProfile(user),
         onLoggedOut: () => {
           rebuildAllMenus();
         },
@@ -5673,12 +5686,18 @@ if (!gotTheLock) {
       event.preventDefault();
       if (!appQuitDrainStarted) {
         appQuitDrainStarted = true;
-        void drainRemoteSshAndFeishuBeforeQuit()
+        void Promise.all([
+          drainRemoteSshAndFeishuBeforeQuit(),
+          saveAccountProfile({ force: true }),
+        ])
           .finally(() => {
             appQuitDrainReady = true;
             app.quit();
           });
       }
+      // Defer all cleanup until the second before-quit pass. In particular,
+      // authRuntime must stay alive until the cloud profile save above settles.
+      return;
     }
     if (quitCleanupStarted) return;
     quitCleanupStarted = true;
@@ -5712,6 +5731,9 @@ if (!gotTheLock) {
   if (studyPetStateTimer) {
     clearInterval(studyPetStateTimer);
     studyPetStateTimer = null;
+  }
+  if (accountProfileAutosaveTimer) {
+    clearInterval(accountProfileAutosaveTimer);
   }
   _studyRuntime.dispose();
   _server.cleanup();

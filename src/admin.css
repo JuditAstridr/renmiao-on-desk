@@ -60,6 +60,12 @@ td { color: #453b37; }
 .audit-card td:last-child { max-width: 420px; word-break: break-word; }
 .modal { position: fixed; inset: 0; display: grid; place-items: center; padding: 20px; background: rgba(48, 42, 40, .28); }
 .modal-card { width: min(420px, 100%); padding: 24px; background: #fffdfa; border: 1px solid #e8ded6; border-radius: 18px; box-shadow: 0 18px 60px rgba(48, 42, 40, .2); }
+.profile-modal-card { width: min(760px, 100%); max-height: min(90vh, 900px); overflow: auto; }
+.profile-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.profile-modal-card textarea { width: 100%; resize: vertical; border: 1px solid #dacdc5; border-radius: 10px; padding: 10px 11px; color: #302a28; background: #fffdfa; font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; }
+.profile-modal-card textarea:focus { border-color: #c76566; box-shadow: 0 0 0 3px rgba(199, 101, 102, .12); outline: none; }
+.checkbox-label { display: flex; align-items: center; gap: 8px; padding-top: 23px; }
+.checkbox-label input { width: auto; min-width: 0; }
 .modal-card h2 { margin: 0; font-size: 19px; }
 .modal-hint { margin: 8px 0 0; color: #81746d; font-size: 13px; line-height: 1.5; }
 .modal-card form { margin-top: 20px; }

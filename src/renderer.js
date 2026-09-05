@@ -51,6 +51,8 @@ let _petTintPayload = { id: "none", filter: "" };
 let _petTintSupported = false;
 let _petTintMode = "filter";
 let _petTintColors = null;
+let _petTintSaturationConfig = null;
+let _petTintSaturationValue = 100;
 let _accessoryPayload = {
   id: "none",
   assetFile: null,
@@ -96,6 +98,8 @@ function initWithConfig(cfg) {
   _petTintMode = tc.petTintMode === "default-white-regions" ? "default-white-regions" : "filter";
   _petTintColors = tc.petTintColors && typeof tc.petTintColors === "object"
     && !Array.isArray(tc.petTintColors) ? tc.petTintColors : null;
+  _petTintSaturationConfig = normalizePetTintSaturationConfig(tc.petTintSaturation);
+  _petTintSaturationValue = normalizePetTintSaturationValue(tc.petTintSaturationValue);
   if (Object.prototype.hasOwnProperty.call(tc, "petTintPayload")) {
     _petTintPayload = normalizePetTintPayload(tc.petTintPayload);
   }
@@ -620,16 +624,73 @@ function normalizePetTintPayload(payload) {
   if (!/^[a-z][a-z0-9-]{0,31}$/.test(id)) return { id: "none", filter: "" };
   if (!isSafePetTintFilter(filter)) return { id: "none", filter: "" };
   if (id === "none") return filter === "" ? { id, filter } : { id: "none", filter: "" };
-  if (!filter) return { id: "none", filter: "" };
+  if (!filter && _petTintMode !== "default-white-regions") return { id: "none", filter: "" };
   return { id, filter };
 }
 
 const PET_TINT_COLOR_RE = /^#[0-9a-f]{6}$/i;
 
+function normalizePetTintSaturationConfig(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value) || value.enabled !== true) return null;
+  const min = Number.isFinite(value.min) ? value.min : 0;
+  const max = Number.isFinite(value.max) ? value.max : 200;
+  const step = Number.isFinite(value.step) && value.step > 0 ? value.step : 1;
+  const defaultValue = Number.isFinite(value.default) ? value.default : 100;
+  if (min < 0 || max > 200 || min >= max || defaultValue < min || defaultValue > max) return null;
+  return { min, max, step, default: defaultValue };
+}
+
+function normalizePetTintSaturationValue(value) {
+  const config = _petTintSaturationConfig;
+  if (!config || !Number.isFinite(value)) return config ? config.default : 100;
+  return Math.max(config.min, Math.min(config.max, value));
+}
+
+function adjustPetTintSaturation(color) {
+  const config = _petTintSaturationConfig;
+  if (!config || _petTintSaturationValue === 100) return color;
+  const r = parseInt(color.slice(1, 3), 16) / 255;
+  const g = parseInt(color.slice(3, 5), 16) / 255;
+  const b = parseInt(color.slice(5, 7), 16) / 255;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const lightness = (max + min) / 2;
+  const delta = max - min;
+  let saturation = 0;
+  let hue = 0;
+  if (delta !== 0) {
+    saturation = delta / (1 - Math.abs(2 * lightness - 1));
+    if (max === r) hue = ((g - b) / delta) % 6;
+    else if (max === g) hue = (b - r) / delta + 2;
+    else hue = (r - g) / delta + 4;
+    hue /= 6;
+    if (hue < 0) hue += 1;
+  }
+  saturation = Math.max(0, Math.min(1, saturation * _petTintSaturationValue / 100));
+  const chroma = (1 - Math.abs(2 * lightness - 1)) * saturation;
+  const h = hue * 6;
+  const x = chroma * (1 - Math.abs((h % 2) - 1));
+  let rr = 0;
+  let gg = 0;
+  let bb = 0;
+  if (h < 1) [rr, gg, bb] = [chroma, x, 0];
+  else if (h < 2) [rr, gg, bb] = [x, chroma, 0];
+  else if (h < 3) [rr, gg, bb] = [0, chroma, x];
+  else if (h < 4) [rr, gg, bb] = [0, x, chroma];
+  else if (h < 5) [rr, gg, bb] = [x, 0, chroma];
+  else [rr, gg, bb] = [chroma, 0, x];
+  const match = lightness - chroma / 2;
+  return `#${[rr + match, gg + match, bb + match]
+    .map((channel) => Math.round(Math.max(0, Math.min(1, channel)) * 255).toString(16).padStart(2, "0"))
+    .join("")}`;
+}
+
 function getPetTintColor() {
   if (_petTintMode !== "default-white-regions" || !_petTintColors) return null;
   const color = _petTintColors[_petTintPayload.id];
-  return typeof color === "string" && PET_TINT_COLOR_RE.test(color) ? color : null;
+  return typeof color === "string" && PET_TINT_COLOR_RE.test(color)
+    ? adjustPetTintSaturation(color)
+    : null;
 }
 
 function applyPetTintToElement(element) {
@@ -668,8 +729,16 @@ function setPetTintPayload(payload) {
   applyPetTintToAllMedia();
 }
 
+function setPetTintSaturation(value) {
+  _petTintSaturationValue = normalizePetTintSaturationValue(value);
+  applyPetTintToAllMedia();
+}
+
 if (window.electronAPI && typeof window.electronAPI.onPetTintChange === "function") {
   window.electronAPI.onPetTintChange(setPetTintPayload);
+}
+if (window.electronAPI && typeof window.electronAPI.onPetTintSaturationChange === "function") {
+  window.electronAPI.onPetTintSaturationChange(setPetTintSaturation);
 }
 
 // ── Pet accessory wardrobe ──

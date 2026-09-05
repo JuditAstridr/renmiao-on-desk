@@ -1,6 +1,10 @@
 "use strict";
 
-const state = { challengeId: "", accessToken: "", refreshToken: "", passwordUserId: "", passwordUserName: "", passwordSubmitting: false };
+const state = {
+  challengeId: "", accessToken: "", refreshToken: "",
+  passwordUserId: "", passwordUserName: "", passwordSubmitting: false,
+  profileUserId: "", profileUserName: "", profileUpdatedAt: "", profileSubmitting: false,
+};
 const $ = (id) => document.getElementById(id);
 
 function message(target, value = "") { $(target).textContent = value; }
@@ -62,13 +66,16 @@ async function loadUsers() {
     <td>${safe(user.username)}</td><td>${safe(user.email)}</td>
     <td><span class="status ${safe(user.status)}">${safe(statusLabel(user.status))}</span></td>
     <td>${safe(new Date(user.createdAt).toLocaleString())}</td>
+    <td>${safe(user.profileSummary?.themeId || "renmi")}</td>
+    <td>${safe(`${user.profileSummary?.taskCount || 0} 个 / ${user.profileSummary?.pointsTotal || 0} 分`)}</td>
     <td class="row-actions">
       ${user.status === "suspended" ? `<button data-action="activate" data-id="${safe(user.id)}">解封</button>` : `<button data-action="suspend" data-id="${safe(user.id)}">封禁</button>`}
       ${user.status !== "deleted" ? `<button data-action="delete" data-id="${safe(user.id)}">注销</button>` : ""}
       ${user.status === "active" ? `<button data-action="reset" data-id="${safe(user.id)}" data-username="${safe(user.username)}">重置密码</button>` : ""}
       ${user.status !== "deleted" ? `<button data-action="edit" data-id="${safe(user.id)}" data-username="${safe(user.username)}" data-email="${safe(user.email)}">编辑</button>` : ""}
       <button data-action="revoke" data-id="${safe(user.id)}">撤销会话</button>
-    </td></tr>`).join("") || `<tr><td colspan="5">暂无用户</td></tr>`;
+      <button data-action="profile" data-id="${safe(user.id)}" data-username="${safe(user.username)}">资料</button>
+    </td></tr>`).join("") || `<tr><td colspan="7">暂无用户</td></tr>`;
 }
 
 const ACTION_LABELS = {
@@ -78,6 +85,7 @@ const ACTION_LABELS = {
   delete_user: "注销用户",
   update_user: "更新用户",
   revoke_user_sessions: "撤销会话",
+  update_user_profile: "更新账号场景与学习资料",
 };
 
 async function loadAuditLogs() {
@@ -99,6 +107,10 @@ async function userAction(event) {
   if ((action === "delete" || action === "suspend") && !window.confirm(action === "delete" ? "确认注销这个账户？" : "确认封禁这个账户？")) return;
   if (action === "reset") {
     openPasswordDialog(userId, button.dataset.username || "该用户");
+    return;
+  }
+  if (action === "profile") {
+    await openProfileDialog(userId, button.dataset.username || "该用户");
     return;
   }
   if (action === "revoke") {
@@ -167,6 +179,85 @@ $("password-form").addEventListener("submit", async (event) => {
     $("password-dialog-submit").disabled = false;
     $("password-dialog-cancel").disabled = false;
     $("password-dialog-message").textContent = error.message || "操作失败，请稍后重试";
+  }
+});
+
+async function openProfileDialog(userId, username) {
+  state.profileUserId = userId;
+  state.profileUserName = username;
+  state.profileSubmitting = false;
+  $("profile-dialog-user").textContent = `正在编辑“${username}”的云端桌宠与学习资料。`;
+  $("profile-dialog-message").textContent = "正在加载…";
+  $("profile-dialog-message").classList.remove("success");
+  $("profile-dialog").hidden = false;
+  try {
+    const result = await api(`/v1/admin/users/${encodeURIComponent(userId)}/profile`);
+    const profile = result.profile || {};
+    const pet = profile.pet || {};
+    $("profile-theme-id").value = pet.themeId || "renmi";
+    $("profile-variant-id").value = pet.variantId || "default";
+    $("profile-tint-id").value = pet.tintId || "none";
+    $("profile-accessory-id").value = pet.accessoryId || "none";
+    $("profile-holiday-enabled").checked = pet.holidayAccessoryEnabled === true;
+    $("profile-idle-visual").value = pet.idleVisual || "";
+    $("profile-study-json").value = JSON.stringify(profile.study || {}, null, 2);
+    state.profileUpdatedAt = result.profileUpdatedAt || "";
+    $("profile-dialog-message").textContent = "可以直接修改；保存时服务端会再次校验内容。";
+  } catch (error) {
+    $("profile-dialog-message").textContent = error.message || "加载失败，请稍后重试";
+  }
+}
+
+function closeProfileDialog() {
+  if (state.profileSubmitting) return;
+  $("profile-dialog").hidden = true;
+  state.profileUserId = "";
+  state.profileUserName = "";
+  state.profileUpdatedAt = "";
+}
+
+$("profile-dialog-cancel").addEventListener("click", closeProfileDialog);
+$("profile-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (state.profileSubmitting) return;
+  let study;
+  try { study = JSON.parse($("profile-study-json").value || "{}"); }
+  catch { $("profile-dialog-message").textContent = "学习资料必须是合法 JSON。"; return; }
+  state.profileSubmitting = true;
+  $("profile-dialog-submit").disabled = true;
+  $("profile-dialog-cancel").disabled = true;
+  $("profile-dialog-message").textContent = "正在保存云端资料…";
+  try {
+    await api(`/v1/admin/users/${encodeURIComponent(state.profileUserId)}/profile`, {
+      method: "PATCH",
+      body: {
+        expectedUpdatedAt: state.profileUpdatedAt,
+        profile: {
+          version: 1,
+          pet: {
+            themeId: $("profile-theme-id").value,
+            variantId: $("profile-variant-id").value,
+            tintId: $("profile-tint-id").value,
+            accessoryId: $("profile-accessory-id").value,
+            holidayAccessoryEnabled: $("profile-holiday-enabled").checked,
+            idleVisual: $("profile-idle-visual").value,
+          },
+          study,
+        },
+      },
+    });
+    const username = state.profileUserName;
+    state.profileSubmitting = false;
+    $("profile-dialog-submit").disabled = false;
+    $("profile-dialog-cancel").disabled = false;
+    closeProfileDialog();
+    message("dashboard-message", `已保存“${username}”的云端桌宠、任务和积分资料。`);
+    await Promise.all([loadUsers(), loadAuditLogs()]);
+  } catch (error) {
+    state.profileSubmitting = false;
+    $("profile-dialog-submit").disabled = false;
+    $("profile-dialog-cancel").disabled = false;
+    $("profile-dialog-message").textContent = error.message || "保存失败，请稍后重试";
   }
 });
 

@@ -9,6 +9,10 @@ const state = {
   passwordUserId: "",
   passwordUserName: "",
   passwordSubmitting: false,
+  profileUserId: "",
+  profileUserName: "",
+  profileUpdatedAt: "",
+  profileSubmitting: false,
 };
 const $ = (id) => document.getElementById(id);
 
@@ -19,6 +23,7 @@ const ACTION_LABELS = {
   delete_user: "注销用户",
   update_user: "更新用户",
   revoke_user_sessions: "撤销会话",
+  update_user_profile: "更新账号场景与学习资料",
 };
 
 function safe(value) {
@@ -77,6 +82,7 @@ function userActions(user) {
     buttons.push(`<button data-action="edit" data-id="${safe(user.id)}" data-username="${safe(user.username)}" data-email="${safe(user.email)}">编辑</button>`);
   }
   buttons.push(`<button data-action="revoke" data-id="${safe(user.id)}">撤销会话</button>`);
+  buttons.push(`<button data-action="profile" data-id="${safe(user.id)}" data-username="${safe(user.username)}">资料</button>`);
   return buttons.join("");
 }
 
@@ -87,8 +93,10 @@ function renderUsers() {
     <td><span class="status ${safe(user.status)}">${safe(statusLabel(user.status))}</span></td>
     <td>${safe(formatDate(user.createdAt))}</td>
     <td>${safe(formatDate(user.lastLoginAt))}</td>
+    <td>${safe(user.profileSummary?.themeId || "renmi")}</td>
+    <td>${safe(`${user.profileSummary?.taskCount || 0} 个 / ${user.profileSummary?.pointsTotal || 0} 分`)}</td>
     <td class="row-actions">${userActions(user)}</td>
-  </tr>`).join("") || `<tr><td colspan="6" class="empty">暂无普通用户</td></tr>`;
+  </tr>`).join("") || `<tr><td colspan="8" class="empty">暂无普通用户</td></tr>`;
   renderStats();
 }
 
@@ -152,6 +160,10 @@ async function userAction(event) {
   }
   if (action === "reset") {
     openPasswordDialog(button.dataset.id, button.dataset.username || "该用户");
+    return;
+  }
+  if (action === "profile") {
+    await openProfileDialog(userId, button.dataset.username || "该用户");
     return;
   }
   try {
@@ -251,6 +263,86 @@ $("password-form").addEventListener("submit", async (event) => {
     $("password-dialog-submit").disabled = false;
     $("password-dialog-cancel").disabled = false;
     $("password-dialog-message").textContent = errorMessage(error);
+  }
+});
+
+async function openProfileDialog(userId, username) {
+  state.profileUserId = userId;
+  state.profileUserName = username;
+  state.profileSubmitting = false;
+  $("profile-dialog-user").textContent = `正在编辑“${username}”的云端桌宠与学习资料。`;
+  $("profile-dialog-message").textContent = "正在加载…";
+  $("profile-dialog-message").classList.remove("success");
+  $("profile-dialog").hidden = false;
+  try {
+    const result = await window.adminAPI.getUserProfile({ userId });
+    const profile = result.profile || {};
+    const pet = profile.pet || {};
+    $("profile-theme-id").value = pet.themeId || "renmi";
+    $("profile-variant-id").value = pet.variantId || "default";
+    $("profile-tint-id").value = pet.tintId || "none";
+    $("profile-accessory-id").value = pet.accessoryId || "none";
+    $("profile-holiday-enabled").checked = pet.holidayAccessoryEnabled === true;
+    $("profile-idle-visual").value = pet.idleVisual || "";
+    $("profile-study-json").value = JSON.stringify(profile.study || {}, null, 2);
+    state.profileUpdatedAt = result.profileUpdatedAt || "";
+    $("profile-dialog-message").textContent = "可以直接修改；保存时服务端会再次校验内容。";
+  } catch (error) {
+    $("profile-dialog-message").textContent = errorMessage(error);
+  }
+}
+
+function closeProfileDialog() {
+  if (state.profileSubmitting) return;
+  $("profile-dialog").hidden = true;
+  state.profileUserId = "";
+  state.profileUserName = "";
+  state.profileUpdatedAt = "";
+}
+
+$("profile-dialog-cancel").addEventListener("click", closeProfileDialog);
+$("profile-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (state.profileSubmitting) return;
+  let study;
+  try {
+    study = JSON.parse($("profile-study-json").value || "{}");
+  } catch {
+    $("profile-dialog-message").textContent = "学习资料必须是合法 JSON。";
+    return;
+  }
+  state.profileSubmitting = true;
+  $("profile-dialog-submit").disabled = true;
+  $("profile-dialog-cancel").disabled = true;
+  $("profile-dialog-message").textContent = "正在保存云端资料…";
+  try {
+    await window.adminAPI.updateUserProfile({
+      userId: state.profileUserId,
+      expectedUpdatedAt: state.profileUpdatedAt,
+      profile: {
+        version: 1,
+        pet: {
+          themeId: $("profile-theme-id").value,
+          variantId: $("profile-variant-id").value,
+          tintId: $("profile-tint-id").value,
+          accessoryId: $("profile-accessory-id").value,
+          holidayAccessoryEnabled: $("profile-holiday-enabled").checked,
+          idleVisual: $("profile-idle-visual").value,
+        },
+        study,
+      },
+    });
+    const username = state.profileUserName;
+    state.profileSubmitting = false;
+    $("profile-dialog-submit").disabled = false;
+    $("profile-dialog-cancel").disabled = false;
+    closeProfileDialog();
+    await refreshAll(`已保存“${username}”的云端桌宠、任务和积分资料。`);
+  } catch (error) {
+    state.profileSubmitting = false;
+    $("profile-dialog-submit").disabled = false;
+    $("profile-dialog-cancel").disabled = false;
+    $("profile-dialog-message").textContent = errorMessage(error);
   }
 });
 

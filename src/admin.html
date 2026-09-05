@@ -37,13 +37,13 @@
 
     <section class="card table-card">
       <div class="section-heading">
-        <div><h2>普通用户</h2><p>密码不会显示；修改绑定邮箱后，用户必须完成新邮箱验证。</p></div>
+        <div><h2>普通用户</h2><p>密码不会显示；桌宠场景、任务、番茄钟和积分保存在云端，可通过“资料”直接编辑。</p></div>
         <div class="pagination"><button id="previous-page" class="secondary" type="button">上一页</button><span id="page-info">第 1 页</span><button id="next-page" class="secondary" type="button">下一页</button></div>
       </div>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>用户名</th><th>绑定邮箱</th><th>状态</th><th>注册时间</th><th>最后登录</th><th>操作</th></tr></thead>
-          <tbody id="users-body"><tr><td colspan="6" class="empty">正在加载…</td></tr></tbody>
+          <thead><tr><th>用户名</th><th>绑定邮箱</th><th>状态</th><th>注册时间</th><th>最后登录</th><th>主题</th><th>学习资料</th><th>操作</th></tr></thead>
+          <tbody id="users-body"><tr><td colspan="8" class="empty">正在加载…</td></tr></tbody>
         </table>
       </div>
     </section>
@@ -67,6 +67,26 @@
           <label>确认新密码<input id="admin-new-password-confirm" type="password" autocomplete="new-password" minlength="10" maxlength="256" required></label>
           <p id="password-dialog-message" class="message" role="status" aria-live="polite"></p>
           <div class="modal-actions"><button id="password-dialog-cancel" class="secondary" type="button">取消</button><button id="password-dialog-submit" class="primary" type="submit">保存新密码</button></div>
+        </form>
+      </section>
+    </div>
+
+    <div id="profile-dialog" class="modal" hidden>
+      <section class="modal-card profile-modal-card" role="dialog" aria-modal="true" aria-labelledby="profile-dialog-title">
+        <h2 id="profile-dialog-title">编辑云端账号资料</h2>
+        <p id="profile-dialog-user" class="modal-hint"></p>
+        <form id="profile-form">
+          <div class="profile-grid">
+            <label>主题 ID<input id="profile-theme-id" required></label>
+            <label>变体 ID<input id="profile-variant-id" required></label>
+            <label>配色 ID<input id="profile-tint-id" required></label>
+            <label>装饰 ID<input id="profile-accessory-id" required></label>
+            <label>默认待机动画<input id="profile-idle-visual"></label>
+            <label class="checkbox-label"><input id="profile-holiday-enabled" type="checkbox"> 启用节日装饰</label>
+          </div>
+          <label>任务、番茄钟、视图和积分（JSON）<textarea id="profile-study-json" rows="16" spellcheck="false" required></textarea></label>
+          <p id="profile-dialog-message" class="message" role="status" aria-live="polite"></p>
+          <div class="modal-actions"><button id="profile-dialog-cancel" class="secondary" type="button">取消</button><button id="profile-dialog-submit" class="primary" type="submit">保存云端资料</button></div>
         </form>
       </section>
     </div>

@@ -31,10 +31,22 @@ In the administrator console, `重置密码` opens a form for the administrator
 to set a new password directly. It does not send a code to the user's email;
 the API hashes the new password and revokes the user's existing sessions.
 
+Each user row also has a `资料` editor. It manages the account's active pet
+theme/variant/color/accessory and the complete Study Companion state (tasks,
+Pomodoro timer, view, points, and streaks). The desktop app loads this profile
+after login, saves changes periodically, saves again on logout/quit, and keeps
+the local study file only as a per-account cache. A first login may migrate
+legacy unbound local study data to that account; a different account never
+reads that cache.
+
 ## Cloud deployment
 
 1. Create a managed PostgreSQL/Supabase project.
 2. Run `cloud/db/001_auth.sql`.
+
+   The SQL is idempotent and includes the `users.profile_state` and
+   `users.profile_updated_at` columns used for durable account profiles. Run it
+   again on an existing project so the profile migration is applied.
 3. Generate a password hash:
 
    ```bash
@@ -61,6 +73,11 @@ platform's HTTPS endpoint.
 
 The Supabase service-role key must stay on the API server. It must never be
 placed in the Electron bundle, browser code, or admin page.
+
+Profile writes use `profile_updated_at` as an optimistic concurrency token. If
+an administrator edits a profile while the desktop app is saving, the client
+receives the newer cloud profile and applies it instead of overwriting the
+administrator's change.
 
 The current API uses Node's built-in scrypt password KDF so this repository can
 run without a native cloud dependency. Before production, keep the parameters
