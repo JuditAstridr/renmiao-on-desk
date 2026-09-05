@@ -62,7 +62,7 @@ const {
   PET_ACCESSORY_IDS,
 } = require("./pet-customization-catalog");
 
-const CURRENT_VERSION = 16;
+const CURRENT_VERSION = 17;
 const DEFAULT_INTEGRATION_INSTALLED_IDS = Object.freeze(["claude-code", "codex"]);
 const DEFAULT_INTEGRATION_INSTALLED_SET = new Set(DEFAULT_INTEGRATION_INSTALLED_IDS);
 
@@ -382,7 +382,10 @@ const SCHEMA = {
     defaultFactory: () => [],
     normalize: normalizeAmbientUserPresets,
   },
-  ambientAutoStateBinding: { type: "boolean", default: true },
+  // State binding is opt-in. When it is on, a state can intentionally mute
+  // every layer that is not assigned to it; keeping it off by default means
+  // the layer sliders behave as users expect immediately after enabling audio.
+  ambientAutoStateBinding: { type: "boolean", default: false },
   ambientMusicSource: {
     type: "string",
     default: "",
@@ -965,6 +968,30 @@ function migrate(raw) {
   // or theme choices.
   if (out.version < 16) {
     out.version = 16;
+  }
+  // v16 -> v17: state binding is opt-in. The first ambient release defaulted
+  // this switch on while mapping idle to white noise only, which silently
+  // muted the other manually selected layers for most users. Preserve an
+  // explicitly customized binding, but move the untouched first-release
+  // configuration to the safe manual-selection default.
+  if (out.version < 17) {
+    const defaultBinding = {
+      working: ["brown", "rain"],
+      idle: ["white"],
+      sleep: ["brown"],
+    };
+    const binding = out.ambientStateBinding;
+    const bindingMatchesDefault = !binding || typeof binding !== "object"
+      ? true
+      : Object.keys(defaultBinding).every((state) => {
+        const actual = Array.isArray(binding[state]) ? binding[state] : defaultBinding[state];
+        return actual.length === defaultBinding[state].length
+          && actual.every((name, index) => name === defaultBinding[state][index]);
+      });
+    if (out.ambientAutoStateBinding === true && bindingMatchesDefault) {
+      out.ambientAutoStateBinding = false;
+    }
+    out.version = 17;
   }
   if ((typeof out.version === "number" ? out.version : 0) < CURRENT_VERSION) {
     out.version = CURRENT_VERSION;

@@ -1460,6 +1460,7 @@ describe("prefs.migrate v15 → v16 (ambient sound)", () => {
       white: 0, pink: 0, brown: 0.3, rain: 0.5,
       fire: 0, waves: 0, cafe: 0, keyboard: 0,
     });
+    assert.strictEqual(upgraded.ambientAutoStateBinding, false);
   });
 
   it("preserves valid ambient preferences already present in a v15 file", () => {
@@ -1479,6 +1480,38 @@ describe("prefs.migrate v15 → v16 (ambient sound)", () => {
     assert.strictEqual(upgraded.ambientLayers.brown, 0);
     assert.deepStrictEqual(upgraded.ambientStateBinding.idle, []);
     assert.strictEqual(upgraded.ambientMusicSource, raw.ambientMusicSource);
+  });
+});
+
+describe("prefs.migrate v16 → v17 (ambient state binding opt-in)", () => {
+  it("turns the untouched first-release binding off so selected layers stay audible", () => {
+    const upgraded = prefs.validate(prefs.migrate({
+      version: 16,
+      ambientEnabled: true,
+      ambientAutoStateBinding: true,
+      ambientStateBinding: {
+        working: ["brown", "rain"],
+        idle: ["white"],
+        sleep: ["brown"],
+      },
+    }));
+    assert.strictEqual(upgraded.version, prefs.CURRENT_VERSION);
+    assert.strictEqual(upgraded.ambientAutoStateBinding, false);
+  });
+
+  it("preserves an explicitly customized binding and an explicit off choice", () => {
+    const customized = prefs.validate(prefs.migrate({
+      version: 16,
+      ambientAutoStateBinding: true,
+      ambientStateBinding: { working: ["rain"], idle: [], sleep: ["brown"] },
+    }));
+    assert.strictEqual(customized.ambientAutoStateBinding, true);
+
+    const manual = prefs.validate(prefs.migrate({
+      version: 16,
+      ambientAutoStateBinding: false,
+    }));
+    assert.strictEqual(manual.ambientAutoStateBinding, false);
   });
 });
 
@@ -1791,14 +1824,15 @@ describe("prefs.load", () => {
     assert.strictEqual(current.snapshot.version, prefs.CURRENT_VERSION);
     assert.strictEqual(current.snapshot.lang, "zh");
 
-    const futurePath = makeTempPath("v17.json");
-    fs.writeFileSync(futurePath, JSON.stringify({ version: 17, lang: "ja" }), "utf8");
+    const futureVersion = prefs.CURRENT_VERSION + 1;
+    const futurePath = makeTempPath(`v${futureVersion}.json`);
+    fs.writeFileSync(futurePath, JSON.stringify({ version: futureVersion, lang: "ja" }), "utf8");
     const originalWarn = console.warn;
     console.warn = () => {};
     try {
       const future = prefs.load(futurePath);
       assert.strictEqual(future.locked, true);
-      assert.strictEqual(future.snapshot.version, 17);
+      assert.strictEqual(future.snapshot.version, futureVersion);
       assert.strictEqual(future.snapshot.lang, "ja");
     } finally {
       console.warn = originalWarn;

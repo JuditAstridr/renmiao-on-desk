@@ -216,7 +216,7 @@
 
   function buildStateBindingSection() {
     const enabled = snapshotValue("ambientEnabled", false) === true;
-    const auto = snapshotValue("ambientAutoStateBinding", true) !== false;
+    const auto = snapshotValue("ambientAutoStateBinding", false) === true;
     const binding = snapshotValue("ambientStateBinding", {}) || {};
     const rows = [buildToggle({
       labelKey: "ambientAutoStateBinding",
@@ -392,7 +392,7 @@
     button.addEventListener("click", () => saveBulk({
       ambientLayers: { white: 0, pink: 0, brown: 0.3, rain: 0.5, fire: 0, waves: 0, cafe: 0, keyboard: 0 },
       ambientMasterVolume: 0.6,
-      ambientAutoStateBinding: true,
+      ambientAutoStateBinding: false,
       ambientStateBinding: { working: ["brown", "rain"], idle: ["white"], sleep: ["brown"] },
       ambientMusicEnabled: false,
       ambientMusicSource: "",
