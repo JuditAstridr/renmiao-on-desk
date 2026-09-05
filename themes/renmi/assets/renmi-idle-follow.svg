@@ -80,9 +80,9 @@
       <!-- This lower-left strip stays in the original orientation and
            overlaps the moving head by a small, rounded band. Only the upper
            head layer is rotated, so the left seam cannot open into a gap. -->
-      <path d="M 174 532
-        C 265 575 312 600 385 621
-        C 464 645 546 654 627 653
+      <path d="M 174 512
+        C 265 555 312 580 385 601
+        C 464 625 546 634 627 633
         L 627 760
         C 540 760 450 750 365 725
         C 280 700 220 660 174 610 Z" />
@@ -91,9 +91,9 @@
     <clipPath id="head-right-lower-static-clip" clipPathUnits="userSpaceOnUse">
       <!-- Mirror the fixed lower strip on the right so both head seams use
            the same two-layer construction. -->
-      <path d="M 1080 532
-        C 989 575 942 600 869 621
-        C 790 645 708 654 627 653
+      <path d="M 1080 512
+        C 989 555 942 580 869 601
+        C 790 625 708 634 627 633
         L 627 760
         C 714 760 804 750 889 725
         C 974 700 1034 660 1080 610 Z" />
