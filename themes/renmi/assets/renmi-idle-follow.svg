@@ -121,9 +121,17 @@
   <image href="renmi.png" x="0" y="0" width="1254" height="1254" clip-path="url(#torso-front-clip)" />
   <rect class="renmi-tint-fill" x="0" y="0" width="1254" height="1254" fill="transparent" clip-path="url(#torso-front-clip)" mask="url(#default-white-mask)" />
 
-  <!-- Head, eyes and blink. The head keeps only its local overlap clip: the
-       fixed full-silhouette mask would cut off the ears and crown after the
-       head tilts. The neck/body foreground below still restores that seam. -->
+  <!-- Stationary lower layer. Its upper edge overlaps the moving head so the
+       head can cover it wherever the two layers meet. -->
+  <image href="renmi.png" x="0" y="0" width="1254" height="1254" clip-path="url(#head-left-lower-static-clip)" />
+  <rect class="renmi-tint-fill" x="0" y="0" width="1254" height="1254" fill="transparent" clip-path="url(#head-left-lower-static-clip)" mask="url(#default-white-mask)" />
+  <image href="renmi.png" x="0" y="0" width="1254" height="1254" clip-path="url(#head-right-lower-static-clip)" />
+  <rect class="renmi-tint-fill" x="0" y="0" width="1254" height="1254" fill="transparent" clip-path="url(#head-right-lower-static-clip)" mask="url(#default-white-mask)" />
+  <image href="renmi.png" x="0" y="0" width="1254" height="1254" clip-path="url(#neck-front-clip)" />
+  <rect class="renmi-tint-fill" x="0" y="0" width="1254" height="1254" fill="transparent" clip-path="url(#neck-front-clip)" mask="url(#default-white-mask)" />
+
+  <!-- Head, eyes and blink are the upper layer. The head keeps only its
+       local overlap clip so the ears and crown remain intact while it tilts. -->
   <g id="head-js">
     <image href="renmi.png" x="0" y="0" width="1254" height="1254" clip-path="url(#head-overlap-clip)" />
     <rect class="renmi-tint-fill" x="0" y="0" width="1254" height="1254" fill="transparent" clip-path="url(#head-overlap-clip)" mask="url(#default-white-mask)" />
@@ -144,12 +152,6 @@
       </g>
     </g>
   </g>
-  <image href="renmi.png" x="0" y="0" width="1254" height="1254" clip-path="url(#head-left-lower-static-clip)" />
-  <rect class="renmi-tint-fill" x="0" y="0" width="1254" height="1254" fill="transparent" clip-path="url(#head-left-lower-static-clip)" mask="url(#default-white-mask)" />
-  <image href="renmi.png" x="0" y="0" width="1254" height="1254" clip-path="url(#head-right-lower-static-clip)" />
-  <rect class="renmi-tint-fill" x="0" y="0" width="1254" height="1254" fill="transparent" clip-path="url(#head-right-lower-static-clip)" mask="url(#default-white-mask)" />
-  <image href="renmi.png" x="0" y="0" width="1254" height="1254" clip-path="url(#neck-front-clip)" />
-  <rect class="renmi-tint-fill" x="0" y="0" width="1254" height="1254" fill="transparent" clip-path="url(#neck-front-clip)" mask="url(#default-white-mask)" />
 
   <!-- Keep the tint bridge local to this scripted SVG. Eye tracking and head
        tilt are controlled by the renderer through the ids above. -->
