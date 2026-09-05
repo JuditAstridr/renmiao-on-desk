@@ -29,4 +29,12 @@ describe("Study Companion integration", () => {
     assert.match(renderer, /clawd-timer-hud/);
     assert.match(renderer, /pointerEvents = "none"/);
   });
+
+  it("keeps a subtask add form visible for every parent task", () => {
+    const renderer = read("src/study-dashboard-renderer.js");
+    assert.match(renderer, /function appendSubtasks\(card, task\)/);
+    assert.doesNotMatch(renderer, /const subtasks = Array\.isArray\(task\.subtasks\) \? task\.subtasks : \[\];\n  if \(!subtasks\.length\) return;/);
+    assert.match(renderer, /form\.className = "subtask-form"/);
+    assert.match(renderer, /call\("addSubtask", task\.id/);
+  });
 });

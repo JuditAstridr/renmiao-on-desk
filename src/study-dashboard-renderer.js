@@ -313,7 +313,6 @@ function appendTaskFields(card, task) {
 
 function appendSubtasks(card, task) {
   const subtasks = Array.isArray(task.subtasks) ? task.subtasks : [];
-  if (!subtasks.length) return;
   const wrap = document.createElement("div");
   wrap.className = "subtasks";
   for (const subtask of subtasks) {
