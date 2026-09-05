@@ -162,3 +162,7 @@ Microsoft/
 
 # Emoji export scratch
 clawd-emoji-final/
+
+# Local feature-import archives; extracted runtime assets are tracked instead.
+/desk-pet-skin-system*.zip
+/themes/renmi.zip
