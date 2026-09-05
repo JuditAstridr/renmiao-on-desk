@@ -72,8 +72,8 @@
       <path d="M 174 0 H 1080 V 550
         C 989 593 942 618 869 641
         C 790 666 708 680 627 681
-        C 546 680 464 666 385 641
-        C 312 618 265 593 174 550 Z" />
+        C 546 682 464 673 385 649
+        C 312 628 265 603 174 560 Z" />
     </clipPath>
 
     <clipPath id="neck-front-clip" clipPathUnits="userSpaceOnUse">
