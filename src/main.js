@@ -105,6 +105,7 @@ const {
 } = require("./settings-size-preview-session");
 const { registerSettingsIpc } = require("./settings-ipc");
 const createSettingsEffectRouter = require("./settings-effect-router");
+const { createAmbientRuntime } = require("./ambient-runtime");
 const { createKimiQuotaClient } = require("./kimi-quota-client");
 const { createKimiQuotaCredentialStore } = require("./kimi-quota-credential-store");
 const { createKimiQuotaRuntime } = require("./kimi-quota-runtime");
@@ -452,6 +453,7 @@ let telegramNativeRunner = null;
 let telegramCompanion = null;
 let telegramDirectSend = null;
 let discordPresenceBridge = null;
+let ambientRuntime = null;
 // Renderer-visible state animations can diverge briefly from state.currentSvg
 // (tick.js idle rotation). Cache every state-change even while Presence is off
 // so a first enable mirrors what the pet is actually showing.
@@ -1522,13 +1524,14 @@ let lastSoundTime = 0;
 const SOUND_COOLDOWN_MS = 10000;
 
 function playSound(name) {
-  if (soundMuted || doNotDisturb) return;
+  if (soundMuted || doNotDisturb) return false;
   const now = Date.now();
-  if (now - lastSoundTime < SOUND_COOLDOWN_MS) return;
+  if (now - lastSoundTime < SOUND_COOLDOWN_MS) return false;
   const url = themeRuntime.getSoundUrl(name);
-  if (!url) return;
+  if (!url) return false;
   lastSoundTime = now;
   sendToRenderer("play-sound", { url, volume: soundVolume });
+  return true;
 }
 
 function resetSoundCooldown() {
@@ -2013,6 +2016,7 @@ const _stateCtx = {
   notifyUpdaterSilentExit: () => notifyUpdaterSilentExit(),
   sendToRenderer,
   sendToHitWin,
+  ambientRuntime: null,
   syncHitWin,
   playSound,
   flashTaskbar,
@@ -2088,6 +2092,13 @@ const _stateCtx = {
   isAgentEnabled: (agentId) => _runtimeAgentGate.isAgentEnabled(agentId),
   hasAnyEnabledAgent: () => _runtimeAgentGate.hasAnyEnabledAgent(),
 };
+ambientRuntime = createAmbientRuntime();
+ambientRuntime.init({
+  getPrefs: () => _settingsController.getSnapshot(),
+  getDoNotDisturb: () => doNotDisturb,
+  sendToRenderer,
+});
+_stateCtx.ambientRuntime = ambientRuntime;
 const _state = require("./state")(_stateCtx);
 const _kimiQuotaCredentialStore = createKimiQuotaCredentialStore({
   safeStorage,
@@ -4266,6 +4277,8 @@ const _menuCtx = {
   ),
   get soundMuted() { return soundMuted; },
   set soundMuted(v) { _settingsController.applyUpdate("soundMuted", v); },
+  get ambientEnabled() { return _settingsController.get("ambientEnabled") === true; },
+  setAmbientEnabled(v) { return _settingsController.applyUpdate("ambientEnabled", v === true); },
   get soundVolume() { return soundVolume; },
   get pendingPermissions() { return pendingPermissions; },
   repositionBubbles: () => repositionFloatingBubbles(),
@@ -4459,6 +4472,7 @@ const holidayAccessoryRuntime = createHolidayAccessoryRuntime({
 
 const settingsEffectRouter = createSettingsEffectRouter({
   settingsController: _settingsController,
+  ambientRuntime,
   BrowserWindow,
   updateMirrors: updateSettingsMirrors,
   createTray,
@@ -5092,6 +5106,7 @@ function createWindow() {
     petWindowRuntime.resendViewportOffsets();
     if (themeRuntime.isReloadInProgress()) return;
     syncRendererStateAfterLoad();
+    if (ambientRuntime) ambientRuntime.syncToRenderer();
   });
 
   // ── Crash recovery: renderer process can die from <object> churn ──
@@ -5745,6 +5760,7 @@ if (!gotTheLock) {
     }
     if (quitCleanupStarted) return;
     quitCleanupStarted = true;
+    if (ambientRuntime) ambientRuntime.close();
     trayBalloonOwner.dispose();
     holidayAccessoryRuntime.dispose();
     if (systemWakeRecovery) systemWakeRecovery.dispose();

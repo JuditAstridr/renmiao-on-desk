@@ -2761,19 +2761,58 @@ window.electronAPI.onPlaySound((payload) => {
   const volume = typeof payload === "object" && payload && typeof payload.volume === "number"
     ? Math.max(0, Math.min(1, payload.volume))
     : 1;
-  if (!url) return;
+  const ambientCtrl = window.ClawdAmbientController;
+  const isPreview = typeof url === "string" && url.includes("_t=");
+  if (!url) {
+    if (!isPreview && ambientCtrl && typeof ambientCtrl.notifyStateSoundEnded === "function") {
+      try { ambientCtrl.notifyStateSoundEnded(); } catch {}
+    }
+    return;
+  }
   // Preview URLs carry a `_t=` cache-buster so every click is a fresh URL;
   // caching them would grow the map unboundedly (one entry per preview click)
   // for no benefit since the URL will never be requested again. Only cache
   // real playback URLs.
-  const isPreview = url.includes("_t=");
   const audio = isPreview ? new Audio(url) : cacheAudio(url);
-  if (!audio) return;
+  if (!audio) {
+    if (!isPreview && ambientCtrl && typeof ambientCtrl.notifyStateSoundEnded === "function") {
+      try { ambientCtrl.notifyStateSoundEnded(); } catch {}
+    }
+    return;
+  }
   if (isPreview) audio.preload = "auto";
+  let duckRecovered = false;
+  function recoverDuck() {
+    if (duckRecovered) return;
+    duckRecovered = true;
+    try { audio.removeEventListener("ended", recoverDuck); } catch {}
+    try { audio.removeEventListener("pause", recoverDuck); } catch {}
+    try { audio.removeEventListener("error", recoverDuck); } catch {}
+    if (!isPreview && ambientCtrl && typeof ambientCtrl.notifyStateSoundEnded === "function") {
+      try { ambientCtrl.notifyStateSoundEnded(); } catch {}
+    }
+  }
   warmAudioOutput(url).then(() => {
     audio.volume = volume;
     audio.currentTime = 0;
-    audio.play().catch((err) => reportSoundPlaybackError("play", err));
+    if (!isPreview && ambientCtrl && typeof ambientCtrl.notifyStateSoundStarted === "function") {
+      try { ambientCtrl.notifyStateSoundStarted(); } catch {}
+      try { audio.addEventListener("ended", recoverDuck); } catch {}
+      try { audio.addEventListener("pause", recoverDuck); } catch {}
+      try { audio.addEventListener("error", recoverDuck); } catch {}
+    }
+    try {
+      const playPromise = audio.play();
+      if (playPromise && typeof playPromise.catch === "function") {
+        playPromise.catch((err) => {
+          recoverDuck();
+          reportSoundPlaybackError("play", err);
+        });
+      }
+    } catch (err) {
+      recoverDuck();
+      reportSoundPlaybackError("play", err);
+    }
   });
 });
 // Same-extension override replacement overwrites the file on disk without
@@ -2798,3 +2837,189 @@ if (!currentDisplayedSvg && _initialIdleSvg) {
   currentIdleSvg = _initialIdleSvg;
   swapToFile(_initialIdleSvg, "idle");
 }
+
+// ── Ambient sound controller ──
+// The pet renderer owns Web Audio and the optional <audio> element. Main only
+// supplies validated preference/state/gate snapshots, so this remains
+// independent from the existing theme sound path above.
+(function initAmbientController() {
+  if (window.ClawdAmbientController) return;
+
+  const Synth = window.ClawdAmbientSynth;
+  const Music = window.ClawdAmbientMusic;
+  const Duck = window.ClawdAmbientDucking;
+  if (!Synth || !Music || !Duck) {
+    window.ClawdAmbientController = {
+      notifyStateSoundStarted() {},
+      notifyStateSoundEnded() {},
+    };
+    return;
+  }
+
+  let audioContext = null;
+  let engine = null;
+  let music = null;
+  let duck = null;
+  let prefs = null;
+  let gates = null;
+  let ambientState = "idle";
+  let loadedMusicSource = "";
+
+  function clamp01(value) {
+    if (typeof value !== "number" || !Number.isFinite(value)) return 0;
+    return Math.max(0, Math.min(1, value));
+  }
+
+  function logWarn(message, error) {
+    try { console.warn("Clawd ambient:", message, error && error.message); } catch {}
+  }
+
+  function ensureAudioContext() {
+    if (audioContext) return audioContext;
+    const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextCtor) {
+      logWarn("AudioContext is unavailable");
+      return null;
+    }
+    try { audioContext = new AudioContextCtor(); }
+    catch (error) { logWarn("AudioContext creation failed", error); }
+    return audioContext;
+  }
+
+  function disposeRuntime() {
+    if (duck) { try { duck.dispose(); } catch {} duck = null; }
+    if (engine) { try { engine.dispose(); } catch {} engine = null; }
+    if (music) { try { music.dispose(); } catch {} music = null; }
+    if (audioContext) {
+      try {
+        const closing = audioContext.close && audioContext.close();
+        if (closing && typeof closing.catch === "function") closing.catch(() => {});
+      } catch {}
+      audioContext = null;
+    }
+    loadedMusicSource = "";
+  }
+
+  function normalizeState(state) {
+    const value = String(state || "idle");
+    if (["working", "thinking", "juggling", "carrying", "mini-working"].includes(value)) return "working";
+    if (["sleep", "sleeping", "dozing", "yawning", "collapsing", "mini-sleep"].includes(value)) return "sleep";
+    return value === "idle" ? "idle" : "idle";
+  }
+
+  function applyStateBinding(state) {
+    if (!prefs || prefs.ambientEnabled !== true || !engine) return;
+    if (prefs.ambientAutoStateBinding !== true) return;
+    const binding = prefs.ambientStateBinding && typeof prefs.ambientStateBinding === "object"
+      ? prefs.ambientStateBinding
+      : {};
+    const layerNames = binding[normalizeState(state)];
+    if (!Array.isArray(layerNames)) return;
+    const base = prefs.ambientLayers && typeof prefs.ambientLayers === "object"
+      ? prefs.ambientLayers
+      : {};
+    const active = new Set(layerNames);
+    const values = {};
+    for (const name of Synth.LAYER_NAMES) {
+      values[name] = active.has(name) ? clamp01(base[name]) : 0;
+    }
+    try { engine.applyLayerSet(values); }
+    catch (error) { logWarn("state binding failed", error); }
+  }
+
+  function applyMusic() {
+    if (!music || !prefs) return;
+    const enabled = prefs.ambientMusicEnabled === true;
+    const source = String(prefs.ambientMusicSource || "").trim();
+    if (!enabled || !source || (typeof Music.isAllowedSource === "function" && !Music.isAllowedSource(source))) {
+      music.stop();
+      loadedMusicSource = "";
+      return;
+    }
+    if (loadedMusicSource !== source) {
+      loadedMusicSource = music.load(source) ? source : "";
+    }
+    music.setVolume(clamp01(prefs.ambientMusicVolume));
+    if (loadedMusicSource === source) music.play();
+  }
+
+  function buildRuntime() {
+    if (!prefs) return;
+    if (prefs.ambientEnabled !== true || (gates && (gates.soundMuted || gates.doNotDisturb))) {
+      disposeRuntime();
+      return;
+    }
+    const ctx = ensureAudioContext();
+    if (!ctx) return;
+    if (ctx.state === "suspended" && typeof ctx.resume === "function") {
+      try {
+        const resumed = ctx.resume();
+        if (resumed && typeof resumed.catch === "function") resumed.catch(() => {});
+      } catch {}
+    }
+    if (!engine) engine = Synth.createLayerEngine(ctx, {
+      masterVolume: clamp01(prefs.ambientMasterVolume),
+    });
+    if (!music) music = Music.createMusicController();
+    if (!duck) {
+      duck = Duck.createDuckCoordinator({
+        ctx,
+        masterGain: engine.masterGain,
+        musicController: music,
+        duckingMs: prefs.ambientDuckingMs,
+        cooldownMs: prefs.ambientDuckCooldownMs,
+      });
+    } else {
+      duck.setDuckingMs(prefs.ambientDuckingMs);
+      duck.setCooldownMs(prefs.ambientDuckCooldownMs);
+    }
+    engine.setMasterVolume(clamp01(prefs.ambientMasterVolume));
+    engine.applyLayerSet(prefs.ambientLayers || {});
+    applyMusic();
+    applyStateBinding(ambientState);
+    if (duck && typeof duck.setRestoreLevels === "function") {
+      duck.setRestoreLevels({
+        master: clamp01(prefs.ambientMasterVolume),
+        music: clamp01(prefs.ambientMusicVolume),
+      });
+    }
+  }
+
+  if (window.electronAPI) {
+    if (typeof window.electronAPI.onAmbientPrefsUpdate === "function") {
+      window.electronAPI.onAmbientPrefsUpdate((payload) => {
+        if (!payload || typeof payload !== "object") return;
+        if (payload.ambient && typeof payload.ambient === "object") prefs = payload.ambient;
+        if (payload.gates && typeof payload.gates === "object") gates = payload.gates;
+        try { buildRuntime(); } catch (error) { logWarn("preference update failed", error); }
+      });
+    }
+    if (typeof window.electronAPI.onAmbientStateChange === "function") {
+      window.electronAPI.onAmbientStateChange((payload) => {
+        if (!payload || typeof payload !== "object") return;
+        if (payload.ambient && typeof payload.ambient === "object") prefs = payload.ambient;
+        if (payload.gates && typeof payload.gates === "object") gates = payload.gates;
+        ambientState = String(payload.state || ambientState || "idle");
+        try { buildRuntime(); } catch (error) { logWarn("state update failed", error); }
+      });
+    }
+    if (typeof window.electronAPI.onAmbientStateSoundTrigger === "function") {
+      window.electronAPI.onAmbientStateSoundTrigger(() => {
+        if (duck) { try { duck.onStateSoundTriggered(); } catch {} }
+      });
+    }
+  }
+
+  window.ClawdAmbientController = {
+    notifyStateSoundStarted() {
+      if (duck && prefs && prefs.ambientEnabled === true) {
+        try { duck.onStateSoundTriggered(); } catch {}
+      }
+    },
+    notifyStateSoundEnded() {
+      if (duck && prefs && prefs.ambientEnabled === true) {
+        try { duck.onStateSoundEnded(); } catch {}
+      }
+    },
+  };
+})();

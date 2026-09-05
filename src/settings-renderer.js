@@ -9,6 +9,7 @@ const SIDEBAR_TABS = [
   { id: "general", labelKey: "sidebarGeneral", available: true },
   { id: "agents", labelKey: "sidebarAgents", available: true },
   { id: "theme", labelKey: "sidebarTheme", available: true },
+  { id: "ambient", labelKey: "sidebarAmbient", available: true },
   { id: "animOverrides", labelKey: "sidebarAnimOverrides", available: true },
   { id: "shortcuts", labelKey: "sidebarShortcuts", available: true },
   { id: "discord-presence", labelKey: "sidebarDiscordPresence", available: true },
@@ -83,6 +84,7 @@ core.ops.installRenderHooks({
 globalThis.ClawdSettingsTabGeneral.init(core);
 globalThis.ClawdSettingsTabAgents.init(core);
 globalThis.ClawdSettingsTabTheme.init(core);
+globalThis.ClawdSettingsTabAmbient.init(core);
 // Not a top-level tab anymore — it provides the "on / off" subtab that
 // ClawdSettingsTabAnimOverrides renders. init() just wires up the core refs.
 globalThis.ClawdSettingsTabAnimMap.init(core);

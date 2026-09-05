@@ -729,6 +729,91 @@ html, body {
   gap: 8px;
 }
 
+/* Ambient controls are wider than the compact switches used by most tabs. */
+.ambient-range-control {
+  width: 280px;
+}
+.ambient-range {
+  width: 100%;
+  min-width: 120px;
+  height: 22px;
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+.ambient-range:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+.ambient-row-disabled {
+  opacity: 0.62;
+}
+.ambient-presets-row,
+.ambient-state-binding-row,
+.ambient-music-source-row {
+  align-items: flex-start;
+}
+.ambient-presets,
+.ambient-layer-checkboxes {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.ambient-layer-checkboxes {
+  max-width: 520px;
+  row-gap: 7px;
+}
+.ambient-layer-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-secondary);
+  font-size: 11px;
+  white-space: nowrap;
+}
+.ambient-layer-checkbox input {
+  accent-color: var(--accent);
+}
+.ambient-music-source-control {
+  width: 420px;
+}
+.ambient-music-source-input {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 7px 8px;
+  background: var(--panel-bg);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 12px;
+}
+.ambient-music-source-input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.ambient-music-source-input:disabled {
+  opacity: 0.55;
+}
+@media (max-width: 720px) {
+  .ambient-range-control,
+  .ambient-music-source-control {
+    width: 100%;
+  }
+  .ambient-range-row,
+  .ambient-presets-row,
+  .ambient-state-binding-row,
+  .ambient-music-source-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .ambient-presets,
+  .ambient-layer-checkboxes {
+    justify-content: flex-start;
+    max-width: none;
+  }
+}
+
 .bubble-policy-row {
   flex-direction: column;
   align-items: stretch;

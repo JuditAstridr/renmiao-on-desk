@@ -24,6 +24,7 @@ const SIDEBAR_TAB_IDS = [
   "general",
   "agents",
   "theme",
+  "ambient",
   "animOverrides",
   "shortcuts",
   "discord-presence",

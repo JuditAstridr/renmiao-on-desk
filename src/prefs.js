@@ -62,12 +62,91 @@ const {
   PET_ACCESSORY_IDS,
 } = require("./pet-customization-catalog");
 
-const CURRENT_VERSION = 15;
+const CURRENT_VERSION = 16;
 const DEFAULT_INTEGRATION_INSTALLED_IDS = Object.freeze(["claude-code", "codex"]);
 const DEFAULT_INTEGRATION_INSTALLED_SET = new Set(DEFAULT_INTEGRATION_INSTALLED_IDS);
 
 function isDefaultIntegrationInstalled(agentId) {
   return DEFAULT_INTEGRATION_INSTALLED_SET.has(agentId);
+}
+
+const AMBIENT_LAYER_NAMES = Object.freeze([
+  "white", "pink", "brown", "rain", "fire", "waves", "cafe", "keyboard",
+]);
+const AMBIENT_STATE_NAMES = Object.freeze(["working", "idle", "sleep"]);
+
+function ambientDefaultLayers() {
+  return {
+    white: 0, pink: 0, brown: 0.3, rain: 0.5,
+    fire: 0, waves: 0, cafe: 0, keyboard: 0,
+  };
+}
+
+function normalizeAmbientLayers(value) {
+  const defaults = ambientDefaultLayers();
+  if (!isPlainObject(value)) return defaults;
+  const out = {};
+  for (const name of AMBIENT_LAYER_NAMES) {
+    const raw = value[name];
+    out[name] = typeof raw === "number" && Number.isFinite(raw)
+      ? Math.max(0, Math.min(1, raw))
+      : 0;
+  }
+  return out;
+}
+
+function normalizeAmbientStateBinding(value) {
+  const defaults = {
+    working: ["brown", "rain"],
+    idle: ["white"],
+    sleep: ["brown"],
+  };
+  if (!isPlainObject(value)) return defaults;
+  const allowed = new Set(AMBIENT_LAYER_NAMES);
+  const out = {};
+  for (const state of AMBIENT_STATE_NAMES) {
+    const entries = Array.isArray(value[state]) ? value[state] : defaults[state];
+    out[state] = entries.filter((name, index) => (
+      typeof name === "string" && allowed.has(name) && entries.indexOf(name) === index
+    ));
+  }
+  return out;
+}
+
+function isAllowedAmbientMusicSource(value) {
+  if (typeof value !== "string" || value.length > 4096) return false;
+  const source = value.trim();
+  if (!source) return true;
+  const normalized = source.replace(/\\/g, "/");
+  if (normalized.startsWith("/") || /^[A-Za-z]:\//.test(normalized)) return true;
+  if (/^\/\/[^/]+\/[^/]+/.test(normalized)) return true;
+  try {
+    const parsed = new URL(source);
+    if (/^https:\/\//i.test(source) && parsed.protocol === "https:" && parsed.hostname) return true;
+    return /^file:\/\//i.test(source)
+      && parsed.protocol === "file:"
+      && (!parsed.hostname || parsed.hostname.toLowerCase() === "localhost");
+  } catch {
+    return false;
+  }
+}
+
+function normalizeAmbientUserPresets(value) {
+  if (!Array.isArray(value)) return [];
+  const out = [];
+  for (const entry of value) {
+    if (!isPlainObject(entry)) continue;
+    const name = typeof entry.name === "string" ? entry.name.trim().slice(0, 64) : "";
+    if (!name) continue;
+    const musicSrc = isAllowedAmbientMusicSource(entry.musicSrc)
+      ? entry.musicSrc.trim()
+      : "";
+    const master = typeof entry.master === "number" && Number.isFinite(entry.master)
+      ? Math.max(0, Math.min(1, entry.master))
+      : 0.6;
+    out.push({ name, layers: normalizeAmbientLayers(entry.layers), master, musicSrc });
+  }
+  return out.slice(0, 32);
 }
 
 // ── Schema ──
@@ -260,6 +339,59 @@ const SCHEMA = {
   soundVolume: {
     type: "number",
     default: 1,
+    validate: (v) => Number.isFinite(v) && v >= 0 && v <= 1,
+  },
+  // Ambient sound is deliberately separate from theme.sounds. The renderer
+  // synthesizes these layers with Web Audio and the optional music source is
+  // played by an independent <audio> element.
+  ambientEnabled: { type: "boolean", default: false },
+  ambientMasterVolume: {
+    type: "number",
+    default: 0.6,
+    validate: (v) => Number.isFinite(v) && v >= 0 && v <= 1,
+  },
+  ambientLayers: {
+    type: "object",
+    defaultFactory: () => ({
+      white: 0, pink: 0, brown: 0.3, rain: 0.5,
+      fire: 0, waves: 0, cafe: 0, keyboard: 0,
+    }),
+    normalize: normalizeAmbientLayers,
+  },
+  ambientStateBinding: {
+    type: "object",
+    defaultFactory: () => ({
+      working: ["brown", "rain"],
+      idle: ["white"],
+      sleep: ["brown"],
+    }),
+    normalize: normalizeAmbientStateBinding,
+  },
+  ambientDuckingMs: {
+    type: "number",
+    default: 500,
+    validate: (v) => Number.isInteger(v) && v >= 100 && v <= 3000,
+  },
+  ambientDuckCooldownMs: {
+    type: "number",
+    default: 2000,
+    validate: (v) => Number.isInteger(v) && v >= 500 && v <= 10000,
+  },
+  ambientUserPresets: {
+    type: "array",
+    defaultFactory: () => [],
+    normalize: normalizeAmbientUserPresets,
+  },
+  ambientAutoStateBinding: { type: "boolean", default: true },
+  ambientMusicSource: {
+    type: "string",
+    default: "",
+    validate: isAllowedAmbientMusicSource,
+  },
+  ambientMusicEnabled: { type: "boolean", default: false },
+  ambientMusicVolume: {
+    type: "number",
+    default: 0.5,
     validate: (v) => Number.isFinite(v) && v >= 0 && v <= 1,
   },
   flashTaskbarOnComplete: { type: "boolean", default: true },
@@ -827,6 +959,12 @@ function migrate(raw) {
       out.agents.zcode.permissionsEnabled = true;
     }
     out.version = 15;
+  }
+  // v15 -> v16: ambient sound preferences. New fields are intentionally
+  // default-only; validate() fills them without changing any existing audio
+  // or theme choices.
+  if (out.version < 16) {
+    out.version = 16;
   }
   if ((typeof out.version === "number" ? out.version : 0) < CURRENT_VERSION) {
     out.version = CURRENT_VERSION;
@@ -1498,6 +1636,10 @@ module.exports = {
   normalizeThemeOverrides,
   normalizePetTint,
   normalizePetTintSaturation,
+  normalizeAmbientLayers,
+  normalizeAmbientStateBinding,
+  isAllowedAmbientMusicSource,
+  normalizeAmbientUserPresets,
   normalizeShortcuts,
   normalizeOptionalHttpUrl,
   normalizePathList,

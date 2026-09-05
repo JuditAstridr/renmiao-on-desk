@@ -158,6 +158,16 @@ module.exports = function initMenu(ctx) {
         checked: !ctx.soundMuted,
         click: (menuItem) => { ctx.soundMuted = !menuItem.checked; },
       },
+      {
+        label: t("ambientTrayToggle"),
+        type: "checkbox",
+        checked: ctx.ambientEnabled === true,
+        click: (menuItem) => {
+          if (typeof ctx.setAmbientEnabled === "function") {
+            ctx.setAmbientEnabled(menuItem.checked);
+          }
+        },
+      },
     ];
 
     // Study actions.

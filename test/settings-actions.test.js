@@ -51,6 +51,45 @@ describe("updateRegistry pure-data validators", () => {
     assert.strictEqual(updateRegistry.lang("klingon", { snapshot: baseSnapshot }).status, "error");
   });
 
+  it("validates ambient sound settings without accepting unsafe shapes", () => {
+    const deps = { snapshot: baseSnapshot };
+    assert.strictEqual(updateRegistry.ambientEnabled(true, deps).status, "ok");
+    assert.strictEqual(updateRegistry.ambientEnabled("true", deps).status, "error");
+    assert.strictEqual(updateRegistry.ambientMasterVolume(0.4, deps).status, "ok");
+    assert.strictEqual(updateRegistry.ambientMasterVolume(1.1, deps).status, "error");
+    assert.strictEqual(updateRegistry.ambientDuckingMs(500, deps).status, "ok");
+    assert.strictEqual(updateRegistry.ambientDuckingMs(50, deps).status, "error");
+    assert.strictEqual(updateRegistry.ambientMusicSource("", deps).status, "ok");
+    assert.strictEqual(updateRegistry.ambientMusicSource("/tmp/music.mp3", deps).status, "ok");
+    assert.strictEqual(updateRegistry.ambientMusicSource("C:\\\\Music\\\\music.mp3", deps).status, "ok");
+    assert.strictEqual(updateRegistry.ambientMusicSource("file:///tmp/music.mp3", deps).status, "ok");
+    assert.strictEqual(updateRegistry.ambientMusicSource("https://example.test/a.mp3", deps).status, "ok");
+    assert.strictEqual(updateRegistry.ambientMusicSource("relative.mp3", deps).status, "error");
+    assert.strictEqual(updateRegistry.ambientMusicSource("http://example.test/a.mp3", deps).status, "error");
+    assert.strictEqual(updateRegistry.ambientMusicSource("blob:https://example.test/id", deps).status, "error");
+    assert.strictEqual(updateRegistry.ambientMusicSource("x".repeat(4097), deps).status, "error");
+    assert.strictEqual(
+      updateRegistry.ambientLayers({ brown: 0.4, rain: 0.2 }, deps).status,
+      "ok"
+    );
+    assert.strictEqual(
+      updateRegistry.ambientLayers({ secret: 1 }, deps).status,
+      "error"
+    );
+    assert.strictEqual(
+      updateRegistry.ambientStateBinding({ working: ["brown"], idle: [], sleep: ["rain"] }, deps).status,
+      "ok"
+    );
+    assert.strictEqual(
+      updateRegistry.ambientStateBinding({ working: ["../secret"] }, deps).status,
+      "error"
+    );
+    assert.strictEqual(
+      updateRegistry.ambientStateBinding({ working: ["brown"], idle: [] }, deps).status,
+      "error"
+    );
+  });
+
   it("size accepts S/M/L and P:<num>", () => {
     const deps = { snapshot: baseSnapshot };
     assert.strictEqual(updateRegistry.size("S", deps).status, "ok");

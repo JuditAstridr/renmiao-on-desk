@@ -46,6 +46,11 @@ contextBridge.exposeInMainWorld("electronAPI", {
   onPreloadSounds: (cb) => ipcRenderer.on("preload-sounds", (_, payload) => cb(payload)),
   onPlaySound: (cb) => ipcRenderer.on("play-sound", (_, payload) => cb(payload)),
   onInvalidateSoundCache: (cb) => ipcRenderer.on("invalidate-sound-cache", (_, url) => cb(url)),
+  // Ambient audio is renderer-owned: main only sends preference, state, and
+  // gate snapshots. The pet window receives no ambient write primitive.
+  onAmbientPrefsUpdate: (cb) => ipcRenderer.on("ambient-prefs-update", (_, payload) => cb(payload)),
+  onAmbientStateChange: (cb) => ipcRenderer.on("ambient-state-change", (_, payload) => cb(payload)),
+  onAmbientStateSoundTrigger: (cb) => ipcRenderer.on("ambient-state-sound-trigger", (_, payload) => cb(payload)),
   reportSoundPlaybackError: (payload) => ipcRenderer.send("sound-playback-error", payload),
   // Render window → main (cursor polling control during reactions)
   pauseCursorPolling: () => ipcRenderer.send("pause-cursor-polling"),

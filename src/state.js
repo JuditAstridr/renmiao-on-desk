@@ -734,10 +734,29 @@ function applyState(state, svgOverride, options = {}) {
 
   // Sound triggers
   if (state === "attention" || state === "mini-happy") {
-    ctx.playSound("complete");
+    const played = ctx.playSound("complete");
+    // playSound returns false when a global gate, cooldown, or missing theme
+    // asset suppresses playback. Do not leave ambient ducking active for a
+    // sound that was never sent to the renderer. Undefined remains accepted
+    // for lightweight state-machine test fakes and legacy embedders.
+    if (played !== false && ctx.ambientRuntime && typeof ctx.ambientRuntime.onStateSoundTriggered === "function") {
+      ctx.ambientRuntime.onStateSoundTriggered("complete");
+    }
     if (ctx.flashTaskbar) ctx.flashTaskbar();
   } else if (state === "notification" || state === "mini-alert") {
-    if (!applyOptions.muteNotificationSound) ctx.playSound("confirm");
+    if (!applyOptions.muteNotificationSound) {
+      const played = ctx.playSound("confirm");
+      if (played !== false && ctx.ambientRuntime && typeof ctx.ambientRuntime.onStateSoundTriggered === "function") {
+        ctx.ambientRuntime.onStateSoundTriggered("confirm");
+      }
+    }
+  }
+
+  // Ambient state binding is a renderer concern, but state.js is the
+  // authoritative source of the visible pet state. The runtime only relays
+  // this notification; it never writes prefs.
+  if (ctx.ambientRuntime && typeof ctx.ambientRuntime.onStateChanged === "function") {
+    try { ctx.ambientRuntime.onStateChanged(state); } catch {}
   }
 
   // #509: no-override idle entries (e.g. roam ending) also rest on the
@@ -3027,6 +3046,9 @@ function disposeAllKimiPermissionState() {
 function enableDoNotDisturb() {
   if (ctx.doNotDisturb) return;
   ctx.doNotDisturb = true;
+  if (ctx.ambientRuntime && typeof ctx.ambientRuntime.onGatesChanged === "function") {
+    try { ctx.ambientRuntime.onGatesChanged(); } catch {}
+  }
   ctx.sendToRenderer("dnd-change", true);
   ctx.sendToHitWin("hit-state-sync", { dndEnabled: true });
   if (typeof ctx.dismissPermissionsForDnd === "function") {
@@ -3050,6 +3072,9 @@ function enableDoNotDisturb() {
 function disableDoNotDisturb() {
   if (!ctx.doNotDisturb) return;
   ctx.doNotDisturb = false;
+  if (ctx.ambientRuntime && typeof ctx.ambientRuntime.onGatesChanged === "function") {
+    try { ctx.ambientRuntime.onGatesChanged(); } catch {}
+  }
   ctx.sendToRenderer("dnd-change", false);
   ctx.sendToHitWin("hit-state-sync", { dndEnabled: false });
   if (ctx.miniMode) {

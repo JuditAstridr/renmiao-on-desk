@@ -19,6 +19,7 @@ const {
 const MENU_AFFECTING_KEYS = new Set([
   "lang",
   "soundMuted",
+  "ambientEnabled",
   "bubbleFollowPet",
   "hideBubbles",
   "permissionBubblesEnabled",
@@ -62,6 +63,7 @@ function safeCall(logWarn, message, fn, ...args) {
 
 function createSettingsEffectRouter(options = {}) {
   const settingsController = requiredDependency(options.settingsController, "settingsController");
+  const ambientRuntime = options.ambientRuntime || null;
   const BrowserWindow = options.BrowserWindow || { getAllWindows: () => [] };
   const logWarn = options.logWarn || console.warn;
   const updateMirrors = options.updateMirrors || noop;
@@ -138,6 +140,12 @@ function createSettingsEffectRouter(options = {}) {
 
     // 1. Update mirror caches first so any side-effect handler reads fresh values.
     updateMirrors(changes);
+    safeCall(
+      logWarn,
+      "Clawd: ambient preferences update failed:",
+      ambientRuntime && ambientRuntime.onPrefsUpdate,
+      settingsController.getSnapshot()
+    );
 
     if ("showTray" in changes) {
       safeCall(

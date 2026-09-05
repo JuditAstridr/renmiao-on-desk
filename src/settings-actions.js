@@ -54,6 +54,7 @@ const {
   MAX_HIDDEN_QUOTA_PROVIDERS,
   isValidSettingsWindowBounds,
   normalizePathList,
+  isAllowedAmbientMusicSource,
 } = require("./prefs");
 const {
   MAX_CUSTOM_APPLICATIONS,
@@ -217,6 +218,83 @@ const MANAGED_CLEANUP_AGENT_IDS = Object.freeze([
 // ── updateRegistry ──
 // Maps prefs field name → validator. Controller looks up by key and runs.
 
+const AMBIENT_LAYER_NAMES = new Set([
+  "white", "pink", "brown", "rain", "fire", "waves", "cafe", "keyboard",
+]);
+const AMBIENT_STATE_NAMES = new Set(["working", "idle", "sleep"]);
+
+function validateAmbientLayers(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return { status: "error", message: "ambientLayers must be an object map" };
+  }
+  for (const [name, volume] of Object.entries(value)) {
+    if (!AMBIENT_LAYER_NAMES.has(name)) {
+      return { status: "error", message: `ambientLayers has unknown layer "${name}"` };
+    }
+    if (typeof volume !== "number" || !Number.isFinite(volume) || volume < 0 || volume > 1) {
+      return { status: "error", message: `ambientLayers.${name} must be a number between 0 and 1` };
+    }
+  }
+  return { status: "ok" };
+}
+
+function validateAmbientStateBinding(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return { status: "error", message: "ambientStateBinding must be an object map" };
+  }
+  for (const state of AMBIENT_STATE_NAMES) {
+    if (!Object.prototype.hasOwnProperty.call(value, state)) {
+      return { status: "error", message: `ambientStateBinding is missing state "${state}"` };
+    }
+  }
+  for (const [state, layers] of Object.entries(value)) {
+    if (!AMBIENT_STATE_NAMES.has(state) || !Array.isArray(layers)) {
+      return { status: "error", message: `ambientStateBinding.${state} must be an array` };
+    }
+    const seen = new Set();
+    for (const layer of layers) {
+      if (!AMBIENT_LAYER_NAMES.has(layer) || seen.has(layer)) {
+        return { status: "error", message: `ambientStateBinding.${state} contains an invalid layer` };
+      }
+      seen.add(layer);
+    }
+  }
+  return { status: "ok" };
+}
+
+function validateAmbientUserPresets(value) {
+  if (!Array.isArray(value)) {
+    return { status: "error", message: "ambientUserPresets must be an array" };
+  }
+  if (value.length > 32) {
+    return { status: "error", message: "ambientUserPresets cannot contain more than 32 presets" };
+  }
+  for (const entry of value) {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+      return { status: "error", message: "ambientUserPresets entries must be objects" };
+    }
+    if (typeof entry.name !== "string" || !entry.name.trim() || entry.name.length > 64) {
+      return { status: "error", message: "ambientUserPresets.name must be 1–64 characters" };
+    }
+    const layersResult = validateAmbientLayers(entry.layers || {});
+    if (layersResult.status !== "ok") return layersResult;
+    if (typeof entry.master !== "number" || !Number.isFinite(entry.master) || entry.master < 0 || entry.master > 1) {
+      return { status: "error", message: "ambientUserPresets.master must be a number between 0 and 1" };
+    }
+    if (entry.musicSrc !== undefined && !isAllowedAmbientMusicSource(entry.musicSrc)) {
+      return { status: "error", message: "ambientUserPresets.musicSrc must be empty, an absolute local path, file://, or https://" };
+    }
+  }
+  return { status: "ok" };
+}
+
+function validateAmbientMusicSource(value) {
+  if (!isAllowedAmbientMusicSource(value)) {
+    return { status: "error", message: "ambientMusicSource must be empty, an absolute local path, file://, or https://" };
+  }
+  return { status: "ok" };
+}
+
 function validateFeishuApprovalUpdate(value, deps = {}) {
   const current = normalizeFeishuApproval(
     deps.snapshot && deps.snapshot.feishuApproval
@@ -302,6 +380,17 @@ const updateRegistry = {
   tutorialSeen: requireBoolean("tutorialSeen"),
   soundMuted: requireBoolean("soundMuted"),
   soundVolume: requireNumberInRange("soundVolume", 0, 1),
+  ambientEnabled: requireBoolean("ambientEnabled"),
+  ambientMasterVolume: requireNumberInRange("ambientMasterVolume", 0, 1),
+  ambientLayers: validateAmbientLayers,
+  ambientStateBinding: validateAmbientStateBinding,
+  ambientDuckingMs: requireIntegerInRange("ambientDuckingMs", 100, 3000),
+  ambientDuckCooldownMs: requireIntegerInRange("ambientDuckCooldownMs", 500, 10000),
+  ambientUserPresets: validateAmbientUserPresets,
+  ambientAutoStateBinding: requireBoolean("ambientAutoStateBinding"),
+  ambientMusicSource: validateAmbientMusicSource,
+  ambientMusicEnabled: requireBoolean("ambientMusicEnabled"),
+  ambientMusicVolume: requireNumberInRange("ambientMusicVolume", 0, 1),
   textScale: requireNumberInRange("textScale", TEXT_SCALE_MIN, TEXT_SCALE_MAX),
   // Committed by the setTextScaleForDisplay command (the controller requires
   // every commit key to have a registry entry). Strict per-entry validation

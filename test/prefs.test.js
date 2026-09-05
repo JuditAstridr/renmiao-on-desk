@@ -1392,7 +1392,7 @@ describe("prefs.migrate v14 → v15 (ZCode permission bubbles default on)", () =
         zcode: { integrationInstalled: true, enabled: true, permissionsEnabled: false, notificationHookEnabled: true },
       },
     }));
-    assert.strictEqual(upgraded.version, 15);
+    assert.strictEqual(upgraded.version, prefs.CURRENT_VERSION);
     assert.strictEqual(upgraded.agents.zcode.permissionsEnabled, true);
     // Other agent flags pass through untouched.
     assert.strictEqual(upgraded.agents.zcode.enabled, true);
@@ -1406,7 +1406,7 @@ describe("prefs.migrate v14 → v15 (ZCode permission bubbles default on)", () =
         qoder: { integrationInstalled: true, enabled: true, permissionsEnabled: false, notificationHookEnabled: true },
       },
     }));
-    assert.strictEqual(upgraded.version, 15);
+    assert.strictEqual(upgraded.version, prefs.CURRENT_VERSION);
     assert.strictEqual(upgraded.agents.qoder.permissionsEnabled, false);
   });
 
@@ -1417,13 +1417,13 @@ describe("prefs.migrate v14 → v15 (ZCode permission bubbles default on)", () =
         zcode: { integrationInstalled: true, enabled: true, permissionsEnabled: false, notificationHookEnabled: true },
       },
     }));
-    assert.strictEqual(upgraded.version, 15);
+    assert.strictEqual(upgraded.version, prefs.CURRENT_VERSION);
     assert.strictEqual(upgraded.agents.zcode.permissionsEnabled, false);
   });
 
   it("leaves a v14 file without a zcode entry to the schema default (on)", () => {
     const upgraded = prefs.validate(prefs.migrate({ version: 14, lang: "zh" }));
-    assert.strictEqual(upgraded.version, 15);
+    assert.strictEqual(upgraded.version, prefs.CURRENT_VERSION);
     assert.strictEqual(upgraded.agents.zcode.permissionsEnabled, true);
   });
 });
@@ -1442,6 +1442,43 @@ describe("prefs.migrate v12 → v13 (Settings window bounds)", () => {
       settingsWindowBounds: bounds,
     }));
     assert.deepStrictEqual(upgraded.settingsWindowBounds, bounds);
+  });
+});
+
+describe("prefs.migrate v15 → v16 (ambient sound)", () => {
+  it("adds ambient defaults without changing existing sound preferences", () => {
+    const upgraded = prefs.validate(prefs.migrate({
+      version: 15,
+      soundMuted: true,
+      soundVolume: 0.25,
+    }));
+    assert.strictEqual(upgraded.version, prefs.CURRENT_VERSION);
+    assert.strictEqual(upgraded.soundMuted, true);
+    assert.strictEqual(upgraded.soundVolume, 0.25);
+    assert.strictEqual(upgraded.ambientEnabled, false);
+    assert.deepStrictEqual(upgraded.ambientLayers, {
+      white: 0, pink: 0, brown: 0.3, rain: 0.5,
+      fire: 0, waves: 0, cafe: 0, keyboard: 0,
+    });
+  });
+
+  it("preserves valid ambient preferences already present in a v15 file", () => {
+    const raw = {
+      version: 15,
+      ambientEnabled: true,
+      ambientMasterVolume: 0.8,
+      ambientLayers: { white: 0.2, rain: 0.7 },
+      ambientStateBinding: { working: ["rain"], idle: [], sleep: ["brown"] },
+      ambientMusicSource: "https://example.test/stream.mp3",
+    };
+    const upgraded = prefs.validate(prefs.migrate(raw));
+    assert.strictEqual(upgraded.version, prefs.CURRENT_VERSION);
+    assert.strictEqual(upgraded.ambientEnabled, true);
+    assert.strictEqual(upgraded.ambientMasterVolume, 0.8);
+    assert.strictEqual(upgraded.ambientLayers.white, 0.2);
+    assert.strictEqual(upgraded.ambientLayers.brown, 0);
+    assert.deepStrictEqual(upgraded.ambientStateBinding.idle, []);
+    assert.strictEqual(upgraded.ambientMusicSource, raw.ambientMusicSource);
   });
 });
 
@@ -1746,22 +1783,22 @@ describe("prefs.load", () => {
     }
   });
 
-  it("accepts the restored v15 schema and locks an explicit v16 file", () => {
+  it("accepts the restored v15 schema and locks an explicit future file", () => {
     const currentPath = makeTempPath("v15.json");
     fs.writeFileSync(currentPath, JSON.stringify({ version: 15, lang: "zh" }), "utf8");
     const current = prefs.load(currentPath);
     assert.strictEqual(current.locked, false);
-    assert.strictEqual(current.snapshot.version, 15);
+    assert.strictEqual(current.snapshot.version, prefs.CURRENT_VERSION);
     assert.strictEqual(current.snapshot.lang, "zh");
 
-    const futurePath = makeTempPath("v16.json");
-    fs.writeFileSync(futurePath, JSON.stringify({ version: 16, lang: "ja" }), "utf8");
+    const futurePath = makeTempPath("v17.json");
+    fs.writeFileSync(futurePath, JSON.stringify({ version: 17, lang: "ja" }), "utf8");
     const originalWarn = console.warn;
     console.warn = () => {};
     try {
       const future = prefs.load(futurePath);
       assert.strictEqual(future.locked, true);
-      assert.strictEqual(future.snapshot.version, 16);
+      assert.strictEqual(future.snapshot.version, 17);
       assert.strictEqual(future.snapshot.lang, "ja");
     } finally {
       console.warn = originalWarn;

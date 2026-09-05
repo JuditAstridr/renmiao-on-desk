@@ -37,6 +37,14 @@ const ICONS = {
     '<circle cx="16.5" cy="10.5" r="1" fill="currentColor"/>' +
     '</svg>',
 
+  // musical note
+  ambient:
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="100%" height="100%">' +
+    '<path d="M9 18V5l10-2v13"/>' +
+    '<circle cx="6" cy="18" r="3"/>' +
+    '<circle cx="16" cy="16" r="3"/>' +
+    '</svg>',
+
   // film strip
   animOverrides:
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="100%" height="100%">' +
