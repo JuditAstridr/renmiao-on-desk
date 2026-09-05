@@ -2174,6 +2174,13 @@ let activeAccountProfileUpdatedAt = "";
 let activeAccountProfileSignature = "";
 let accountProfileLastPullAt = 0;
 let accountProfileSaveChain = Promise.resolve();
+// If an account-selected theme is not installed in this build, the renderer
+// temporarily uses Renmi's built-in theme. Keep the requested cloud selection
+// separate from that effective fallback so the next autosave does not erase a
+// perfectly valid account preference. The marker is cleared as soon as the
+// user explicitly switches to another available theme.
+let activeAccountProfileThemeFallback = null;
+let accountProfileApplying = false;
 
 function cloneAccountValue(value) {
   return value == null ? value : JSON.parse(JSON.stringify(value));
@@ -2213,14 +2220,26 @@ function buildCurrentAccountProfile() {
   const petAccessoryMap = settings.petAccessory || {};
   const holidayMap = settings.holidayAccessoryEnabled || {};
   const idleVisualMap = settings.idleVisual || {};
+  const rememberedFallback = activeAccountProfileThemeFallback
+    && activeTheme
+    && activeTheme._id === activeAccountProfileThemeFallback.fallbackThemeId
+    && activeAccountProfileThemeFallback.requestedThemeId !== activeTheme._id
+    ? activeAccountProfileThemeFallback
+    : null;
   return sanitizeProfile({
     pet: {
-      themeId,
-      variantId: activeTheme && activeTheme._variantId || variantMap[themeId] || "default",
-      tintId: petTintMap[themeId] || "none",
-      accessoryId: petAccessoryMap[themeId] || "none",
-      holidayAccessoryEnabled: holidayMap[themeId] === true,
-      idleVisual: idleVisualMap[themeId] || "",
+      themeId: rememberedFallback ? rememberedFallback.requestedThemeId : themeId,
+      variantId: rememberedFallback
+        ? rememberedFallback.requestedVariantId
+        : (activeTheme && activeTheme._variantId || variantMap[themeId] || "default"),
+      tintId: rememberedFallback ? rememberedFallback.tintId : (petTintMap[themeId] || "none"),
+      accessoryId: rememberedFallback
+        ? rememberedFallback.accessoryId
+        : (petAccessoryMap[themeId] || "none"),
+      holidayAccessoryEnabled: rememberedFallback
+        ? rememberedFallback.holidayAccessoryEnabled
+        : holidayMap[themeId] === true,
+      idleVisual: rememberedFallback ? rememberedFallback.idleVisual : (idleVisualMap[themeId] || ""),
     },
     study: _studyRuntime.getSnapshot(),
   });
@@ -2234,49 +2253,73 @@ async function applyAccountProfile(rawProfile) {
   const profile = sanitizeProfile(rawProfile);
   const pet = profile.pet;
   const currentThemeVariant = _settingsController.get("themeVariant") || {};
+  let fallbackMarker = null;
+  accountProfileApplying = true;
 
-  // Clear per-theme visual selections from the previous account before
-  // applying the new account's single active appearance. This prevents a
-  // second account on the same computer from inheriting hidden choices.
-  _settingsController.hydrate({
-    petTint: {},
-    petAccessory: {},
-    holidayAccessoryEnabled: {},
-    idleVisual: {},
-    themeVariant: { ...currentThemeVariant, [pet.themeId]: pet.variantId },
-  });
-
-  let themeResult = await _settingsController.applyCommand("setThemeSelection", {
-    themeId: pet.themeId,
-    variantId: pet.variantId,
-  });
-  if (!themeResult || themeResult.status !== "ok") {
-    // A theme may have been removed locally after the profile was saved. Keep
-    // the cloud id in the account record, but do not make login fail; Renmiao
-    // falls back to its built-in theme until that theme is installed again.
-    console.warn("Renmi: saved account theme unavailable; falling back to renmi:", themeResult && themeResult.message);
-    themeResult = await _settingsController.applyCommand("setThemeSelection", {
-      themeId: "renmi",
-      variantId: "default",
+  try {
+    // Clear per-theme visual selections from the previous account before
+    // applying the new account's single active appearance. This prevents a
+    // second account on the same computer from inheriting hidden choices.
+    _settingsController.hydrate({
+      petTint: {},
+      petAccessory: {},
+      holidayAccessoryEnabled: {},
+      idleVisual: {},
+      themeVariant: { ...currentThemeVariant, [pet.themeId]: pet.variantId },
     });
-  }
 
-  const resolvedThemeId = themeResult && themeResult.themeId || pet.themeId;
-  if (pet.tintId !== "none") {
-    _settingsController.applyUpdate("petTint", { [resolvedThemeId]: pet.tintId });
+    let resolvedThemeId = pet.themeId;
+    let themeResult = await _settingsController.applyCommand("setThemeSelection", {
+      themeId: pet.themeId,
+      variantId: pet.variantId,
+    });
+    if (!themeResult || themeResult.status !== "ok") {
+      // A theme may have been removed locally after the profile was saved. Keep
+      // the cloud id in the account record, but do not make login fail; Renmiao
+      // falls back to its built-in theme until that theme is installed again.
+      console.warn("Renmi: saved account theme unavailable; falling back to renmi:", themeResult && themeResult.message);
+      fallbackMarker = {
+        fallbackThemeId: "renmi",
+        requestedThemeId: pet.themeId,
+        requestedVariantId: pet.variantId,
+        tintId: pet.tintId,
+        accessoryId: pet.accessoryId,
+        holidayAccessoryEnabled: pet.holidayAccessoryEnabled,
+        idleVisual: pet.idleVisual,
+      };
+      resolvedThemeId = "renmi";
+      themeResult = await _settingsController.applyCommand("setThemeSelection", {
+        themeId: "renmi",
+        variantId: "default",
+      });
+    }
+
+    if (pet.tintId !== "none") {
+      _settingsController.applyUpdate("petTint", { [resolvedThemeId]: pet.tintId });
+    }
+    if (pet.accessoryId !== "none") {
+      _settingsController.applyUpdate("petAccessory", { [resolvedThemeId]: pet.accessoryId });
+    }
+    if (pet.holidayAccessoryEnabled) {
+      _settingsController.applyUpdate("holidayAccessoryEnabled", { [resolvedThemeId]: true });
+    }
+    if (pet.idleVisual) {
+      _settingsController.applyUpdate("idleVisual", { [resolvedThemeId]: pet.idleVisual });
+    }
+    _studyRuntime.hydrate(profile.study);
+    return profile;
+  } finally {
+    accountProfileApplying = false;
+    activeAccountProfileThemeFallback = fallbackMarker;
   }
-  if (pet.accessoryId !== "none") {
-    _settingsController.applyUpdate("petAccessory", { [resolvedThemeId]: pet.accessoryId });
-  }
-  if (pet.holidayAccessoryEnabled) {
-    _settingsController.applyUpdate("holidayAccessoryEnabled", { [resolvedThemeId]: true });
-  }
-  if (pet.idleVisual) {
-    _settingsController.applyUpdate("idleVisual", { [resolvedThemeId]: pet.idleVisual });
-  }
-  _studyRuntime.hydrate(profile.study);
-  return profile;
 }
+
+_settingsController.subscribeKey("theme", (themeId) => {
+  if (accountProfileApplying || !activeAccountProfileThemeFallback) return;
+  if (themeId !== activeAccountProfileThemeFallback.fallbackThemeId) {
+    activeAccountProfileThemeFallback = null;
+  }
+});
 
 function saveAccountProfile({ force = false } = {}) {
   if (!activeAccountProfileId || !authRuntime || !authRuntime.getSession()) return Promise.resolve(null);
@@ -2361,6 +2404,7 @@ async function deactivateAccountProfile(user) {
   activeAccountProfileUpdatedAt = "";
   activeAccountProfileSignature = "";
   accountProfileLastPullAt = 0;
+  activeAccountProfileThemeFallback = null;
   // Do not leave the previous account's tasks/points in the local cache while
   // the login window is waiting for the next account.
   await applyAccountProfile(defaultProfile());

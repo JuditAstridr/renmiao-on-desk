@@ -44,7 +44,29 @@ test("HTTP API supports registration, self lookup, and admin-only user listing",
   const login = await verifyResponse.json();
   assert.equal(verifyResponse.status, 200);
   const me = await call("/v1/me", { headers: { Authorization: `Bearer ${login.accessToken}` }, method: "GET" });
-  assert.equal((await me.json()).user.username, "Student");
+  const meBody = await me.json();
+  assert.equal(meBody.user.username, "Student");
+  const profileResponse = await call("/v1/me/profile", {
+    headers: { Authorization: `Bearer ${login.accessToken}` },
+    method: "GET",
+  });
+  const initialProfile = await profileResponse.json();
+  assert.equal(profileResponse.status, 200);
+  assert.equal(initialProfile.profile.pet.themeId, "renmi");
+  const profileUpdate = await call("/v1/me/profile", {
+    headers: { Authorization: `Bearer ${login.accessToken}` },
+    method: "PATCH",
+    body: {
+      expectedUpdatedAt: initialProfile.profileUpdatedAt,
+      profile: {
+        pet: { themeId: "cloudling", variantId: "default" },
+        study: { tasks: [{ id: "task-1", title: "Persist this" }], points: { total: 30 } },
+      },
+    },
+  });
+  const profileUpdateBody = await profileUpdate.json();
+  assert.equal(profileUpdate.status, 200);
+  assert.equal(profileUpdateBody.profile.study.points.total, 30);
   const forbidden = await call("/v1/admin/users", { headers: { Authorization: `Bearer ${login.accessToken}` }, method: "GET" });
   assert.equal(forbidden.status, 403);
 
@@ -62,6 +84,25 @@ test("HTTP API supports registration, self lookup, and admin-only user listing",
   const usersBody = await users.json();
   assert.equal(users.status, 200);
   assert.deepEqual(usersBody.rows.map((user) => user.email), ["student@ruc.edu.cn"]);
+
+  const adminProfile = await call(`/v1/admin/users/${encodeURIComponent(meBody.user.id)}/profile`, {
+    headers: { Authorization: `Bearer ${adminLogin.accessToken}` },
+    method: "GET",
+  });
+  const adminProfileBody = await adminProfile.json();
+  assert.equal(adminProfile.status, 200);
+  assert.equal(adminProfileBody.profile.pet.themeId, "cloudling");
+  const adminProfileUpdate = await call(`/v1/admin/users/${encodeURIComponent(meBody.user.id)}/profile`, {
+    headers: { Authorization: `Bearer ${adminLogin.accessToken}` },
+    method: "PATCH",
+    body: {
+      expectedUpdatedAt: adminProfileBody.profileUpdatedAt,
+      profile: { ...adminProfileBody.profile, study: { ...adminProfileBody.profile.study, points: { total: 999 } } },
+    },
+  });
+  const adminProfileUpdateBody = await adminProfileUpdate.json();
+  assert.equal(adminProfileUpdate.status, 200);
+  assert.equal(adminProfileUpdateBody.profile.study.points.total, 999);
 
   const resetResponse = await call(`/v1/admin/users/${encodeURIComponent(usersBody.rows[0].id)}/password/reset`, {
     method: "POST",

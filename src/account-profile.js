@@ -71,7 +71,29 @@ function sanitizeProfile(raw) {
     study: sanitizeStudy(source.study),
   };
   if (Buffer.byteLength(JSON.stringify(profile), "utf8") > MAX_PROFILE_BYTES) {
+    // The per-task and per-subtask limits bound individual records, but a
+    // profile can still exceed the wire/storage budget when an administrator
+    // pastes a large valid task tree. Trim the least important tail data until
+    // the complete profile is within the same limit used by the API contract.
     profile.study.tasks = profile.study.tasks.slice(0, 100);
+    while (Buffer.byteLength(JSON.stringify(profile), "utf8") > MAX_PROFILE_BYTES) {
+      const candidate = profile.study.tasks.reduce((largest, task) => {
+        if (!largest || task.subtasks.length > largest.subtasks.length) return task;
+        return largest;
+      }, null);
+      if (candidate && candidate.subtasks.length > 0) {
+        candidate.subtasks = candidate.subtasks.slice(0, Math.floor(candidate.subtasks.length / 2));
+        continue;
+      }
+      if (profile.study.tasks.length > 0) {
+        profile.study.tasks.pop();
+        continue;
+      }
+      // Pet and study scalar fields are individually bounded; this is only a
+      // defensive final fallback for a future schema expansion.
+      profile.study = defaultState();
+      break;
+    }
     profile.study = sanitizeStudy(profile.study);
   }
   return profile;

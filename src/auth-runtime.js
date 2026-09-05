@@ -131,7 +131,15 @@ function createAuthRuntime({
     try {
       await onAuthenticated(session.user);
     } catch (error) {
-      console.warn("Renmi auth callback failed:", error && error.message);
+      // A valid token without a successfully hydrated account profile is not
+      // a usable Renmiao login. Clear this session and keep the auth window
+      // open so a transient cloud/profile failure cannot expose stale local
+      // data or make the user believe their cloud state was restored.
+      session = null;
+      refreshPromise = null;
+      sessionStore.clear();
+      hideMainWindows();
+      throw error;
     }
     showMainWindows();
     closeAuthWindow();
@@ -313,8 +321,16 @@ function createAuthRuntime({
     try {
       const result = await client.refresh(stored.refreshToken);
       saveSession(result);
+      try {
+        await onAuthenticated(session.user);
+      } catch (error) {
+        session = null;
+        refreshPromise = null;
+        sessionStore.clear();
+        hideMainWindows();
+        throw error;
+      }
       showMainWindows();
-      try { await onAuthenticated(session.user); } catch (error) { console.warn("Renmi auth callback failed:", error && error.message); }
       if (session.user && session.user.role === "admin") openAdminWindow();
       return true;
     } catch (error) {

@@ -147,3 +147,89 @@ test("administrator can set a user's password directly without sending email", a
   const audit = await harness.service.listAuditLogs({ limit: 1 });
   assert.equal(audit.rows[0].action, "admin_reset_password");
 });
+
+test("user profiles are cloud-scoped, admin-editable, and protected by a version token", async () => {
+  const harness = createHarness();
+  const registration = await harness.service.registerRequest({
+    username: "Profile Student",
+    email: "profile.student@ruc.edu.cn",
+    password: "Profile-Password-466743",
+  });
+  await harness.service.registerVerify({
+    challengeId: registration.challengeId,
+    code: harness.sent.pop().code,
+  });
+  const user = await harness.repo.findUserByEmailHash(
+    emailHash("profile.student@ruc.edu.cn", harness.config.challengeSecret),
+  );
+
+  const initial = await harness.service.getUserProfile(user.id);
+  assert.equal(initial.profile.pet.themeId, "renmi");
+  const profile = {
+    version: 1,
+    pet: {
+      themeId: "cloudling",
+      variantId: "calm",
+      tintId: "mint",
+      accessoryId: "none",
+      holidayAccessoryEnabled: false,
+      idleVisual: "idle.svg",
+    },
+    study: {
+      tasks: [{
+        id: "task-1",
+        title: "Cloud-saved task",
+        done: false,
+        createdAt: 123,
+        estimatedMinutes: 25,
+        completedPomodoros: 1,
+        deadline: null,
+        category: "study",
+        quadrant: 0,
+        subtasks: [],
+      }],
+      pomodoro: { phase: "focus", running: true, taskId: "task-1", remainingSeconds: 900 },
+      view: { sortBy: "deadline", groupBy: "category" },
+      points: { total: 45, today: 15, streak: 2, bestStreak: 3, lastAwardDate: "2026-09-05" },
+    },
+  };
+  const saved = await harness.service.updateUserProfile({
+    user,
+    profile,
+    expectedUpdatedAt: initial.profileUpdatedAt,
+  });
+  assert.equal(saved.profile.pet.themeId, "cloudling");
+  assert.equal(saved.profile.study.tasks[0].title, "Cloud-saved task");
+  assert.equal(saved.profile.study.points.total, 45);
+
+  const restored = await harness.service.getUserProfile(user.id);
+  assert.deepEqual(restored.profile, saved.profile);
+
+  await assert.rejects(
+    () => harness.service.updateUserProfile({
+      user,
+      profile: { ...profile, pet: { ...profile.pet, themeId: "renmi" } },
+      expectedUpdatedAt: "stale-profile-version",
+    }),
+    (error) => error.code === "profile_conflict"
+      && error.status === 409
+      && error.details.profile.pet.themeId === "cloudling",
+  );
+
+  const adminView = await harness.service.adminGetUserProfile({ userId: user.id });
+  assert.deepEqual(adminView.profile, saved.profile);
+  const adminSaved = await harness.service.adminUpdateUserProfile({
+    admin: { id: "admin-1" },
+    userId: user.id,
+    profile: { ...saved.profile, study: { ...saved.profile.study, points: { total: 999 } } },
+    expectedUpdatedAt: saved.profileUpdatedAt,
+    request: { requestId: "profile-admin-edit" },
+  });
+  assert.equal(adminSaved.profile.study.points.total, 999);
+
+  const listed = await harness.service.listUsers();
+  assert.equal(listed.rows[0].profileSummary.themeId, "cloudling");
+  assert.equal(listed.rows[0].profileSummary.pointsTotal, 999);
+  const audit = await harness.service.listAuditLogs({ limit: 1 });
+  assert.equal(audit.rows[0].action, "update_user_profile");
+});

@@ -32,7 +32,7 @@ const { createTranslator } = require("./i18n");
 // phantom/doubled separator is ever rendered (Electron leaves a visible gap for
 // a stray separator). Doing the grouping here — instead of hand-placing a
 // separator around almost every item — is what lets the menu read as a few
-// labelled clusters (state / work / display / app) rather than one slice per
+// labelled clusters (state / study / display / app) rather than one slice per
 // row.
 function joinGroups(groups) {
   const template = [];
@@ -76,117 +76,6 @@ module.exports = function initMenu(ctx) {
         if (miniDisabled) return undefined;
         return ctx.enterMiniViaMenu();
       },
-    };
-  }
-
-  function getPermissionAutomationMode() {
-    const mode = ctx.permissionAutomationMode;
-    return mode === "auto-tools" || mode === "unattended" ? mode : "off";
-  }
-
-  function permissionAutomationModeLabel(mode) {
-    if (mode === "auto-tools") return t("permissionAutomationAutoTools");
-    if (mode === "unattended") return t("permissionAutomationUnattended");
-    return t("permissionAutomationOff");
-  }
-
-  function isPermissionAutomationWarningDismissed(mode) {
-    return typeof ctx.isPermissionAutomationWarningDismissed === "function"
-      && ctx.isPermissionAutomationWarningDismissed(mode) === true;
-  }
-
-  function reportPermissionAutomationFailure(reason) {
-    const message = reason && reason.message
-      ? reason.message
-      : (typeof reason === "string" ? reason : "Unknown error");
-    console.warn("Clawd: permission automation mode change failed:", message);
-    try {
-      return Promise.resolve(ctx.showPermissionAutomationError({
-        lang: ctx.lang,
-        title: t("menuPermissionAutomation"),
-        detail: message,
-        dismissLabel: t("dismiss"),
-      })).catch((err) => {
-        console.warn("Clawd: permission automation error window failed:", err && err.message);
-      });
-    } catch (err) {
-      console.warn("Clawd: permission automation error window failed:", err && err.message);
-      return Promise.resolve();
-    }
-  }
-
-  function applyPermissionAutomationMode(mode, options) {
-    return Promise.resolve()
-      .then(() => ctx.setPermissionAutomationMode(mode, options))
-      .then((result) => {
-        if (result && result.status === "error") {
-          return reportPermissionAutomationFailure(result);
-        }
-        return result;
-      })
-      .catch((err) => reportPermissionAutomationFailure(err));
-  }
-
-  // Three explicit radio choices avoid hiding a materially different trust
-  // boundary behind one checkbox. Both automatic modes require confirmation;
-  // off is immediate.
-  function buildPermissionAutomationMenuItem() {
-    const current = getPermissionAutomationMode();
-    const options = ["off", "auto-tools", "unattended"];
-    const setMode = (mode) => {
-      if (mode === current) return;
-      if (mode === "off") {
-        applyPermissionAutomationMode("off", { confirmed: false })
-          .finally(() => rebuildAllMenus());
-        return;
-      }
-      const unattended = mode === "unattended";
-      if (isPermissionAutomationWarningDismissed(mode)) {
-        applyPermissionAutomationMode(mode, { confirmed: false })
-          .finally(() => rebuildAllMenus());
-        return;
-      }
-      Promise.resolve(
-        ctx.confirmPermissionAutomation({
-          mode,
-          lang: ctx.lang,
-          title: t(unattended
-            ? "permissionAutomationUnattendedConfirmTitle"
-            : "permissionAutomationAutoToolsConfirmTitle"),
-          detail: t(unattended
-            ? "permissionAutomationUnattendedConfirmDetail"
-            : "permissionAutomationAutoToolsConfirmDetail"),
-          checkboxLabel: t(unattended
-            ? "permissionAutomationUnattendedDontShowAgain"
-            : "permissionAutomationAutoToolsDontShowAgain"),
-          confirmLabel: t(unattended
-            ? "permissionAutomationEnableUnattended"
-            : "permissionAutomationEnableAutoTools"),
-          cancelLabel: t("permissionAutomationCancel"),
-        })
-      ).then((res) => {
-        if (res && res.confirmed === true) {
-          return applyPermissionAutomationMode(mode, {
-            confirmed: true,
-            suppressFutureConfirmation: res.suppressFutureConfirmation === true,
-          });
-        }
-        return undefined;
-      }).catch((err) => {
-        return reportPermissionAutomationFailure(err);
-      }).finally(() => {
-        rebuildAllMenus();
-      });
-    };
-
-    return {
-      label: `${t("menuPermissionAutomation")}: ${permissionAutomationModeLabel(current)}`,
-      submenu: options.map((mode) => ({
-        label: permissionAutomationModeLabel(mode),
-        type: "radio",
-        checked: current === mode,
-        click: () => setMode(mode),
-      })),
     };
   }
 
@@ -248,7 +137,7 @@ module.exports = function initMenu(ctx) {
     if (!ctx.tray) return;
 
     // Same grouping discipline as the context menu (see joinGroups), adapted
-    // for the tray's larger item set: state / noise / work / system / app /
+    // for the tray's larger item set: state / noise / study / system / app /
     // quit. Other settings (language, theme, bubble follow, start-with-Claude,
     // updates, etc.) live only in the Settings panel / About tab.
     const stateGroup = [
@@ -271,16 +160,14 @@ module.exports = function initMenu(ctx) {
       },
     ];
 
-    // Work actions + the danger auto-approve toggle (danger last, as in the
-    // context menu).
-    const workGroup = [
+    // Study actions.
+    const studyGroup = [
       {
         label: t("openStudyDashboard"),
         click: () => {
           if (typeof ctx.openStudyDashboard === "function") ctx.openStudyDashboard();
         },
       },
-      buildPermissionAutomationMenuItem(),
     ];
 
     // OS-integration / placement group: bring-to-primary, mac dock/menu-bar,
@@ -340,7 +227,7 @@ module.exports = function initMenu(ctx) {
       { label: t("quit"), click: () => requestAppQuit() },
     ];
 
-    const items = joinGroups([stateGroup, noiseGroup, workGroup, systemGroup, appGroup, quitGroup]);
+    const items = joinGroups([stateGroup, noiseGroup, studyGroup, systemGroup, appGroup, quitGroup]);
     ctx.tray.setContextMenu(Menu.buildFromTemplate(items));
   }
 
@@ -475,43 +362,19 @@ module.exports = function initMenu(ctx) {
   }
 
   function buildContextMenu() {
-    // Grouped as state / work / display / app / quit and joined with a single
-    // separator between non-empty groups (see joinGroups). This replaced a flat
-    // list that wrapped almost every item in its own separator, and it moves the
-    // danger auto-approve toggle into the work group instead of leaving it as a
-    // prominent top-level entry.
+    // Grouped as state / study / display / app / quit and joined with a single
+    // separator between non-empty groups (see joinGroups).
     const stateGroup = [
       { ...buildMiniModeMenuItem() },
     ];
 
-    const workGroup = [
+    const studyGroup = [
       {
         label: t("openStudyDashboard"),
         click: () => {
           if (typeof ctx.openStudyDashboard === "function") ctx.openStudyDashboard();
         },
       },
-      {
-        label: t("newSession"),
-        submenu: [
-          {
-            label: t("newSessionSelectFolder"),
-            click: () => {
-              if (typeof ctx.newSessionWithFolder === "function") ctx.newSessionWithFolder(t);
-            },
-          },
-          {
-            label: t("newSessionHomeDir"),
-            click: () => {
-              if (typeof ctx.newSessionInCurrentDir === "function") ctx.newSessionInCurrentDir(t);
-            },
-          },
-        ],
-      },
-      // Danger auto-approve sits at the tail of the work group: it governs how
-      // agent permission requests are handled, and keeping it here (rather than
-      // near the top) makes it harder to hit by accident.
-      buildPermissionAutomationMenuItem(),
     ];
 
     // Display group: just the multi-display "send to display" entry. The mac
@@ -553,7 +416,7 @@ module.exports = function initMenu(ctx) {
       { label: t("quit"), click: () => requestAppQuit() },
     ];
 
-    const template = joinGroups([stateGroup, workGroup, displayGroup, appGroup, quitGroup]);
+    const template = joinGroups([stateGroup, studyGroup, displayGroup, appGroup, quitGroup]);
     ctx.contextMenu = Menu.buildFromTemplate(template);
   }
 

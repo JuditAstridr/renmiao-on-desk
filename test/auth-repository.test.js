@@ -22,6 +22,13 @@ test("file auth repository keeps accounts and audit records across restarts", as
     status: "active",
     email_verified_at: new Date().toISOString(),
   });
+  const profile = {
+    version: 1,
+    pet: { themeId: "cloudling", variantId: "default" },
+    study: { tasks: [{ id: "task-1", title: "Persisted task" }], points: { total: 80 } },
+  };
+  const profileSaved = await first.updateUserProfile(user.id, profile);
+  assert.equal(profileSaved.profile_state.pet.themeId, "cloudling");
   await first.insertAuditLog({ action: "create_user", target_user_id: user.id });
   await first.close();
 
@@ -30,6 +37,7 @@ test("file auth repository keeps accounts and audit records across restarts", as
   const listed = await second.listUsers({ limit: 50, offset: 0 });
   const logs = await second.listAuditLogs({ limit: 50, offset: 0 });
   assert.equal(restored.username, "Student");
+  assert.deepEqual(restored.profile_state, profile);
   assert.equal(listed.total, 1);
   assert.equal(listed.rows[0].id, user.id);
   assert.equal(logs.total, 1);
