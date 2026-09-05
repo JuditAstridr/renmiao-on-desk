@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 120" width="160" height="120" role="img" aria-label="Renmi badge">
+  <g transform="translate(80 58)">
+    <path d="M-48-18c0-10 8-18 18-18h60c10 0 18 8 18 18v25c0 10-8 18-18 18h-35l-17 15 3-15h-11c-10 0-18-8-18-18z" fill="#fffaf3" stroke="#5f4438" stroke-width="5" stroke-linejoin="round"/>
+    <path d="M-39-14c0-5 4-9 9-9h60c5 0 9 4 9 9v17c0 5-4 9-9 9h-60c-5 0-9-4-9-9z" fill="#e58e9c"/>
+    <path d="M-27-10c-4 0-7 3-7 7 0 3 3 5 7 5s7-2 7-5c0-4-3-7-7-7zM-27 4c-6 0-10 4-10 8 4 3 16 3 20 0 0-4-4-8-10-8z" fill="#fffaf3"/>
+    <path d="M-7 4V-9h6c5 0 6 7 0 7h-6l8 6M4-9v13M4-9h5M4-3h5M4 4h5M15-9v13M15-9h5c5 0 5 7 0 7h-5M27-9v13M27-9h7M27-3h6M27 4h7" fill="none" stroke="#5f4438" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>

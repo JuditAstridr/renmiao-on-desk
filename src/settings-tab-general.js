@@ -38,6 +38,7 @@
     "openAtLogin",
     "hideBubbles",
     "bubbleFollowPet",
+    "studyFollowPet",
     "permissionBubblesEnabled",
     "notificationBubbleAutoCloseSeconds",
     "updateBubbleAutoCloseSeconds",
@@ -346,12 +347,20 @@
       buildTextScaleRow(),
     ]));
 
-    parent.appendChild(helpers.buildSection(t("sectionSession"), [
+    const sessionRows = [
       buildSessionHudGroup(),
       buildQuotaRingGroup(),
       buildSessionCleanupGroup(),
       buildDashboardRow(),
-    ]));
+    ];
+    if (IS_RENMI_PROFILE) {
+      sessionRows.push(helpers.buildSwitchRow({
+        key: "studyFollowPet",
+        labelKey: "rowStudyFollowPet",
+        descKey: "rowStudyFollowPetDesc",
+      }));
+    }
+    parent.appendChild(helpers.buildSection(t("sectionSession"), sessionRows));
 
     // Alerts & feedback: every way the pet gets your attention — sound, screen
     // flash, and the bubble preferences (visibility, auto-close policy, follow).

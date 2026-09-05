@@ -131,6 +131,20 @@ if (window.settingsAPI && typeof window.settingsAPI.onUpdateCheckStatus === "fun
   });
 }
 
+if (window.settingsAPI && typeof window.settingsAPI.onPetAccessoryOptionsChanged === "function") {
+  window.settingsAPI.onPetAccessoryOptionsChanged(() => {
+    if (typeof window.settingsAPI.getPetAccessoryOptions !== "function") return;
+    window.settingsAPI.getPetAccessoryOptions().then((options) => {
+      core.runtime.petAccessoryOptions = Array.isArray(options) ? options : [];
+      if (core.state && core.state.activeTab === "theme") {
+        core.ops.requestRender({ content: true });
+      }
+    }).catch((err) => {
+      console.warn("settings: refresh pet accessory options failed", err);
+    });
+  });
+}
+
 if (window.settingsAPI && typeof window.settingsAPI.getShortcutFailures === "function") {
   window.settingsAPI.getShortcutFailures().then((failures) => {
     core.ops.applyShortcutFailures(failures);

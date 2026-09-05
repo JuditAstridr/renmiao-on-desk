@@ -2823,6 +2823,39 @@ describe("pet-window-runtime", () => {
     ]);
   });
 
+  it("keeps the macOS hit window focusable for pointer capture", () => {
+    const instances = [];
+    const harness = createRuntime({ isWin: false, isMac: true });
+    harness.runtime.createHitWindow({
+      BrowserWindow: makeBrowserWindow(instances),
+      preloadPath: "preload-hit.js",
+      loadFilePath: "hit.html",
+      hitThemeConfig: { ok: true },
+    });
+
+    assert.equal(instances[0].options.focusable, true);
+    assert.deepEqual(
+      instances[0].calls.filter((call) => call[0] === "setFocusable"),
+      [],
+      "macOS must not disable focusability after creating the hit window",
+    );
+  });
+
+  it("uses the main-process cursor coordinate space for drag math", () => {
+    let cursor = { x: 100, y: 100 };
+    const harness = createRuntime({ cursor: () => cursor });
+    harness.runtime.setDragLocked(true);
+    harness.runtime.beginDragSnapshot({ x: 900, y: 900 });
+    cursor = { x: 120, y: 100 };
+    harness.runtime.moveWindowForDrag({ x: 920, y: 900 });
+
+    assert.deepEqual(
+      harness.renderWin.calls.find((call) => call[0] === "setBounds"),
+      ["setBounds", { x: 30, y: 20, width: 100, height: 100 }],
+      "renderer screenX/screenY must not be allowed to move the pet into an invalid coordinate space",
+    );
+  });
+
   it("reloadWindowWebContents ignores destroyed windows and webContents", () => {
     const harness = createRuntime();
     const live = makeWindow();

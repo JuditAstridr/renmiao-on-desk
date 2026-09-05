@@ -120,6 +120,54 @@ h1 { margin: 0; font-size: 20px; line-height: 1.2; }
 .subtask-form input[type="number"] { width: 65px; }
 .empty { padding: 28px 10px; color: var(--muted); text-align: center; }
 .hidden { display: none !important; }
+.study-tabs { display: flex; gap: 6px; padding: 9px 18px 0; background: var(--surface); border-bottom: 1px solid var(--border); }
+.study-tab { min-height: 28px; padding: 0 12px; font-size: 11px; }
+.study-tab.active { background: var(--accent); color: #fff; border-color: transparent; }
+.report-toolbar, .calendar-toolbar, .report-actions, .calendar-day-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.report-toolbar, .calendar-toolbar { justify-content: space-between; margin-bottom: 12px; }
+.report-toolbar button.active { background: var(--accent); color: #fff; border-color: transparent; }
+.report-range, .calendar-range { color: var(--muted); font-weight: 700; }
+.report-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.report-stat, .report-card { padding: 12px; border: 1px solid var(--border); border-radius: 9px; background: var(--surface); }
+.report-stat strong { display: block; font-size: 20px; }
+.report-stat span, .report-card-title, .report-muted { color: var(--muted); font-size: 11px; }
+.report-card { margin-top: 10px; }
+.report-bars { display: flex; align-items: end; gap: 5px; height: 130px; padding-top: 18px; }
+.report-bar-col { flex: 1 1 0; min-width: 0; height: 100%; display: flex; flex-direction: column; justify-content: end; align-items: center; gap: 3px; }
+.report-bar { width: 100%; max-width: 26px; min-height: 2px; border-radius: 4px 4px 0 0; background: var(--accent); }
+.report-bar-label { color: var(--subtle); font-size: 9px; }
+.report-facts { margin: 7px 0 0; padding-left: 18px; color: var(--muted); line-height: 1.7; }
+.report-breakdown-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 8px; color: var(--muted); }
+.report-breakdown-grid strong { display: block; color: var(--text); font-size: 12px; }
+.report-breakdown-list { display: grid; gap: 3px; margin-top: 5px; font-size: 11px; }
+.poster-preview { margin-top: 12px; text-align: center; }
+.poster-preview canvas { width: min(100%, 300px); height: auto; border: 1px solid var(--border); border-radius: 9px; box-shadow: 0 8px 24px rgba(0,0,0,.08); }
+.calendar-weekdays, .calendar-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.calendar-weekdays { margin-bottom: 4px; }
+.calendar-weekday { color: var(--muted); font-size: 10px; text-align: center; }
+.calendar-cell { min-height: 74px; padding: 5px; border-radius: 7px; text-align: left; overflow: hidden; }
+.calendar-cell.out { visibility: hidden; }
+.calendar-cell.today { border-color: var(--accent); }
+.calendar-cell.selected { outline: 2px solid color-mix(in srgb, var(--accent) 45%, transparent); }
+.calendar-cell-head { display: flex; justify-content: space-between; color: var(--muted); font-size: 11px; }
+.calendar-goal { width: 7px; height: 7px; margin-top: 3px; border-radius: 50%; background: var(--danger); }
+.calendar-goal.met { background: var(--focus); }
+.calendar-meta { color: var(--focus); font-size: 10px; font-weight: 700; }
+.calendar-chip { display: block; margin-top: 3px; overflow: hidden; color: var(--muted); font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.calendar-chip.task { color: var(--danger); }
+.calendar-chip.done { text-decoration: line-through; opacity: .55; }
+.calendar-more { color: var(--subtle); font-size: 9px; }
+.calendar-panel { margin-top: 12px; padding: 12px; border: 1px solid var(--border); border-radius: 9px; background: var(--surface); }
+.calendar-panel h3 { margin: 0 0 8px; font-size: 13px; }
+.calendar-list { display: grid; gap: 5px; margin-top: 8px; }
+.calendar-list-row { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.calendar-list-row span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.calendar-list-row .calendar-row-title { flex: 1 1 auto; }
+.calendar-form { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+.calendar-form input[type="text"] { flex: 1 1 150px; }
+.calendar-form input[type="time"] { width: 100px; }
+.calendar-form input[type="number"] { width: 70px; }
+.calendar-summary { margin-top: 8px; color: var(--muted); font-size: 11px; }
 body.focus-mode .topbar, body.focus-mode #tasksSection { display: none; }
 body.focus-mode .content { padding: 0; display: flex; align-items: center; justify-content: center; overflow: hidden; }
 body.focus-mode #timerSection { width: min(760px, 100%); margin: 0; }
@@ -131,6 +179,8 @@ body.focus-mode .timer-settings { opacity: .25; }
   .content { padding-left: 12px; padding-right: 12px; }
   .points { display: none; }
   .timer-value { font-size: 48px; }
+  .report-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .report-breakdown-grid { grid-template-columns: 1fr; }
   .task-fields { margin-left: 0; }
   .task-progress-label, .task-progress, .subtasks, .subtask-form { margin-left: 0; }
 }
@@ -144,6 +194,11 @@ body.focus-mode .timer-settings { opacity: .25; }
       <div id="points" class="points"><strong>0</strong><span>Points</span></div>
     </div>
   </header>
+  <nav id="studyTabs" class="study-tabs" aria-label="Study views">
+    <button class="study-tab active" data-tab="tasks" type="button">Tasks</button>
+    <button class="study-tab" data-tab="calendar" type="button">Calendar</button>
+    <button class="study-tab" data-tab="report" type="button">Reports</button>
+  </nav>
   <main class="content">
     <section id="timerSection" class="section">
       <h2 id="timerTitle" class="section-title">Pomodoro</h2>
@@ -183,8 +238,37 @@ body.focus-mode .timer-settings { opacity: .25; }
       <div id="viewControls" class="view-controls"></div>
       <div id="taskList"></div>
     </section>
+    <section id="calendarSection" class="section" hidden>
+      <div class="calendar-toolbar">
+        <div class="calendar-day-actions">
+          <button id="calendarPrev" type="button">‹</button>
+          <span id="calendarRange" class="calendar-range"></span>
+          <button id="calendarNext" type="button">›</button>
+          <button id="calendarToday" type="button">Today</button>
+        </div>
+        <label><span id="calendarGoalLabel">Daily goal</span> <input id="calendarDefaultGoal" type="number" min="1" max="1440" placeholder="—" style="width:70px"></label>
+      </div>
+      <div id="calendarWeekdays" class="calendar-weekdays"></div>
+      <div id="calendarGrid" class="calendar-grid"></div>
+      <div id="calendarPanel" class="calendar-panel"></div>
+    </section>
+    <section id="reportSection" class="section" hidden>
+      <div class="report-toolbar">
+        <div class="segmented"><button id="reportWeek" type="button">Week</button><button id="reportMonth" type="button">Month</button></div>
+        <div class="calendar-day-actions"><button id="reportPrev" type="button">‹</button><span id="reportRange" class="report-range"></span><button id="reportNext" type="button">›</button></div>
+      </div>
+      <div id="reportStats" class="report-stats"></div>
+      <div id="reportTrend" class="report-card"></div>
+      <div id="reportChart" class="report-card"></div>
+      <div id="reportFacts" class="report-card"></div>
+      <div id="reportBreakdown" class="report-card"></div>
+      <div class="report-actions"><button id="reportSave" class="primary" type="button">Save poster</button><span id="reportSaveStatus" class="report-muted"></span></div>
+      <div id="posterPreview" class="poster-preview"></div>
+    </section>
   </main>
 </div>
+<script src="./study-calendar.js"></script>
+<script src="./report-poster-renderer.js"></script>
 <script src="./study-dashboard-renderer.js"></script>
 </body>
 </html>

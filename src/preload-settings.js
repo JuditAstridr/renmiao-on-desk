@@ -44,6 +44,7 @@ const shortcutRecordKeyListeners = new Set();
 const textScaleContextListeners = new Set();
 const agentActivityListeners = new Set();
 const updateCheckStatusListeners = new Set();
+const petAccessoryOptionsListeners = new Set();
 ipcRenderer.on("settings-changed", (_event, payload) => {
   for (const cb of listeners) {
     try { cb(payload); } catch (err) { console.warn("settings onChanged listener threw:", err); }
@@ -77,6 +78,11 @@ ipcRenderer.on("settings:update-check-status", (_event, payload) => {
     try { cb(payload); } catch (err) { console.warn("update check status listener threw:", err); }
   }
 });
+ipcRenderer.on("settings:pet-accessory-options-changed", (_event, payload) => {
+  for (const cb of petAccessoryOptionsListeners) {
+    try { cb(payload); } catch (err) { console.warn("pet accessory options listener threw:", err); }
+  }
+});
 
 contextBridge.exposeInMainWorld("settingsAPI", {
   isRenmiProfile,
@@ -94,6 +100,11 @@ contextBridge.exposeInMainWorld("settingsAPI", {
   forgetKimiQuotaCredential: () => ipcRenderer.invoke("settings:kimi-quota-forget"),
   getPetTintOptions: () => ipcRenderer.invoke("settings:get-pet-tint-options"),
   getPetAccessoryOptions: () => ipcRenderer.invoke("settings:get-pet-accessory-options"),
+  onPetAccessoryOptionsChanged: (cb) => {
+    if (typeof cb !== "function") return () => {};
+    petAccessoryOptionsListeners.add(cb);
+    return () => petAccessoryOptionsListeners.delete(cb);
+  },
   getRoamFence: () => ipcRenderer.invoke("settings:get-roam-fence"),
   selectRoamFence: () => ipcRenderer.invoke("settings:select-roam-fence"),
   clearRoamFence: () => ipcRenderer.invoke("settings:clear-roam-fence"),

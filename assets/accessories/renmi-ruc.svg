@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 120" width="160" height="120" role="img" aria-label="RUC badge">
+  <g transform="translate(80 58)">
+    <path d="M-30-26h60v18c0 20-12 34-30 42C-18 26-30 12-30-8z" fill="#fffaf3" stroke="#5f4438" stroke-width="5" stroke-linejoin="round"/>
+    <path d="M-23-19h46v11c0 15-9 25-23 32C-14 17-23 7-23-8z" fill="#c84e61" stroke="#8f3548" stroke-width="3" stroke-linejoin="round"/>
+    <path d="M-13-14h26M-9 18h18" fill="none" stroke="#ffe8c9" stroke-width="3" stroke-linecap="round"/>
+    <path d="M-15 8V-5h7c4 0 6 6 1 7l7 6M1-5v13M1-5h6c5 0 5 7 0 7H1M12-5v13M12-5h6" fill="none" stroke="#fffaf3" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>

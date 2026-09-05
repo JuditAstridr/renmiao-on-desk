@@ -43,6 +43,18 @@ module.exports = function createStudyWindowRuntime(ctx = {}) {
     }
   }
 
+  function getPetAnchorBounds() {
+    try {
+      if (typeof ctx.getPetWindowAnchorBounds === "function") {
+        const anchored = ctx.getPetWindowAnchorBounds();
+        if (usableBounds(anchored)) return anchored;
+      }
+      return typeof ctx.getPetWindowBounds === "function" ? ctx.getPetWindowBounds() : null;
+    } catch {
+      return null;
+    }
+  }
+
   function getScale() {
     try {
       return clampTextScale(typeof ctx.getTextScale === "function" ? ctx.getTextScale() : 1);
@@ -57,8 +69,7 @@ module.exports = function createStudyWindowRuntime(ctx = {}) {
     const height = scaleHeight(DEFAULT_HEIGHT, scale);
     const minWidth = scaleWidth(MIN_WIDTH, scale);
     const minHeight = scaleHeight(MIN_HEIGHT, scale);
-    let pet = null;
-    try { pet = typeof ctx.getPetWindowBounds === "function" ? ctx.getPetWindowBounds() : null; } catch {}
+    const pet = getPetAnchorBounds();
     const cx = pet && Number.isFinite(pet.x) ? pet.x + pet.width / 2 : 640;
     const cy = pet && Number.isFinite(pet.y) ? pet.y + pet.height / 2 : 400;
     let workArea = null;
@@ -99,7 +110,7 @@ module.exports = function createStudyWindowRuntime(ctx = {}) {
     let pet = null;
     let current = null;
     try {
-      pet = typeof ctx.getPetWindowBounds === "function" ? ctx.getPetWindowBounds() : null;
+      pet = getPetAnchorBounds();
       current = typeof studyWindow.getBounds === "function" ? studyWindow.getBounds() : null;
     } catch {
       return false;

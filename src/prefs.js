@@ -59,7 +59,7 @@ const {
 } = require("./text-scale");
 const {
   isPetTintIdForTheme,
-  PET_ACCESSORY_IDS,
+  isPetAccessoryIdForTheme,
 } = require("./pet-customization-catalog");
 
 const CURRENT_VERSION = 18;
@@ -230,6 +230,9 @@ const SCHEMA = {
   openAtLogin: { type: "boolean", default: false },
   openAtLoginHydrated: { type: "boolean", default: false },
   bubbleFollowPet: { type: "boolean", default: false },
+  // Renmi's Study panel is a separate window. Keep its placement preference
+  // independent from permission/update bubble placement.
+  studyFollowPet: { type: "boolean", default: true },
   sessionHudEnabled: { type: "boolean", default: true },
   sessionHudShowStateLabels: { type: "boolean", default: true },
   sessionHudShowElapsed: { type: "boolean", default: false },
@@ -1442,7 +1445,7 @@ function normalizePetAccessory(value, defaultsValue) {
   const out = {};
   for (const [themeId, accessoryId] of Object.entries(value)) {
     if (!/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$/.test(themeId)) continue;
-    if (!PET_ACCESSORY_IDS.includes(accessoryId)) continue;
+    if (!isPetAccessoryIdForTheme(accessoryId, themeId)) continue;
     if (accessoryId !== "none") out[themeId] = accessoryId;
   }
   return out;

@@ -139,10 +139,20 @@ function createPetWindowRuntime(options = {}) {
   const getAllowEdgePinning = options.getAllowEdgePinning || (() => false);
   const sendToRenderer = options.sendToRenderer || noop;
   const keepOutOfTaskbar = options.keepOutOfTaskbar || noop;
-  const repositionStudyWindow = options.repositionStudyWindow || noop;
+  const repositionSessionHud = options.repositionSessionHud || noop;
+  const repositionAnchoredSurfaces = options.repositionAnchoredSurfaces || noop;
+  const repositionFloatingBubbles = options.repositionFloatingBubbles || noop;
+  const showFloatingSurfacesForPet = options.showFloatingSurfacesForPet || noop;
+  const hideFloatingSurfacesForPet = options.hideFloatingSurfacesForPet || noop;
+  const syncSessionHudVisibilityAndBubbles = options.syncSessionHudVisibilityAndBubbles || noop;
+  const syncPermissionShortcuts = options.syncPermissionShortcuts || noop;
   const buildTrayMenu = options.buildTrayMenu || noop;
   const buildContextMenu = options.buildContextMenu || noop;
   const reapplyMacVisibility = options.reapplyMacVisibility || noop;
+  // #640: re-run the editing-overlap dodge whenever the hit geometry syncs —
+  // the hitbox can change without the window moving (state switches between
+  // hitboxes, theme reload), which changes the overlap answer.
+  const syncImeEditingPetDodge = options.syncImeEditingPetDodge || noop;
   const reassertWinTopmost = options.reassertWinTopmost || noop;
   const scheduleHwndRecovery = options.scheduleHwndRecovery || noop;
   // #525: DWM cloak probe + un-cloak primitives (win-cloak-recovery.js).
@@ -321,6 +331,7 @@ function createPetWindowRuntime(options = {}) {
   // I5 applyHitInputState() single-writer state.
   let hitGeometrySuppressed = false;
   let settingsSizePreviewIgnoringHit = false;
+  let imeEditingPetDodge = false;
   let hitInputIgnoreApplied = null; // null = never explicitly applied yet
 
   let petHidden = false;
@@ -368,9 +379,21 @@ function createPetWindowRuntime(options = {}) {
   }
 
   function getCursorScreenPoint() {
-    return typeof screen.getCursorScreenPoint === "function"
-      ? screen.getCursorScreenPoint()
-      : null;
+    if (typeof screen.getCursorScreenPoint !== "function") return null;
+    try {
+      const point = screen.getCursorScreenPoint();
+      return isUsableScreenPoint(point) ? { x: point.x, y: point.y } : null;
+    } catch {
+      return null;
+    }
+  }
+
+  // Drag geometry is written in the main-process coordinate space. Prefer
+  // Electron's global cursor query so macOS display scaling cannot mix
+  // renderer screenX/screenY units with native window coordinates.
+  function getDragCursorPoint(rendererPoint = null) {
+    return getCursorScreenPoint()
+      || (isUsableScreenPoint(rendererPoint) ? rendererPoint : null);
   }
 
   function getDisplayNearestPoint(cx, cy) {
@@ -838,16 +861,14 @@ function createPetWindowRuntime(options = {}) {
     return true;
   }
 
-  // Unifies the hit-surface sync that must follow ANY change to
+  // Unifies the hit/HUD/anchored-surface sync that must follow ANY change to
   // logical bounds, not just ones that produce a native move/resize event (I6:
   // "offset 变化也是窗口移动"). This is exactly the pre-existing
-  // syncHitAfterPetBoundsChange() (settingsSizePreviewSyncFrozen early-return
-  // included) — §4.3.9 explicitly calls for the ORIGINAL win.on("move"/"resize")
-  // listener body to move here, not be duplicated.
+  // syncFloatingWindowsAfterPetBoundsChange() (settingsSizePreviewSyncFrozen
+  // early-return included) — §4.3.9 explicitly calls for the ORIGINAL
+  // win.on("move"/"resize") listener body to move here, not be duplicated.
   function syncDerivedSurfaces() {
-    if (settingsSizePreviewSyncFrozen) return;
-    syncHitWin();
-    repositionStudyWindow();
+    syncFloatingWindowsAfterPetBoundsChange();
   }
 
   // Low-noise diagnostic line for a reconcile action, matching the field set
@@ -1290,8 +1311,8 @@ function createPetWindowRuntime(options = {}) {
     }
 
     scheduleSettleSweep();
-    repositionStudyWindow();
 
+    repositionSessionHud();
     return m.bounds;
   }
 
@@ -1353,15 +1374,19 @@ function createPetWindowRuntime(options = {}) {
     if (petHidden) {
       // becoming visible
       showPetWindows();
+      showFloatingSurfacesForPet();
       reapplyMacVisibility();
       petHidden = false;
     } else {
       // becoming hidden
       hidePetWindows();
+      hideFloatingSurfacesForPet();
       petHidden = true;
     }
     // I5: petHidden is one of applyHitInputState()'s four OR-ed reasons.
     applyHitInputState();
+    syncSessionHudVisibilityAndBubbles();
+    syncPermissionShortcuts();
     buildTrayMenu();
     buildContextMenu();
     return { applied: true, deferred: false, changed: true };
@@ -1475,6 +1500,7 @@ function createPetWindowRuntime(options = {}) {
     if (bounds) {
       applyPetWindowBounds(bounds, { force: true });
       syncHitWin();
+      repositionAnchoredSurfaces();
     }
     showPetWindows();
     reapplyMacVisibility();
@@ -1499,6 +1525,7 @@ function createPetWindowRuntime(options = {}) {
 
     applyPetWindowBounds(bounds);
     syncHitWin();
+    repositionFloatingBubbles();
 
     if (petHidden) {
       togglePetVisibility();
@@ -1522,6 +1549,14 @@ function createPetWindowRuntime(options = {}) {
 
   function getHitRectScreen(bounds) {
     return clipHitRectToMiniSeam(petGeometryMain.getHitRectScreen(bounds));
+  }
+
+  function getUpdateBubbleAnchorRect(bounds) {
+    return petGeometryMain.getUpdateBubbleAnchorRect(bounds);
+  }
+
+  function getSessionHudAnchorRect(bounds) {
+    return petGeometryMain.getSessionHudAnchorRect(bounds);
   }
 
   function getVisibleContentMargins(bounds) {
@@ -1728,10 +1763,13 @@ function createPetWindowRuntime(options = {}) {
     return { left, top, right: Math.max(left, right), bottom: Math.max(top, bottom) };
   }
 
-  // I5's single ignore-mouse writer. The hit geometry, pet visibility, and
-  // Settings size preview reasons are composed here so no caller can leave
-  // the input window in a state another writer's stale cache doesn't know
-  // about.
+  // I5's single ignore-mouse writer. Four independent suppression reasons OR
+  // together. Pre-#690 there were four writers and three separate caches
+  // (hit window creation with no platform gate; Settings size preview,
+  // Windows-only; macOS editing dodge with topmost-runtime.js's own now-
+  // removed imeEditingHitIgnoreApplied cache) — collapsing to one cache
+  // (hitInputIgnoreApplied) means no writer can leave the window in a state a
+  // DIFFERENT writer's stale cache doesn't know about.
   // `hitWinOverride`: createHitWindow() below needs this at the exact moment
   // it's constructing the window, before the caller (main.js) has assigned it
   // to whatever `getHitWindow()` reads — the local reference is correct there,
@@ -1740,10 +1778,21 @@ function createPetWindowRuntime(options = {}) {
   function applyHitInputState(hitWinOverride) {
     const hitWin = hitWinOverride || getHitWindow();
     if (!isLiveWindow(hitWin) || typeof hitWin.setIgnoreMouseEvents !== "function") return;
-    const ignore = hitGeometrySuppressed || petHidden || settingsSizePreviewIgnoringHit;
+    const ignore = hitGeometrySuppressed || petHidden
+      || settingsSizePreviewIgnoringHit || imeEditingPetDodge;
     if (ignore === hitInputIgnoreApplied) return;
     hitWin.setIgnoreMouseEvents(ignore);
     hitInputIgnoreApplied = ignore;
+  }
+
+  // The fourth applyHitInputState() reason, fed by topmost-runtime.js's macOS
+  // editing-overlap dodge (#640) instead of that module reaching into
+  // hitWin.setIgnoreMouseEvents() directly (I5's single-writer requirement).
+  function setImeEditingPetDodge(value) {
+    const next = !!value;
+    if (next === imeEditingPetDodge) return;
+    imeEditingPetDodge = next;
+    applyHitInputState();
   }
 
   function resetHitReconcileObservation() {
@@ -1809,10 +1858,15 @@ function createPetWindowRuntime(options = {}) {
       // Degenerate (menu mini-entry's fully-offscreen preload, or a 1-7px
       // transition sliver): don't write a sliver BrowserWindow, and don't
       // leave the OLD rect sitting there interactive either. Suppress FIRST
-      // — before returning — so the OR-composition in applyHitInputState()
-      // can never be flipped back to interactive while this rect is invalid.
+      // — before the syncImeEditingPetDodge() tail call below — so the
+      // OR-composition in applyHitInputState() can never be flipped back to
+      // interactive by a different reason's writer while this rect is
+      // invalid (I5's ordering requirement: today's `return` here would hide
+      // that bug only because it happens to run before the dodge call).
       hitGeometrySuppressed = true;
       applyHitInputState();
+      repositionSessionHud();
+      syncImeEditingPetDodge();
       // Nothing was written: this rect is a transient sliver. Callers that
       // need the new geometry should retry, not warn.
       return DEFERRED_HIT_SYNC;
@@ -1861,6 +1915,11 @@ function createPetWindowRuntime(options = {}) {
       hitGeometrySuppressed = false;
       applyHitInputState();
     }
+    repositionSessionHud();
+    // #640: the hit rect just (re)resolved — state switches and theme reloads
+    // change hitboxes without moving the window, so the overlap answer can
+    // flip right here. Cheap + edge-triggered inside.
+    syncImeEditingPetDodge();
     return APPLIED_HIT_SYNC;
   }
 
@@ -2176,7 +2235,6 @@ function createPetWindowRuntime(options = {}) {
     // false. Passed explicitly because getHitWindow() can't resolve to this
     // window until createHitWindow() returns and the caller assigns it.
     applyHitInputState(hitWin);
-    if (isMac) hitWin.setFocusable(false);
     hitWin.showInactive();
     keepOutOfTaskbar(hitWin);
     if (isWin) hitWin.setAlwaysOnTop(true, topmostLevel);
@@ -2229,11 +2287,8 @@ function createPetWindowRuntime(options = {}) {
     // so the drag snapshot follows the frozen invariant instead of re-reading
     // live bounds — keeps every size path on one source of truth.
     const size = getEffectiveCurrentPixelSize();
-    const cursor = isUsableScreenPoint(cursorOverride)
-      ? cursorOverride
-      : getCursorScreenPoint();
     dragSnapshot = createDragSnapshot(
-      cursor,
+      getDragCursorPoint(cursorOverride),
       bounds,
       size
     );
@@ -2249,12 +2304,9 @@ function createPetWindowRuntime(options = {}) {
     if (!isLiveWindow(getRenderWindow())) return;
     if (!dragSnapshot) return;
 
-    const cursor = isUsableScreenPoint(cursorOverride)
-      ? cursorOverride
-      : getCursorScreenPoint();
     const bounds = computeAnchoredDragBounds(
       dragSnapshot,
-      cursor,
+      getDragCursorPoint(cursorOverride),
       looseClampPetToDisplays
     );
     if (!bounds) return;
@@ -2262,6 +2314,7 @@ function createPetWindowRuntime(options = {}) {
     applyPetWindowBounds(bounds);
     if (isWin && isNearWorkAreaEdge(bounds)) reassertWinTopmost();
     syncHitWin();
+    repositionAnchoredSurfaces();
   }
 
   function hasStoredPositionThemeMismatch(prefs) {
@@ -2369,6 +2422,12 @@ function createPetWindowRuntime(options = {}) {
     scheduleHwndRecovery();
   }
 
+  function syncFloatingWindowsAfterPetBoundsChange() {
+    if (settingsSizePreviewSyncFrozen) return;
+    syncHitWin();
+    repositionAnchoredSurfaces();
+  }
+
   function rematerializePetAfterTopologyChange() {
     const current = getPetWindowBounds();
     if (!current) return;
@@ -2435,6 +2494,7 @@ function createPetWindowRuntime(options = {}) {
     // a Windows sleep/wake size drift is snapped back to the effective size,
     // while a fully unchanged physical rect still avoids a native write.
     rematerializePetAfterTopologyChange();
+    repositionAnchoredSurfaces();
   }
 
   function handleDisplayRemoved() {
@@ -2464,6 +2524,7 @@ function createPetWindowRuntime(options = {}) {
       return;
     }
     rematerializePetAfterTopologyChange();
+    repositionAnchoredSurfaces();
   }
 
   function handleDisplayAdded() {
@@ -2490,12 +2551,15 @@ function createPetWindowRuntime(options = {}) {
         rematerializePetAfterTopologyChange();
       }
     }
+    repositionAnchoredSurfaces();
   }
 
   return {
     getObjRect,
     getAssetPointerPayload,
     getHitRectScreen,
+    getUpdateBubbleAnchorRect,
+    getSessionHudAnchorRect,
     getPetWindowBounds,
     applyPetWindowBounds,
     applyPetWindowPosition,
@@ -2530,11 +2594,13 @@ function createPetWindowRuntime(options = {}) {
     resolveStartupPlacement,
     beginSettingsSizePreviewProtection,
     endSettingsSizePreviewProtection,
+    syncFloatingWindowsAfterPetBoundsChange,
     handleDisplayMetricsChanged,
     handleDisplayRemoved,
     handleDisplayAdded,
     // Issue #690 Phase 2 items 5-8 (batch 2)
     getPhysicalRenderBounds,
+    setImeEditingPetDodge,
     onNativeGeometryEvent,
     onHitNativeGeometryEvent,
     releaseReconcileProtection,

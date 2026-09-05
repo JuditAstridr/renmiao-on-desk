@@ -40,6 +40,33 @@ const taskQuadrant = $("taskQuadrant");
 const addTaskButton = $("addTaskButton");
 const viewControls = $("viewControls");
 const taskList = $("taskList");
+const studyTabs = $("studyTabs");
+const timerSection = $("timerSection");
+const tasksSection = $("tasksSection");
+const calendarSection = $("calendarSection");
+const reportSection = $("reportSection");
+const calendarRange = $("calendarRange");
+const calendarWeekdays = $("calendarWeekdays");
+const calendarGrid = $("calendarGrid");
+const calendarPanel = $("calendarPanel");
+const calendarGoalLabel = $("calendarGoalLabel");
+const calendarDefaultGoal = $("calendarDefaultGoal");
+const reportRange = $("reportRange");
+const reportStats = $("reportStats");
+const reportTrend = $("reportTrend");
+const reportChart = $("reportChart");
+const reportFacts = $("reportFacts");
+const reportBreakdown = $("reportBreakdown");
+const posterPreview = $("posterPreview");
+const reportSaveStatus = $("reportSaveStatus");
+let activeTab = "tasks";
+let reportSpec = { unit: "week", offset: 0 };
+let reportData = null;
+let calendarMode = null;
+let calendarData = null;
+let selectedCalendarDay = null;
+let reportRequestId = 0;
+let calendarRequestId = 0;
 
 function t(key) {
   return (i18nPayload.translations && i18nPayload.translations[key]) || key;
@@ -47,7 +74,7 @@ function t(key) {
 
 function call(method, ...args) {
   if (!api || typeof api[method] !== "function") return Promise.resolve(snapshot);
-  return api[method](...args).then((next) => {
+  return Promise.resolve(api[method](...args)).then((next) => {
     if (next && typeof next === "object") {
       snapshot = next;
       render();
@@ -410,12 +437,328 @@ function renderTasks() {
   }
 }
 
+function label(key, fallback) {
+  const value = t(key);
+  return value === key ? fallback : value;
+}
+
+function renderStudyTabs() {
+  for (const button of studyTabs.querySelectorAll("[data-tab]")) {
+    const tab = button.dataset.tab;
+    button.classList.toggle("active", tab === activeTab);
+    button.textContent = tab === "tasks"
+      ? label("studyTabTasks", t("studyTasksTitle"))
+      : (tab === "calendar" ? label("studyTabCalendar", "Calendar") : label("studyTabReport", "Reports"));
+  }
+}
+
+function localDateKey(value) {
+  const date = new Date(value);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+function startOfLocalDay(value) {
+  const date = new Date(value);
+  date.setHours(0, 0, 0, 0);
+  return date.getTime();
+}
+
+function dateRangeLabel(range) {
+  const from = new Date(range.from).toLocaleDateString(i18nPayload.lang || undefined, { year: "numeric", month: "short", day: "numeric" });
+  const to = new Date(range.to).toLocaleDateString(i18nPayload.lang || undefined, { year: "numeric", month: "short", day: "numeric" });
+  return `${from} – ${to}`;
+}
+
+function reportDuration(minutes) {
+  const value = Math.max(0, Number(minutes) || 0);
+  if (value >= 60) return `${Math.floor(value / 60)}h ${value % 60}m`;
+  return `${value}m`;
+}
+
+function reportSignature() {
+  const history = Array.isArray(snapshot.history) ? snapshot.history : [];
+  const last = history[history.length - 1];
+  return `${reportSpec.unit}:${reportSpec.offset}:${history.length}:${last ? last.at : 0}:${snapshot.points && snapshot.points.total}`;
+}
+
+function renderReportStats(data) {
+  reportStats.replaceChildren();
+  const entries = [
+    [data.totals.focusCount, label("studyReportFocusCount", "Focus sessions")],
+    [reportDuration(data.totals.focusMinutes), label("studyReportFocusTime", "Focus time")],
+    [data.totals.taskCount, label("studyReportTasksDone", "Tasks completed")],
+    [data.totals.points, label("studyReportPointsEarned", "Points earned")],
+  ];
+  for (const [value, name] of entries) {
+    const card = document.createElement("div"); card.className = "report-stat";
+    const strong = document.createElement("strong"); strong.textContent = String(value);
+    const span = document.createElement("span"); span.textContent = name;
+    card.append(strong, span); reportStats.appendChild(card);
+  }
+}
+
+function renderReport(data) {
+  reportRange.textContent = dateRangeLabel(data.range);
+  $("reportWeek").classList.toggle("active", data.unit === "week");
+  $("reportMonth").classList.toggle("active", data.unit === "month");
+  $("reportNext").disabled = data.offset >= 0;
+  renderReportStats(data);
+
+  reportTrend.replaceChildren();
+  const trendTitle = document.createElement("div"); trendTitle.className = "report-card-title";
+  trendTitle.textContent = label("studyReportTrendTitle", "Trend");
+  const trendText = document.createElement("div"); trendText.className = "report-muted";
+  const trend = data.trend || {};
+  trendText.textContent = trend.growthPct == null
+    ? `${trend.activeCount || 0} ${label("studyReportActivePeriods", "active periods")}`
+    : `${trend.growthPct >= 0 ? "+" : ""}${trend.growthPct}% ${label("studyReportComparedWithStart", "compared with the first active period")}`;
+  reportTrend.append(trendTitle, trendText);
+
+  reportChart.replaceChildren();
+  const chartTitle = document.createElement("div"); chartTitle.className = "report-card-title";
+  chartTitle.textContent = label("studyReportDailyTitle", "Focus by day");
+  const bars = document.createElement("div"); bars.className = "report-bars";
+  const max = Math.max(1, ...data.daily.map((entry) => Number(entry.focusMinutes) || 0));
+  for (const entry of data.daily) {
+    const col = document.createElement("div"); col.className = "report-bar-col";
+    const bar = document.createElement("div"); bar.className = "report-bar";
+    bar.style.height = `${Math.max(2, Math.round(((entry.focusMinutes || 0) / max) * 100))}%`;
+    bar.title = `${reportDuration(entry.focusMinutes)} · ${new Date(entry.day).toLocaleDateString()}`;
+    const day = document.createElement("span"); day.className = "report-bar-label";
+    day.textContent = `${new Date(entry.day).getMonth() + 1}/${new Date(entry.day).getDate()}`;
+    col.append(bar, day); bars.appendChild(col);
+  }
+  reportChart.append(chartTitle, bars);
+
+  reportFacts.replaceChildren();
+  const factsTitle = document.createElement("div"); factsTitle.className = "report-card-title";
+  factsTitle.textContent = label("studyReportFactsTitle", "Highlights");
+  const list = document.createElement("ul"); list.className = "report-facts";
+  const facts = [];
+  if (data.facts && data.facts.story) facts.push(`${data.facts.story.taskTitle}: ${reportDuration(data.facts.story.focusMinutes)} focused over ${data.facts.story.days} day(s)`);
+  if (data.facts && data.facts.bestDay) facts.push(`Best day: ${new Date(data.facts.bestDay.day).toLocaleDateString()} · ${reportDuration(data.facts.bestDay.focusMinutes)}`);
+  if (data.categories && data.categories[0]) facts.push(`Top category: ${data.categories[0].category || label("studyUncategorized", "Uncategorized")} · ${reportDuration(data.categories[0].minutes)}`);
+  if (data.facts && data.facts.avgTaskMinutes != null) facts.push(`Average completed-task time: ${reportDuration(data.facts.avgTaskMinutes)}`);
+  if (!facts.length) facts.push(label("studyReportNoData", "No completed focus sessions yet."));
+  for (const fact of facts.slice(0, 5)) { const item = document.createElement("li"); item.textContent = fact; list.appendChild(item); }
+  reportFacts.append(factsTitle, list);
+
+  reportBreakdown.replaceChildren();
+  const breakdownTitle = document.createElement("div");
+  breakdownTitle.className = "report-card-title";
+  breakdownTitle.textContent = label("studyReportBreakdownTitle", "Breakdown");
+  const breakdownGrid = document.createElement("div");
+  breakdownGrid.className = "report-breakdown-grid";
+  const categoryRows = (data.categories || []).slice(0, 5).map((entry) =>
+    `${entry.category || label("studyUncategorized", "Uncategorized")} · ${reportDuration(entry.minutes)}`
+  );
+  const priorityRows = Object.entries(data.quadrantCounts || {})
+    .filter(([, count]) => Number(count) > 0)
+    .map(([quadrant, count]) => `${label(["studyQuadrantUrgentImportant", "studyQuadrantUrgentNotImportant", "studyQuadrantNotUrgentImportant", "studyQuadrantNotUrgentNotImportant"][Number(quadrant)] || "studyUnprioritized", "No priority")} · ${count}`);
+  const longTerm = data.longTerm && data.longTerm.spanWeeks
+    ? `${data.longTerm.spanWeeks} ${label("studyReportWeeksTracked", "weeks tracked")} · ${label(data.longTerm.improving ? "studyReportImproving" : "studyReportSteady", data.longTerm.improving ? "improving" : "steady")}`
+    : label("studyReportNoData", "No completed focus sessions yet.");
+  for (const [title, rows] of [
+    [label("studyReportCategories", "Categories"), categoryRows],
+    [label("studyReportPriority", "Priority"), priorityRows],
+    [label("studyReportLongTerm", "Long-term"), [longTerm]],
+  ]) {
+    const group = document.createElement("div");
+    const heading = document.createElement("strong"); heading.textContent = title; group.appendChild(heading);
+    const listEl = document.createElement("div"); listEl.className = "report-breakdown-list";
+    for (const row of (rows.length ? rows : [label("studyReportNoBreakdown", "No data")])) {
+      const item = document.createElement("span"); item.textContent = row; listEl.appendChild(item);
+    }
+    group.appendChild(listEl); breakdownGrid.appendChild(group);
+  }
+  reportBreakdown.append(breakdownTitle, breakdownGrid);
+  drawPoster(data);
+}
+
+function posterModel(data) {
+  const facts = [];
+  if (data.facts && data.facts.story) facts.push(`${data.facts.story.taskTitle} · ${reportDuration(data.facts.story.focusMinutes)}`);
+  if (data.facts && data.facts.bestDay) facts.push(`Best day: ${new Date(data.facts.bestDay.day).toLocaleDateString()}`);
+  if (data.categories && data.categories[0]) facts.push(`Top category: ${data.categories[0].category || "Uncategorized"}`);
+  return {
+    title: label("studyReportSectionTitle", "Study report"),
+    range: dateRangeLabel(data.range),
+    stats: [
+      { value: data.totals.focusCount, label: label("studyReportFocusCount", "Focus sessions") },
+      { value: reportDuration(data.totals.focusMinutes), label: label("studyReportFocusTime", "Focus time") },
+      { value: data.totals.taskCount, label: label("studyReportTasksDone", "Tasks completed") },
+      { value: data.totals.points, label: label("studyReportPointsEarned", "Points earned"), cls: "accent" },
+    ],
+    chartTitle: label("studyReportDailyTitle", "Focus by day"),
+    daily: data.daily.map((entry) => ({ day: entry.day, minutes: entry.focusMinutes })),
+    factsTitle: label("studyReportFactsTitle", "Highlights"),
+    facts,
+    noData: label("studyReportNoData", "No completed focus sessions yet."),
+    footer: `LV · ${data.allTime.total} ${label("studyPoints", "points")}`,
+  };
+}
+
+async function drawPoster(data) {
+  if (!window.ClawdReportPoster) return;
+  let canvas = posterPreview.querySelector("canvas");
+  if (!canvas) { canvas = document.createElement("canvas"); posterPreview.replaceChildren(canvas); }
+  try { await window.ClawdReportPoster.draw(canvas, posterModel(data)); } catch (error) { console.warn("study poster render failed:", error); }
+}
+
+async function refreshReport(force = false) {
+  const key = reportSignature();
+  if (!force && reportData && reportData._key === key) return;
+  const requestId = ++reportRequestId;
+  const next = await api.getReport(reportSpec).catch((error) => { console.warn("study report failed:", error); return null; });
+  if (requestId !== reportRequestId) return;
+  if (!next || activeTab !== "report") return;
+  next._key = key;
+  reportData = next;
+  renderReport(next);
+}
+
+function calendarOffset() {
+  const now = new Date();
+  return (calendarMode.year - now.getFullYear()) * 12 + calendarMode.month - (now.getMonth() + 1);
+}
+
+function ensureCalendarMode() {
+  if (!calendarMode) { const now = new Date(); calendarMode = { year: now.getFullYear(), month: now.getMonth() + 1 }; }
+}
+
+function calendarHistoryKey() {
+  const history = Array.isArray(snapshot.history) ? snapshot.history : [];
+  const last = history[history.length - 1];
+  return `${history.length}:${last ? last.at : 0}`;
+}
+
+function clockLabel(minutes) {
+  if (minutes == null) return "";
+  return `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
+}
+
+function timeMinutes(value) {
+  if (!value) return null;
+  const parts = value.split(":").map(Number);
+  return parts.length === 2 && Number.isInteger(parts[0]) && Number.isInteger(parts[1]) ? parts[0] * 60 + parts[1] : null;
+}
+
+function renderCalendar(data) {
+  ensureCalendarMode();
+  const grid = window.ClawdStudyCalendar.buildMonthGrid({
+    ...calendarMode, daily: data ? data.daily : [], tasks: snapshot.tasks || [], schedules: snapshot.schedules || [], goals: snapshot.goals || {}, nowMs: Date.now(),
+  });
+  const cacheKey = data && data._key;
+  if (cacheKey) grid._key = cacheKey;
+  calendarData = grid;
+  calendarRange.textContent = new Date(calendarMode.year, calendarMode.month - 1, 1).toLocaleDateString(i18nPayload.lang || undefined, { year: "numeric", month: "long" });
+  calendarGoalLabel.textContent = label("studyCalendarGoalLabel", "Daily goal");
+  calendarDefaultGoal.title = label("studyCalendarGoalPlaceholder", "Daily goal (min)");
+  calendarDefaultGoal.value = snapshot.goals && snapshot.goals.defaultMinutes || "";
+  calendarWeekdays.replaceChildren();
+  const monday = new Date(2026, 8, 7);
+  for (let index = 0; index < 7; index += 1) { const day = document.createElement("div"); day.className = "calendar-weekday"; day.textContent = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + index).toLocaleDateString(i18nPayload.lang || undefined, { weekday: "short" }); calendarWeekdays.appendChild(day); }
+  calendarGrid.replaceChildren();
+  for (const week of grid.weeks) for (const cell of week) {
+    const button = document.createElement("button"); button.type = "button"; button.className = `calendar-cell${cell.inMonth ? "" : " out"}${cell.isToday ? " today" : ""}${selectedCalendarDay === cell.date ? " selected" : ""}`;
+    if (!cell.inMonth) button.disabled = true;
+    const head = document.createElement("div"); head.className = "calendar-cell-head"; const num = document.createElement("span"); num.textContent = String(cell.dayNum); head.appendChild(num);
+    if (cell.goalSet) { const dot = document.createElement("span"); dot.className = `calendar-goal${cell.goalMet ? " met" : ""}`; head.appendChild(dot); }
+    button.appendChild(head);
+    if (cell.focusCount) { const meta = document.createElement("div"); meta.className = "calendar-meta"; meta.textContent = `${cell.focusMinutes}m · ${cell.focusCount}`; button.appendChild(meta); }
+    const visible = [];
+    if (cell.primarySchedule) visible.push({ text: `${clockLabel(cell.primarySchedule.timeMinutes)} ${cell.primarySchedule.title}`.trim(), cls: `calendar-chip${cell.primarySchedule.done ? " done" : ""}` });
+    if (cell.primaryTask) visible.push({ text: cell.primaryTask.title, cls: "calendar-chip task" });
+    for (const item of visible) { const chip = document.createElement("span"); chip.className = item.cls; chip.textContent = item.text; button.appendChild(chip); }
+    const more = cell.schedules.length + cell.tasks.length - visible.length;
+    if (more > 0) { const item = document.createElement("span"); item.className = "calendar-more"; item.textContent = `+${more}`; button.appendChild(item); }
+    if (cell.inMonth) button.addEventListener("click", () => { selectedCalendarDay = cell.date; renderCalendar(calendarData); renderCalendarPanel(cell); });
+    calendarGrid.appendChild(button);
+  }
+  const selected = grid.weeks.flat().find((cell) => cell.inMonth && cell.date === selectedCalendarDay) || grid.weeks.flat().find((cell) => cell.inMonth);
+  if (selectedCalendarDay == null && selected) { selectedCalendarDay = selected.date; renderCalendar(grid); return; }
+  renderCalendarPanel(selected);
+}
+
+function renderCalendarPanel(cell) {
+  if (!cell) return;
+  calendarPanel.replaceChildren();
+  const title = document.createElement("h3"); title.textContent = new Date(cell.date).toLocaleDateString(i18nPayload.lang || undefined, { weekday: "long", month: "long", day: "numeric" }); calendarPanel.appendChild(title);
+  const summary = document.createElement("div"); summary.className = "calendar-summary"; summary.textContent = `${cell.focusMinutes}m focus · ${cell.focusCount} ${label("studyReportFocusCount", "sessions")}`; calendarPanel.appendChild(summary);
+  const goalRow = document.createElement("div"); goalRow.className = "calendar-form";
+  const goal = document.createElement("input"); goal.type = "number"; goal.min = "1"; goal.max = "1440"; goal.placeholder = label("studyCalendarGoalPlaceholder", "Daily goal (min)"); goal.value = snapshot.goals && snapshot.goals.overrides && snapshot.goals.overrides[localDateKey(cell.date)] || "";
+  const setGoal = document.createElement("button"); setGoal.type = "button"; setGoal.textContent = label("studyCalendarGoalSet", "Set goal"); setGoal.addEventListener("click", () => call("setDailyGoal", { date: cell.date, minutes: goal.value ? Number(goal.value) : null }));
+  goalRow.append(goal, setGoal); calendarPanel.appendChild(goalRow);
+  const taskTitle = document.createElement("div"); taskTitle.className = "report-card-title"; taskTitle.textContent = label("studyCalendarTasksDue", "Tasks due"); calendarPanel.appendChild(taskTitle);
+  const taskListEl = document.createElement("div"); taskListEl.className = "calendar-list";
+  if (!cell.tasks.length) { const empty = document.createElement("div"); empty.className = "report-muted"; empty.textContent = label("studyCalendarNoTasksDue", "No tasks due"); taskListEl.appendChild(empty); }
+  for (const task of cell.tasks) { const row = document.createElement("label"); row.className = "calendar-list-row"; const check = document.createElement("input"); check.type = "checkbox"; check.checked = task.done; check.addEventListener("change", () => call("toggleTask", task.id)); const span = document.createElement("span"); span.className = "calendar-row-title"; span.textContent = task.title; row.append(check, span); taskListEl.appendChild(row); }
+  calendarPanel.appendChild(taskListEl);
+  const scheduleTitle = document.createElement("div"); scheduleTitle.className = "report-card-title"; scheduleTitle.style.marginTop = "10px"; scheduleTitle.textContent = label("studyCalendarSchedules", "Schedules"); calendarPanel.appendChild(scheduleTitle);
+  const schedules = document.createElement("div"); schedules.className = "calendar-list";
+  for (const schedule of cell.schedules) {
+    const row = document.createElement("div"); row.className = "calendar-list-row"; const check = document.createElement("input"); check.type = "checkbox"; check.checked = schedule.done; check.addEventListener("change", () => call("toggleSchedule", schedule.id));
+    const input = document.createElement("input"); input.type = "text"; input.value = schedule.title; input.className = "calendar-row-title"; input.addEventListener("change", () => call("updateSchedule", schedule.id, { title: input.value }));
+    const date = document.createElement("input"); date.type = "date"; date.value = epochToDate(schedule.date); date.title = label("studyCalendarDate", "Date"); date.addEventListener("change", () => call("updateSchedule", schedule.id, { date: dateToEpoch(date.value) }));
+    const time = document.createElement("input"); time.type = "time"; time.value = schedule.timeMinutes == null ? "" : `${String(Math.floor(schedule.timeMinutes / 60)).padStart(2, "0")}:${String(schedule.timeMinutes % 60).padStart(2, "0")}`; time.title = label("studyCalendarStartTime", "Start time");
+    const end = document.createElement("input"); end.type = "time"; end.value = schedule.endTimeMinutes == null ? "" : `${String(Math.floor(schedule.endTimeMinutes / 60)).padStart(2, "0")}:${String(schedule.endTimeMinutes % 60).padStart(2, "0")}`; end.title = label("studyCalendarEndTime", "End time");
+    const updateClock = () => call("updateSchedule", schedule.id, { timeMinutes: timeMinutes(time.value), endTimeMinutes: timeMinutes(end.value) }); time.addEventListener("change", updateClock); end.addEventListener("change", updateClock);
+    const remove = document.createElement("button"); remove.type = "button"; remove.textContent = "×"; remove.title = label("studyRemoveSchedule", "Remove schedule"); remove.addEventListener("click", () => call("removeSchedule", schedule.id)); row.append(check, input, date, time, end, remove); schedules.appendChild(row);
+  }
+  if (!cell.schedules.length) { const empty = document.createElement("div"); empty.className = "report-muted"; empty.textContent = label("studyCalendarNoSchedules", "No schedules"); schedules.appendChild(empty); }
+  calendarPanel.appendChild(schedules);
+  const form = document.createElement("form"); form.className = "calendar-form"; const titleInput = document.createElement("input"); titleInput.type = "text"; titleInput.placeholder = label("studyCalendarAddSchedule", "Add a schedule"); const start = document.createElement("input"); start.type = "time"; const end = document.createElement("input"); end.type = "time"; const add = document.createElement("button"); add.type = "submit"; add.className = "primary"; add.textContent = label("studyAdd", "Add"); form.append(titleInput, start, end, add); form.addEventListener("submit", (event) => { event.preventDefault(); if (!titleInput.value.trim()) return; call("addSchedule", { title: titleInput.value, date: cell.date, timeMinutes: timeMinutes(start.value), endTimeMinutes: timeMinutes(end.value) }); }); calendarPanel.appendChild(form);
+}
+
+async function refreshCalendar(force = false) {
+  ensureCalendarMode();
+  const key = `${calendarMode.year}-${calendarMode.month}:${calendarHistoryKey()}:${JSON.stringify({
+    tasks: snapshot.tasks || [], schedules: snapshot.schedules || [], goals: snapshot.goals || {},
+  })}`;
+  if (!force && calendarData && calendarData._key === key) { renderCalendar(calendarData); return; }
+  const requestId = ++calendarRequestId;
+  const next = await api.getReport({ unit: "month", offset: calendarOffset() }).catch((error) => { console.warn("study calendar report failed:", error); return null; });
+  if (requestId !== calendarRequestId) return;
+  if (activeTab !== "calendar") return;
+  if (next) next._key = key;
+  calendarData = next;
+  renderCalendar(next);
+}
+
+function selectStudyTab(tab) {
+  if (!["tasks", "calendar", "report"].includes(tab)) return;
+  activeTab = tab;
+  renderStudyTabs();
+  const tasks = tab === "tasks";
+  timerSection.hidden = !tasks; tasksSection.hidden = !tasks; calendarSection.hidden = tab !== "calendar"; reportSection.hidden = tab !== "report";
+  if (tab === "calendar") void refreshCalendar();
+  if (tab === "report") void refreshReport();
+}
+
+function moveCalendar(delta) {
+  ensureCalendarMode();
+  const next = new Date(calendarMode.year, calendarMode.month - 1 + delta, 1);
+  calendarMode = { year: next.getFullYear(), month: next.getMonth() + 1 };
+  selectedCalendarDay = null;
+  void refreshCalendar(true);
+}
+
+function moveReport(delta) {
+  reportSpec = { ...reportSpec, offset: Math.min(0, reportSpec.offset + delta) };
+  void refreshReport(true);
+}
+
 function render() {
   titleEl.textContent = t("studyWindowTitle");
   subtitleEl.textContent = t("studyWindowSubtitle");
   timerTitleEl.textContent = t("studyPomodoroTitle");
   tasksTitleEl.textContent = t("studyTasksTitle");
   addTaskButton.textContent = t("studyAddTask");
+  renderStudyTabs();
+  $("calendarToday").textContent = label("studyCalendarToday", "Today");
+  $("reportWeek").textContent = label("studyReportWeek", "Week");
+  $("reportMonth").textContent = label("studyReportMonth", "Month");
+  $("reportSave").textContent = label("studyReportSavePoster", "Save poster");
   taskTitle.placeholder = t("studyTaskPlaceholder");
   taskCategory.placeholder = t("studyCategoryPlaceholder");
   const selectedQuadrant = taskQuadrant.value;
@@ -425,7 +768,53 @@ function render() {
   pointsEl.innerHTML = `<strong>${Number(points.total) || 0}</strong><span>${t("studyPoints")}</span>`;
   renderTimer();
   renderTasks();
+  if (activeTab === "calendar") void refreshCalendar();
+  if (activeTab === "report") void refreshReport();
 }
+
+studyTabs.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-tab]");
+  if (button) selectStudyTab(button.dataset.tab);
+});
+
+$("calendarPrev").addEventListener("click", () => moveCalendar(-1));
+$("calendarNext").addEventListener("click", () => moveCalendar(1));
+$("calendarToday").addEventListener("click", () => {
+  const now = new Date();
+  calendarMode = { year: now.getFullYear(), month: now.getMonth() + 1 };
+  selectedCalendarDay = null;
+  void refreshCalendar(true);
+});
+calendarDefaultGoal.addEventListener("change", () => call("setDailyGoal", {
+  minutes: calendarDefaultGoal.value ? Number(calendarDefaultGoal.value) : null,
+}));
+$("reportWeek").addEventListener("click", () => {
+  reportSpec = { unit: "week", offset: 0 };
+  void refreshReport(true);
+});
+$("reportMonth").addEventListener("click", () => {
+  reportSpec = { unit: "month", offset: 0 };
+  void refreshReport(true);
+});
+$("reportPrev").addEventListener("click", () => moveReport(-1));
+$("reportNext").addEventListener("click", () => moveReport(1));
+$("reportSave").addEventListener("click", async () => {
+  const canvas = posterPreview.querySelector("canvas");
+  if (!canvas || !api || typeof api.saveReportPoster !== "function") return;
+  reportSaveStatus.textContent = label("studyReportSaving", "Saving…");
+  try {
+    const result = await api.saveReportPoster({
+      dataUrl: canvas.toDataURL("image/png"),
+      suggestedName: `renmi-study-${reportSpec.unit}-${new Date().toISOString().slice(0, 10)}.png`,
+    });
+    reportSaveStatus.textContent = result && result.status === "ok"
+      ? label("studyReportSaved", "Saved")
+      : (result && result.status === "cancel" ? label("studyReportSaveCancelled", "Cancelled") : label("studyReportSaveFailed", "Save failed"));
+  } catch (error) {
+    reportSaveStatus.textContent = label("studyReportSaveFailed", "Save failed");
+    console.warn("study report poster save failed:", error);
+  }
+});
 
 taskForm.addEventListener("submit", (event) => {
   event.preventDefault();
@@ -448,7 +837,14 @@ taskForm.addEventListener("submit", (event) => {
 
 buildTimerControls();
 if (api && typeof api.onSnapshot === "function") api.onSnapshot((next) => { snapshot = next || snapshot; render(); });
-if (api && typeof api.onLangChange === "function") api.onLangChange((next) => { i18nPayload = next || i18nPayload; lastTaskKey = ""; lastViewKey = ""; render(); });
+if (api && typeof api.onLangChange === "function") api.onLangChange((next) => {
+  i18nPayload = next || i18nPayload;
+  lastTaskKey = "";
+  lastViewKey = "";
+  reportData = null;
+  calendarData = null;
+  render();
+});
 
 Promise.all([
   api && typeof api.getSnapshot === "function" ? api.getSnapshot() : Promise.resolve(snapshot),
@@ -456,5 +852,6 @@ Promise.all([
 ]).then(([nextSnapshot, nextI18n]) => {
   snapshot = nextSnapshot || snapshot;
   i18nPayload = nextI18n || i18nPayload;
+  selectStudyTab(activeTab);
   render();
 }).catch((error) => console.warn("study dashboard initialization failed:", error));

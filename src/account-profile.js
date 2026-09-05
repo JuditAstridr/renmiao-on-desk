@@ -9,6 +9,8 @@ const { defaultState, sanitizeState } = require("./study-runtime");
 const PROFILE_VERSION = 1;
 const MAX_TASKS = 500;
 const MAX_SUBTASKS = 100;
+const MAX_HISTORY = 2000;
+const MAX_SCHEDULES = 500;
 const MAX_PROFILE_BYTES = 512 * 1024;
 const SAFE_ID_RE = /^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$/;
 const SAFE_FILE_RE = /^[a-zA-Z0-9][a-zA-Z0-9._-]{0,159}$/;
@@ -60,6 +62,8 @@ function sanitizeStudy(raw) {
     ...task,
     subtasks: Array.isArray(task.subtasks) ? task.subtasks.slice(0, MAX_SUBTASKS) : [],
   }));
+  state.history = Array.isArray(state.history) ? state.history.slice(-MAX_HISTORY) : [];
+  state.schedules = Array.isArray(state.schedules) ? state.schedules.slice(0, MAX_SCHEDULES) : [];
   return sanitizeState(state);
 }
 
@@ -77,6 +81,14 @@ function sanitizeProfile(raw) {
     // the complete profile is within the same limit used by the API contract.
     profile.study.tasks = profile.study.tasks.slice(0, 100);
     while (Buffer.byteLength(JSON.stringify(profile), "utf8") > MAX_PROFILE_BYTES) {
+      if (profile.study.history.length > 100) {
+        profile.study.history = profile.study.history.slice(-Math.ceil(profile.study.history.length / 2));
+        continue;
+      }
+      if (profile.study.schedules.length > 100) {
+        profile.study.schedules = profile.study.schedules.slice(-Math.ceil(profile.study.schedules.length / 2));
+        continue;
+      }
       const candidate = profile.study.tasks.reduce((largest, task) => {
         if (!largest || task.subtasks.length > largest.subtasks.length) return task;
         return largest;
@@ -112,6 +124,10 @@ function hasMeaningfulStudyState(raw) {
   const points = state.points || {};
   const pomodoro = state.pomodoro || {};
   return state.tasks.length > 0
+    || state.history.length > 0
+    || state.schedules.length > 0
+    || state.goals.defaultMinutes != null
+    || Object.keys(state.goals.overrides).length > 0
     || state.view.sortBy !== "created"
     || state.view.groupBy !== "none"
     || points.total > 0

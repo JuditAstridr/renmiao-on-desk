@@ -36,6 +36,10 @@ let isAnimating = false;
 // against the now-current topology.
 let pendingTopologyMaterialize = false;
 
+function syncSessionHudVisibility() {
+  if (typeof ctx.syncSessionHudVisibility === "function") ctx.syncSessionHudVisibility();
+}
+
 function refreshTheme() {
   MINI_OFFSET_RATIO = ctx.theme.miniMode.offsetRatio;
 }
@@ -153,6 +157,7 @@ function animateWindowX(targetX, durationMs, onDone, animCtx) {
   const snapY = miniSnap ? miniSnap.y : start.y;
   const snapW = miniSnap ? miniSnap.width : start.width;
   const snapH = miniSnap ? miniSnap.height : start.height;
+  let frameCount = 0;
   const step = () => {
     if (!ctx.win || ctx.win.isDestroyed()) {
       peekAnimTimer = null;
@@ -178,7 +183,18 @@ function animateWindowX(targetX, durationMs, onDone, animCtx) {
       return;
     }
     ctx.syncHitWin();
+    // PR #751 Codex review #12 (rework batch B-8, non-blocking): no
+    // repositionSessionHud() call here — applyMiniFrameBounds() above
+    // already went through ctx.applyPetWindowBounds(), whose own tail end
+    // (pet-window-runtime.js's applyPetWindowBounds()) unconditionally calls
+    // repositionSessionHud() for this exact frame already. Calling it again
+    // here was a genuine duplicate (same underlying function, both wired to
+    // it in src/main.js), not a distinct concern — the runtime's own
+    // tail-end call is the single source of truth for every write, mini's
+    // per-frame or otherwise.
     syncContainedClip();
+    // Throttle bubble reposition to every 3rd frame (~20fps) — visually identical, less overhead
+    if (ctx.bubbleFollowPet && ctx.pendingPermissions.length && (++frameCount % 3 === 0 || t >= 1)) ctx.repositionBubbles();
     if (t < 1) {
       peekAnimTimer = setTimeout(step, 16);
     } else {
@@ -203,6 +219,7 @@ function animateWindowParabola(targetX, targetY, durationMs, onDone, animCtx) {
   const resolvedAnimCtx = animCtx || resolveMiniAnimCtx(start);
   const snapW = start.width, snapH = start.height;
   const startTime = Date.now();
+  let frameCount = 0;
   const step = () => {
     if (!ctx.win || ctx.win.isDestroyed()) {
       peekAnimTimer = null;
@@ -230,7 +247,18 @@ function animateWindowParabola(targetX, targetY, durationMs, onDone, animCtx) {
       return;
     }
     ctx.syncHitWin();
+    // PR #751 Codex review #12 (rework batch B-8, non-blocking): no
+    // repositionSessionHud() call here — applyMiniFrameBounds() above
+    // already went through ctx.applyPetWindowBounds(), whose own tail end
+    // (pet-window-runtime.js's applyPetWindowBounds()) unconditionally calls
+    // repositionSessionHud() for this exact frame already. Calling it again
+    // here was a genuine duplicate (same underlying function, both wired to
+    // it in src/main.js), not a distinct concern — the runtime's own
+    // tail-end call is the single source of truth for every write, mini's
+    // per-frame or otherwise.
     syncContainedClip();
+    // Throttle bubble reposition to every 3rd frame (~20fps) — visually identical, less overhead
+    if (ctx.bubbleFollowPet && ctx.pendingPermissions.length && (++frameCount % 3 === 0 || t >= 1)) ctx.repositionBubbles();
     if (t < 1) {
       peekAnimTimer = setTimeout(step, 16);
     } else {
@@ -326,7 +354,7 @@ function getMiniEnterDurationMs(state) {
 }
 
 function getMiniRestState() {
-  return "mini-idle";
+  return ctx.doNotDisturb ? "mini-sleep" : "mini-idle";
 }
 
 // §4.5 point 4.5-4 default topology consumption: mini mode is still active,
@@ -495,8 +523,9 @@ function enterMiniMode(wa, viaMenu, edge) {
   miniTransitioning = true;
   ctx.buildContextMenu();
   ctx.buildTrayMenu();
+  syncSessionHudVisibility();
 
-  const enterSvgState = "mini-enter";
+  const enterSvgState = ctx.doNotDisturb ? "mini-enter-sleep" : "mini-enter";
 
   if (viaMenu) {
     const adjacent = containedBoundary != null;
@@ -537,6 +566,7 @@ function enterMiniMode(wa, viaMenu, edge) {
         miniSnap = { y: start.y, width: size.width, height: size.height };
         applyMiniFrameBounds(currentMiniX, miniSnap, animCtx);
         ctx.syncHitWin();
+        syncSessionHudVisibility();
         syncContainedClip();
         finishMiniEntry(enterDurationMs);
         return;
@@ -546,6 +576,7 @@ function enterMiniMode(wa, viaMenu, edge) {
         applyMiniFrameBounds(currentMiniX, miniSnap, animCtx);
         miniTransitionTimer = null;
         ctx.syncHitWin();
+        syncSessionHudVisibility();
         syncContainedClip();
         finishMiniEntry(enterDurationMs);
       }, MINI_ENTER_PRELOAD_MS);
@@ -571,7 +602,7 @@ function enterMiniMode(wa, viaMenu, edge) {
 // against whatever topology is current at that later moment.
 function resolveExitRestingBounds() {
   const size = _getSize();
-  const visualState = ctx.resolveDisplayState();
+  const visualState = ctx.doNotDisturb ? "idle" : ctx.resolveDisplayState();
   const visualFile = visualState ? ctx.getSvgOverride(visualState) : null;
   const restoreWorkArea = getAttachedMiniWorkArea();
   const clamped = ctx.clampToScreenVisual(preMiniX, preMiniY, size.width, size.height, {
@@ -629,8 +660,22 @@ function exitMiniMode() {
     ctx.sendToHitWin("hit-state-sync", { miniMode: false });
     ctx.buildContextMenu();
     ctx.buildTrayMenu();
-    const resolved = ctx.resolveDisplayState();
-    ctx.applyState(resolved, ctx.getSvgOverride(resolved));
+    syncSessionHudVisibility();
+    if (ctx.doNotDisturb) {
+      ctx.doNotDisturb = false;
+      ctx.sendToRenderer("dnd-change", false);
+      ctx.sendToHitWin("hit-state-sync", { dndEnabled: false });
+      ctx.buildContextMenu();
+      ctx.buildTrayMenu();
+      ctx.applyState("waking");
+    } else {
+      const resolved = ctx.resolveDisplayState();
+      ctx.applyState(resolved, ctx.getSvgOverride(resolved));
+    }
+    // #329: a deferred update bubble may be waiting on mini exit.
+    if (typeof ctx.notifyUpdaterSilentExit === "function") {
+      try { ctx.notifyUpdaterSilentExit(); } catch {}
+    }
   }, animCtx);
 }
 
@@ -654,6 +699,7 @@ function enterMiniViaMenu() {
   miniEdge = edge;
 
   miniTransitioning = true;
+  syncSessionHudVisibility();
 
   // Pre-entry crabwalk still uses the normal-size render/layout path. Send the
   // edge for left-side flipping, but don't let the renderer enter mini layout
@@ -753,6 +799,7 @@ function handleDisplayChange() {
   ctx.syncHitWin();
   refreshContainedBoundary(wa, clampedY + size.height / 2);
   syncContainedClip();
+  syncSessionHudVisibility();
 }
 
 function handleResize(sizeKey) {
@@ -770,6 +817,7 @@ function handleResize(sizeKey) {
   ctx.syncHitWin();
   refreshContainedBoundary(wa, clampedY + size.height / 2);
   syncContainedClip();
+  syncSessionHudVisibility();
   return true;
 }
 

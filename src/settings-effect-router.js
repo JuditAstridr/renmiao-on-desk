@@ -94,6 +94,9 @@ function createSettingsEffectRouter(options = {}) {
   const exitMiniMode = options.exitMiniMode || noop;
   const getMiniMode = options.getMiniMode || (() => false);
   const getActiveTheme = options.getActiveTheme || (() => null);
+  const getStudyPoints = typeof options.getStudyPoints === "function"
+    ? options.getStudyPoints
+    : (() => null);
   const syncHitWin = options.syncHitWin || noop;
   const refreshIdleVisual = options.refreshIdleVisual || noop;
   const rebuildAllMenus = options.rebuildAllMenus || noop;
@@ -108,7 +111,9 @@ function createSettingsEffectRouter(options = {}) {
   let lastTogglePetShortcut = ((settingsController.getSnapshot().shortcuts) || {}).togglePet || null;
 
   function applyAccessoryCandidate(activeTheme, accessoryId) {
-    const payload = buildPetAccessoryPayload(accessoryId, activeTheme);
+    const payload = buildPetAccessoryPayload(accessoryId, activeTheme, {
+      pointsTotal: getStudyPoints(),
+    });
     try {
       sendToRenderer("pet-accessory-change", payload);
     } catch (err) {
@@ -188,6 +193,7 @@ function createSettingsEffectRouter(options = {}) {
         petAccessory: snapshot.petAccessory,
         holidayAccessoryEnabled: snapshot.holidayAccessoryEnabled,
         themeId: activeTheme && activeTheme._id,
+        pointsTotal: getStudyPoints(),
         date: now(),
       });
       applyAccessoryCandidate(activeTheme, accessoryId);

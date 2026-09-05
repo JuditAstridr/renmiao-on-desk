@@ -38,7 +38,7 @@ const THEME_PET_TINT_BY_THEME = new Map(
   ])
 );
 
-function freezeAccessory({ id, labelKey, file = null, viewBox = null, widthScale = 1, offsetY = 0, themeWidthScales = null }) {
+function freezeAccessory({ id, labelKey, file = null, viewBox = null, widthScale = 1, offsetY = 0, themeWidthScales = null, unlockPoints = 0 }) {
   return Object.freeze({
     id,
     labelKey,
@@ -47,6 +47,7 @@ function freezeAccessory({ id, labelKey, file = null, viewBox = null, widthScale
     widthScale,
     offsetY,
     themeWidthScales: themeWidthScales ? Object.freeze({ ...themeWidthScales }) : null,
+    unlockPoints,
   });
 }
 
@@ -63,6 +64,50 @@ const PET_ACCESSORY_CATALOG = Object.freeze([
 
 const PET_ACCESSORY_BY_ID = new Map(PET_ACCESSORY_CATALOG.map((entry) => [entry.id, entry]));
 const PET_ACCESSORY_IDS = Object.freeze(PET_ACCESSORY_CATALOG.map((entry) => entry.id));
+
+// Renmi's chest badges are deliberately theme-owned. Keeping them out of the
+// global Clawd wardrobe means the existing Clawd selector, holiday logic, and
+// persisted choices cannot accidentally expose or render them for another
+// theme. The points are read from the account-scoped Study Companion state by
+// the main process; `unlocked` is only a derived UI hint and never persisted.
+const THEME_PET_ACCESSORY_CATALOG = Object.freeze({
+  renmi: Object.freeze([
+    freezeAccessory({
+      id: "renmi-ruc",
+      labelKey: "accessoryRenmiRuc",
+      file: "renmi-ruc.svg",
+      viewBox: { x: 0, y: 0, width: 160, height: 120 },
+      widthScale: 1,
+      offsetY: 0,
+      unlockPoints: 60,
+    }),
+    freezeAccessory({
+      id: "renmi-renmi",
+      labelKey: "accessoryRenmiRenmi",
+      file: "renmi-renmi.svg",
+      viewBox: { x: 0, y: 0, width: 160, height: 120 },
+      widthScale: 1,
+      offsetY: 0,
+      unlockPoints: 180,
+    }),
+    freezeAccessory({
+      id: "renmi-1937",
+      labelKey: "accessoryRenmi1937",
+      file: "renmi-1937.svg",
+      viewBox: { x: 0, y: 0, width: 160, height: 120 },
+      widthScale: 1,
+      offsetY: 0,
+      unlockPoints: 520,
+    }),
+  ]),
+});
+
+const THEME_PET_ACCESSORY_BY_THEME = new Map(
+  Object.entries(THEME_PET_ACCESSORY_CATALOG).map(([themeId, entries]) => [
+    themeId,
+    new Map(entries.map((entry) => [entry.id, entry])),
+  ])
+);
 
 function isPetTintId(value) {
   return typeof value === "string" && PET_TINT_BY_ID.has(value);
@@ -146,14 +191,48 @@ function isPetAccessoryId(value) {
   return typeof value === "string" && PET_ACCESSORY_BY_ID.has(value);
 }
 
+function isPetAccessoryIdForTheme(value, themeId) {
+  if (value === "none") return true;
+  if (typeof themeId !== "string" || !themeId) return false;
+  const themeCatalog = THEME_PET_ACCESSORY_BY_THEME.get(themeId);
+  // A theme-owned wardrobe is intentionally closed: Renmi's chest badges
+  // must not be mixed with Clawd's hat catalog. Themes without an owned
+  // catalog retain the historical global accessory list.
+  return themeCatalog ? themeCatalog.has(value) : isPetAccessoryId(value);
+}
+
 function getPetAccessory(value) {
   return PET_ACCESSORY_BY_ID.get(value) || PET_ACCESSORY_BY_ID.get("none");
 }
 
-function getPetAccessoryIdForTheme(selections, themeId) {
+function getPetAccessoryForTheme(value, themeId) {
+  if (typeof themeId === "string" && themeId) {
+    const themeCatalog = THEME_PET_ACCESSORY_BY_THEME.get(themeId);
+    const themeEntry = themeCatalog && themeCatalog.get(value);
+    if (themeEntry) return themeEntry;
+    if (themeCatalog) return getPetAccessory("none");
+  }
+  return getPetAccessory(value);
+}
+
+function getPetAccessoryUnlockPoints(value, themeId) {
+  const entry = getPetAccessoryForTheme(value, themeId);
+  return Number.isFinite(entry.unlockPoints) ? entry.unlockPoints : 0;
+}
+
+function isPetAccessoryUnlockedForTheme(value, themeId, pointsTotal) {
+  const required = getPetAccessoryUnlockPoints(value, themeId);
+  if (required <= 0) return true;
+  return Number.isFinite(pointsTotal) && pointsTotal >= required;
+}
+
+function getPetAccessoryIdForTheme(selections, themeId, pointsTotal = null) {
   if (!selections || typeof selections !== "object" || Array.isArray(selections)) return "none";
   if (typeof themeId !== "string" || !themeId) return "none";
-  return getPetAccessory(selections[themeId]).id;
+  const value = selections[themeId];
+  if (!isPetAccessoryIdForTheme(value, themeId)) return "none";
+  if (!isPetAccessoryUnlockedForTheme(value, themeId, pointsTotal)) return "none";
+  return getPetAccessoryForTheme(value, themeId).id;
 }
 
 function isPetAccessorySupportedForTheme(theme) {
@@ -163,10 +242,15 @@ function isPetAccessorySupportedForTheme(theme) {
 
 // Pure resolver for callers that must not make a candidate authoritative until
 // renderer delivery succeeds (Settings and holiday refresh use this path).
-function buildPetAccessoryPayload(value, theme = null) {
-  const entry = getPetAccessory(value);
+function buildPetAccessoryPayload(value, theme = null, options = {}) {
+  const themeId = theme && theme._id;
+  const entry = getPetAccessoryForTheme(value, themeId);
   const supported = isPetAccessorySupportedForTheme(theme);
-  if (!supported || entry.id === "none") {
+  if (
+    !supported
+    || entry.id === "none"
+    || !isPetAccessoryUnlockedForTheme(entry.id, themeId, options.pointsTotal)
+  ) {
     return { id: "none", assetFile: null, aspect: 1, widthScale: 1, offsetY: 0 };
   }
   return {
@@ -186,13 +270,25 @@ function buildPetAccessoryPayload(value, theme = null) {
 // Renderer config/theme reloads call this resolver. Committing here means the
 // exact payload handed to the renderer also becomes the main-process geometry
 // authority, instead of geometry independently re-resolving settings/date.
-function resolvePetAccessoryPayload(value, theme = null) {
-  const payload = buildPetAccessoryPayload(value, theme);
+function resolvePetAccessoryPayload(value, theme = null, options = {}) {
+  const payload = buildPetAccessoryPayload(value, theme, options);
   return commitPetAccessoryPayload(payload, theme).payload;
 }
 
-function listPetAccessoryOptions() {
-  return PET_ACCESSORY_CATALOG.map(({ id, labelKey }) => ({ id, labelKey }));
+function listPetAccessoryOptions(themeId = null, pointsTotal = null) {
+  const themeCatalog = THEME_PET_ACCESSORY_CATALOG[themeId];
+  if (!themeCatalog) {
+    return PET_ACCESSORY_CATALOG.map(({ id, labelKey }) => ({ id, labelKey }));
+  }
+  return [
+    { id: "none", labelKey: "accessoryNone", unlockPoints: 0, unlocked: true },
+    ...themeCatalog.map(({ id, labelKey, unlockPoints }) => ({
+      id,
+      labelKey,
+      unlockPoints,
+      unlocked: isPetAccessoryUnlockedForTheme(id, themeId, pointsTotal),
+    })),
+  ];
 }
 
 module.exports = {
@@ -211,7 +307,12 @@ module.exports = {
   PET_ACCESSORY_CATALOG,
   PET_ACCESSORY_IDS,
   isPetAccessoryId,
+  THEME_PET_ACCESSORY_CATALOG,
+  isPetAccessoryIdForTheme,
   getPetAccessory,
+  getPetAccessoryForTheme,
+  getPetAccessoryUnlockPoints,
+  isPetAccessoryUnlockedForTheme,
   getPetAccessoryIdForTheme,
   isPetAccessorySupportedForTheme,
   buildPetAccessoryPayload,

@@ -7,13 +7,17 @@ const path = require("node:path");
 
 const {
   PET_ACCESSORY_CATALOG,
+  THEME_PET_ACCESSORY_CATALOG,
 } = require("../src/pet-customization-catalog");
 
 const ASSET_DIR = path.join(__dirname, "..", "assets", "accessories");
 
 describe("accessory asset audit", () => {
-  it("ships exactly the catalog's seven local SVG assets with matching viewBoxes", () => {
-    const catalogAssets = PET_ACCESSORY_CATALOG
+  it("ships exactly the global and theme-owned local SVG assets with matching viewBoxes", () => {
+    const catalogAssets = [
+      ...PET_ACCESSORY_CATALOG,
+      ...Object.values(THEME_PET_ACCESSORY_CATALOG).flat(),
+    ]
       .filter((entry) => entry.id !== "none")
       .map((entry) => entry.file)
       .sort();
@@ -22,9 +26,12 @@ describe("accessory asset audit", () => {
       .sort();
 
     assert.deepStrictEqual(diskAssets, catalogAssets);
-    assert.strictEqual(diskAssets.length, 7);
+    assert.strictEqual(diskAssets.length, catalogAssets.length);
 
-    for (const entry of PET_ACCESSORY_CATALOG.filter((item) => item.id !== "none")) {
+    for (const entry of [
+      ...PET_ACCESSORY_CATALOG,
+      ...Object.values(THEME_PET_ACCESSORY_CATALOG).flat(),
+    ].filter((item) => item.id !== "none")) {
       const source = fs.readFileSync(path.join(ASSET_DIR, entry.file), "utf8");
       const match = source.match(/\bviewBox="([^"]+)"/);
       assert.ok(match, `${entry.file} should declare a viewBox`);

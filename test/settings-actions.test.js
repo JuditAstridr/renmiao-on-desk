@@ -141,6 +141,18 @@ describe("updateRegistry pure-data validators", () => {
     assert.strictEqual(updateRegistry.petAccessory("wizard-hat", deps).status, "error");
     assert.strictEqual(updateRegistry.petAccessory([], deps).status, "error");
     assert.strictEqual(updateRegistry.petAccessory(null, deps).status, "error");
+    assert.strictEqual(
+      updateRegistry.petAccessory({ renmi: "renmi-ruc" }, { getStudyPoints: () => 59 }).status,
+      "error"
+    );
+    assert.strictEqual(
+      updateRegistry.petAccessory({ renmi: "renmi-ruc" }, { getStudyPoints: () => 60 }).status,
+      "ok"
+    );
+    assert.strictEqual(
+      updateRegistry.petAccessory({ renmi: "wizard-hat" }, { getStudyPoints: () => 520 }).status,
+      "error"
+    );
   });
 
   it("holidayAccessoryEnabled accepts only canonical per-theme true entries", () => {

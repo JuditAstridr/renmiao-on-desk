@@ -197,6 +197,9 @@ function registerSettingsIpc(options = {}) {
   ).href;
   const getSettingsWindow = options.getSettingsWindow || (() => null);
   const getActiveTheme = options.getActiveTheme || (() => null);
+  const getStudyPoints = typeof options.getStudyPoints === "function"
+    ? options.getStudyPoints
+    : (() => null);
   const getLang = options.getLang || (() => "en");
   const roamFenceSettings = requiredDependency(options.roamFenceSettings, "roamFenceSettings");
   const roamFencePicker = requiredDependency(options.roamFencePicker, "roamFencePicker");
@@ -416,7 +419,10 @@ function registerSettingsIpc(options = {}) {
       : { status: "error", reason: "runtime-unavailable" };
   });
   handle("settings:get-pet-tint-options", () => listPetTintOptions());
-  handle("settings:get-pet-accessory-options", () => listPetAccessoryOptions());
+  handle("settings:get-pet-accessory-options", () => {
+    const theme = getActiveTheme();
+    return listPetAccessoryOptions(theme && theme._id, getStudyPoints());
+  });
   handle("settings:get-roam-fence", (event) => {
     const rejected = rejectUntrustedSettingsEvent(event);
     return rejected || roamFenceSettings.getStatus();

@@ -57,8 +57,14 @@ function isHolidayAccessoryEnabledForTheme(selections, themeId) {
   return selections[themeId] === true;
 }
 
-function getEffectivePetAccessoryIdForTheme({ petAccessory, holidayAccessoryEnabled, themeId, date = new Date() } = {}) {
-  const manualAccessoryId = getPetAccessoryIdForTheme(petAccessory, themeId);
+function getEffectivePetAccessoryIdForTheme({
+  petAccessory,
+  holidayAccessoryEnabled,
+  themeId,
+  pointsTotal = null,
+  date = new Date(),
+} = {}) {
+  const manualAccessoryId = getPetAccessoryIdForTheme(petAccessory, themeId, pointsTotal);
   if (!isHolidayAccessoryEnabledForTheme(holidayAccessoryEnabled, themeId)) return manualAccessoryId;
   const holiday = getHolidayAccessoryForDate(date);
   return holiday ? holiday.accessoryId : manualAccessoryId;
@@ -86,6 +92,9 @@ function createHolidayAccessoryRuntime(options = {}) {
   const clearTimeoutFn = options.clearTimeout || clearTimeout;
   const logWarn = options.logWarn || console.warn;
   const onAccessoryChange = options.onAccessoryChange || (() => true);
+  const getStudyPoints = typeof options.getStudyPoints === "function"
+    ? options.getStudyPoints
+    : (() => null);
 
   let started = false;
   let refreshTimer = null;
@@ -100,12 +109,15 @@ function createHolidayAccessoryRuntime(options = {}) {
       petAccessory: snapshot.petAccessory,
       holidayAccessoryEnabled: snapshot.holidayAccessoryEnabled,
       themeId,
+      pointsTotal: getStudyPoints(),
       date: now(),
     });
     return {
       key: `${themeId || ""}|${accessoryId}`,
       theme,
-      payload: buildPetAccessoryPayload(accessoryId, theme),
+      payload: buildPetAccessoryPayload(accessoryId, theme, {
+        pointsTotal: getStudyPoints(),
+      }),
     };
   }
 

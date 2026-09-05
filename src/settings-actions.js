@@ -67,7 +67,8 @@ const {
 } = require("./text-scale");
 const {
   isPetTintIdForTheme,
-  isPetAccessoryId,
+  isPetAccessoryIdForTheme,
+  getPetAccessoryUnlockPoints,
 } = require("./pet-customization-catalog");
 const { isValidDisplaySnapshot } = require("./work-area");
 const {
@@ -443,20 +444,32 @@ const updateRegistry = {
     }
     return { status: "ok" };
   },
-  petAccessory(value) {
+  petAccessory(value, deps) {
     if (!value || typeof value !== "object" || Array.isArray(value)) {
       return { status: "error", message: "petAccessory must be a theme-to-accessory object" };
     }
     for (const [themeId, accessoryId] of Object.entries(value)) {
       if (
         !/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$/.test(themeId)
-        || !isPetAccessoryId(accessoryId)
+        || !isPetAccessoryIdForTheme(accessoryId, themeId)
         || accessoryId === "none"
       ) {
         return {
           status: "error",
           message: `petAccessory entry "${themeId}" must map a safe theme id to a non-default catalog accessory id`,
         };
+      }
+      const requiredPoints = getPetAccessoryUnlockPoints(accessoryId, themeId);
+      if (requiredPoints > 0) {
+        const points = deps && typeof deps.getStudyPoints === "function"
+          ? deps.getStudyPoints()
+          : null;
+        if (!Number.isFinite(points) || points < requiredPoints) {
+          return {
+            status: "error",
+            message: `petAccessory entry "${themeId}" is locked until ${requiredPoints} points`,
+          };
+        }
       }
     }
     return { status: "ok" };
@@ -479,6 +492,7 @@ const updateRegistry = {
     return { status: "ok" };
   },
   bubbleFollowPet: requireBoolean("bubbleFollowPet"),
+  studyFollowPet: requireBoolean("studyFollowPet"),
   sessionHudEnabled: requireBoolean("sessionHudEnabled"),
   sessionHudShowStateLabels: requireBoolean("sessionHudShowStateLabels"),
   sessionHudShowElapsed: requireBoolean("sessionHudShowElapsed"),

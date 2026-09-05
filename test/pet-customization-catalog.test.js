@@ -18,6 +18,7 @@ const {
   getPetAccessory,
   getPetAccessoryIdForTheme,
   isPetAccessorySupportedForTheme,
+  isPetAccessoryIdForTheme,
   resolvePetAccessoryPayload,
   listPetAccessoryOptions,
 } = require("../src/pet-customization-catalog");
@@ -202,6 +203,25 @@ describe("pet customization catalog", () => {
     assert.strictEqual(getPetAccessoryIdForTheme(selections, "missing"), "none");
     assert.strictEqual(getPetAccessoryIdForTheme("wizard-hat", "clawd"), "none");
     assert.strictEqual(getPetAccessoryIdForTheme(null, "clawd"), "none");
+  });
+
+  it("keeps Renmi badges theme-owned and unlocks them from Study points", () => {
+    const renmi = { _id: "renmi", _capabilities: { accessories: true } };
+    assert.strictEqual(isPetAccessoryIdForTheme("renmi-ruc", "renmi"), true);
+    assert.strictEqual(isPetAccessoryIdForTheme("wizard-hat", "renmi"), false);
+    assert.deepStrictEqual(
+      listPetAccessoryOptions("renmi", 0).map(({ id, unlocked }) => ({ id, unlocked })),
+      [
+        { id: "none", unlocked: true },
+        { id: "renmi-ruc", unlocked: false },
+        { id: "renmi-renmi", unlocked: false },
+        { id: "renmi-1937", unlocked: false },
+      ]
+    );
+    assert.strictEqual(resolvePetAccessoryPayload("renmi-ruc", renmi).id, "none");
+    assert.strictEqual(resolvePetAccessoryPayload("renmi-ruc", renmi, { pointsTotal: 60 }).id, "renmi-ruc");
+    assert.strictEqual(resolvePetAccessoryPayload("renmi-1937", renmi, { pointsTotal: 519 }).id, "none");
+    assert.strictEqual(resolvePetAccessoryPayload("renmi-1937", renmi, { pointsTotal: 520 }).id, "renmi-1937");
   });
 
   it("keeps accessory assets and geometry inside a narrow local grammar", () => {

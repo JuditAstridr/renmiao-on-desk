@@ -46,6 +46,18 @@ describe("study runtime", () => {
     assert.deepEqual(sanitizeState(JSON.parse(fs.readFileSync(dataPath, "utf8"))), snapshot);
   });
 
+  it("keeps the default daily goal separate from per-day overrides", () => {
+    const { runtime } = createRuntime({ now: () => new Date(2026, 8, 2, 12).getTime() });
+    let snapshot = runtime.setDailyGoal({ minutes: 60 });
+    assert.equal(snapshot.goals.defaultMinutes, 60);
+    assert.deepEqual(snapshot.goals.overrides, {});
+    snapshot = runtime.setDailyGoal({ date: "2026-09-02", minutes: 30 });
+    assert.equal(snapshot.goals.overrides["2026-09-02"], 30);
+    snapshot = runtime.setDailyGoal({ date: "not-a-date", minutes: 15 });
+    assert.equal(snapshot.goals.defaultMinutes, 60);
+    assert.equal(snapshot.goals.overrides["not-a-date"], undefined);
+  });
+
   it("completes subtasks in order and then auto-completes the parent task", () => {
     const { runtime } = createRuntime({ now: () => 1000 });
     let snapshot = runtime.addTask({ title: "Project" });

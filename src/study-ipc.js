@@ -16,6 +16,9 @@ function registerStudyIpc(options = {}) {
   const getStudyWindow = typeof options.getStudyWindow === "function"
     ? options.getStudyWindow
     : () => null;
+  const saveReportPoster = typeof options.saveReportPoster === "function"
+    ? options.saveReportPoster
+    : null;
   const disposers = [];
 
   function allowedSender(event) {
@@ -47,6 +50,7 @@ function registerStudyIpc(options = {}) {
   }
 
   handle("study:get-snapshot", () => studyRuntime.getSnapshot());
+  handle("study:get-report", (_event, spec) => studyRuntime.getReport(spec));
   handle("study:add-task", (_event, payload) => mutate("addTask", payload));
   handle("study:update-task", (_event, payload) => mutate(
     "updateTask",
@@ -89,10 +93,22 @@ function registerStudyIpc(options = {}) {
     typeof mode === "string" ? mode : "",
   ));
   handle("study:set-view", (_event, payload) => mutate("setView", payload));
+  handle("study:add-schedule", (_event, payload) => mutate("addSchedule", payload));
+  handle("study:update-schedule", (_event, payload) => mutate(
+    "updateSchedule",
+    payload && typeof payload === "object" ? payload.id : "",
+    payload && typeof payload === "object" ? payload.patch : null,
+  ));
+  handle("study:toggle-schedule", (_event, id) => mutate("toggleSchedule", typeof id === "string" ? id : ""));
+  handle("study:remove-schedule", (_event, id) => mutate("removeSchedule", typeof id === "string" ? id : ""));
+  handle("study:set-daily-goal", (_event, payload) => mutate("setDailyGoal", payload));
   handle("study:pomodoro-command", (_event, command) => mutate(
     "pomodoroCommand",
     typeof command === "string" ? command : "",
   ));
+  if (saveReportPoster) {
+    handle("study:save-report-poster", (event, payload) => saveReportPoster(event, payload));
+  }
 
   return {
     dispose() {

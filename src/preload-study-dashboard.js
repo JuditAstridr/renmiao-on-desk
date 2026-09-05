@@ -19,7 +19,8 @@ ipcRenderer.on("study:lang-change", (_event, payload) => {
 
 contextBridge.exposeInMainWorld("studyAPI", {
   getSnapshot: () => ipcRenderer.invoke("study:get-snapshot"),
-  getI18n: () => ipcRenderer.invoke("study:get-i18n"),
+  getReport: (spec) => ipcRenderer.invoke("study:get-report", spec),
+  getI18n: () => ipcRenderer.invoke("dashboard:get-i18n"),
   addTask: (payload) => ipcRenderer.invoke("study:add-task", payload),
   updateTask: (id, patch) => ipcRenderer.invoke("study:update-task", { id, patch }),
   toggleTask: (id) => ipcRenderer.invoke("study:toggle-task", id),
@@ -35,6 +36,12 @@ contextBridge.exposeInMainWorld("studyAPI", {
   setPauseBetweenCycles: (value) => ipcRenderer.invoke("study:set-pause-between-cycles", value),
   setPomodoroMode: (mode) => ipcRenderer.invoke("study:set-pomodoro-mode", mode),
   setView: (payload) => ipcRenderer.invoke("study:set-view", payload),
+  addSchedule: (payload) => ipcRenderer.invoke("study:add-schedule", payload),
+  updateSchedule: (id, patch) => ipcRenderer.invoke("study:update-schedule", { id, patch }),
+  toggleSchedule: (id) => ipcRenderer.invoke("study:toggle-schedule", id),
+  removeSchedule: (id) => ipcRenderer.invoke("study:remove-schedule", id),
+  setDailyGoal: (payload) => ipcRenderer.invoke("study:set-daily-goal", payload),
+  saveReportPoster: (payload) => ipcRenderer.invoke("study:save-report-poster", payload),
   pomodoroCommand: (command) => ipcRenderer.invoke("study:pomodoro-command", command),
   onSnapshot: (callback) => {
     if (typeof callback !== "function") return () => {};

@@ -14,6 +14,8 @@ const PHASES = Object.freeze(["idle", "focus", "shortBreak", "longBreak"]);
 const QUADRANTS = Object.freeze([0, 1, 2, 3]);
 const SORT_OPTIONS = Object.freeze(["created", "deadline", "estimate", "estimateDesc", "quadrant"]);
 const GROUP_OPTIONS = Object.freeze(["none", "category", "quadrant"]);
+const HISTORY_LIMIT = 2000;
+const HISTORY_MAX_AGE_MS = 400 * 86400000;
 
 function defaultPomodoro() {
   return {
@@ -22,6 +24,7 @@ function defaultPomodoro() {
     mode: "countdown",
     elapsedSeconds: 0,
     awardedFocusSeconds: 0,
+    sessionFocusSeconds: 0,
     taskId: null,
     taskTotalSeconds: 0,
     taskRemainingSeconds: 0,
@@ -44,6 +47,10 @@ function defaultPoints() {
   return { total: 0, today: 0, streak: 0, bestStreak: 0, lastAwardDate: "" };
 }
 
+function defaultGoals() {
+  return { defaultMinutes: null, overrides: {} };
+}
+
 function sanitizePoints(raw) {
   const base = defaultPoints();
   if (!raw || typeof raw !== "object") return base;
@@ -61,12 +68,107 @@ function localDayKey(value) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
 
+function clockToMinutes(value) {
+  if (value === null || value === undefined || value === "") return null;
+  const minutes = Number(value);
+  return Number.isInteger(minutes) && minutes >= 0 && minutes < 1440 ? minutes : null;
+}
+
+function normalizeScheduleClock(timeMinutes, endTimeMinutes) {
+  const start = clockToMinutes(timeMinutes);
+  let end = clockToMinutes(endTimeMinutes);
+  if (start !== null && end !== null && end < start) end = null;
+  return { start, end };
+}
+
+function sanitizeGoals(raw) {
+  const out = defaultGoals();
+  if (!raw || typeof raw !== "object") return out;
+  const defaultMinutes = Number(raw.defaultMinutes);
+  if (Number.isInteger(defaultMinutes) && defaultMinutes > 0 && defaultMinutes <= 1440) {
+    out.defaultMinutes = defaultMinutes;
+  }
+  if (raw.overrides && typeof raw.overrides === "object") {
+    for (const [key, value] of Object.entries(raw.overrides)) {
+      const minutes = Number(value);
+      if (/^\d{4}-\d{2}-\d{2}$/.test(key)
+        && Number.isInteger(minutes) && minutes > 0 && minutes <= 1440) {
+        out.overrides[key] = minutes;
+      }
+    }
+  }
+  return out;
+}
+
+function sanitizeSchedules(value) {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((raw) => {
+    if (!raw || typeof raw !== "object" || typeof raw.id !== "string" || !raw.id) return [];
+    const title = cleanText(raw.title);
+    if (!title) return [];
+    const date = Number(raw.date);
+    const clock = normalizeScheduleClock(raw.timeMinutes, raw.endTimeMinutes);
+    return [{
+      id: raw.id,
+      title,
+      date: Number.isFinite(date) && date > 0 ? Math.floor(date) : null,
+      timeMinutes: clock.start,
+      endTimeMinutes: clock.end,
+      done: raw.done === true,
+      category: sanitizeCategory(raw.category),
+      createdAt: Number.isFinite(raw.createdAt) ? raw.createdAt : Date.now(),
+    }];
+  }).sort((a, b) => (a.date || 0) - (b.date || 0) || (a.createdAt || 0) - (b.createdAt || 0));
+}
+
+function sanitizeHistory(raw) {
+  if (!Array.isArray(raw)) return [];
+  const clean = [];
+  for (const event of raw) {
+    if (!event || typeof event !== "object" || !Number.isFinite(event.at)) continue;
+    const at = Math.floor(event.at);
+    const points = Number(event.points);
+    if (!Number.isInteger(points) || points < 0) continue;
+    if (event.kind === "focus") {
+      const minutes = Number(event.minutes);
+      if (!Number.isInteger(minutes) || minutes <= 0 || minutes > 720) continue;
+      clean.push({
+        kind: "focus", at, minutes, points,
+        taskId: typeof event.taskId === "string" && event.taskId ? event.taskId : null,
+        taskTitle: typeof event.taskTitle === "string" ? cleanText(event.taskTitle, 300) : null,
+        category: sanitizeCategory(event.category),
+      });
+    } else if (event.kind === "task" && typeof event.taskId === "string" && event.taskId) {
+      const taskTitle = cleanText(event.taskTitle);
+      if (!taskTitle) continue;
+      const deadline = Number(event.deadline);
+      const startedAt = Number(event.startedAt);
+      const elapsedMinutes = Number(event.elapsedMinutes);
+      const focusMinutes = Number(event.focusMinutes);
+      clean.push({
+        kind: "task", at, points, taskId: event.taskId, taskTitle,
+        category: sanitizeCategory(event.category),
+        quadrant: QUADRANTS.includes(event.quadrant) ? event.quadrant : null,
+        deadline: Number.isFinite(deadline) && deadline > 0 ? deadline : null,
+        startedAt: Number.isFinite(startedAt) && startedAt > 0 ? startedAt : null,
+        focusMinutes: Number.isInteger(focusMinutes) && focusMinutes >= 0 ? focusMinutes : 0,
+        elapsedMinutes: Number.isInteger(elapsedMinutes) && elapsedMinutes >= 0 ? elapsedMinutes : null,
+      });
+    }
+  }
+  clean.sort((a, b) => a.at - b.at);
+  return clean.slice(-HISTORY_LIMIT);
+}
+
 function defaultState() {
   return {
     tasks: [],
     pomodoro: defaultPomodoro(),
     view: { sortBy: "created", groupBy: "none" },
     points: defaultPoints(),
+    history: [],
+    schedules: [],
+    goals: defaultGoals(),
   };
 }
 
@@ -129,6 +231,8 @@ function sanitizePomodoro(raw, tasks) {
     ? raw.elapsedSeconds : 0;
   out.awardedFocusSeconds = Number.isInteger(raw.awardedFocusSeconds) && raw.awardedFocusSeconds >= 0
     ? raw.awardedFocusSeconds : 0;
+  out.sessionFocusSeconds = Number.isInteger(raw.sessionFocusSeconds) && raw.sessionFocusSeconds >= 0
+    ? raw.sessionFocusSeconds : 0;
   out.taskId = typeof raw.taskId === "string" && raw.taskId ? raw.taskId : null;
   out.taskTotalSeconds = Number.isInteger(raw.taskTotalSeconds) && raw.taskTotalSeconds >= 0
     ? raw.taskTotalSeconds : 0;
@@ -185,9 +289,13 @@ function sanitizeState(raw) {
       estimatedMinutes: sanitizeMinutes(entry.estimatedMinutes),
       completedPomodoros: Number.isInteger(entry.completedPomodoros) && entry.completedPomodoros >= 0
         ? entry.completedPomodoros : 0,
+      focusMinutes: Number.isInteger(entry.focusMinutes) && entry.focusMinutes >= 0
+        ? entry.focusMinutes : 0,
+      startedAt: Number.isFinite(entry.startedAt) ? entry.startedAt : null,
       deadline: sanitizeDeadline(entry.deadline),
       category: sanitizeCategory(entry.category),
       quadrant: QUADRANTS.includes(entry.quadrant) ? entry.quadrant : null,
+      completedAt: Number.isFinite(entry.completedAt) ? entry.completedAt : null,
       subtasks: sanitizeSubtasks(entry.subtasks),
     }];
   }) : [];
@@ -196,6 +304,9 @@ function sanitizeState(raw) {
     pomodoro: sanitizePomodoro(raw.pomodoro, tasks),
     view: sanitizeView(raw.view),
     points: sanitizePoints(raw.points),
+    history: sanitizeHistory(raw.history),
+    schedules: sanitizeSchedules(raw.schedules),
+    goals: sanitizeGoals(raw.goals),
   };
 }
 
@@ -283,6 +394,7 @@ function createStudyRuntime(options = {}) {
     if (points.streak >= 3 && (reason === "focus" || reason === "task")) amount += 5;
     points.total += amount;
     points.today += amount;
+    return amount;
   }
 
   function awardFocusTimePoints() {
@@ -291,6 +403,54 @@ function createStudyRuntime(options = {}) {
     if (earnedMinutes <= 0) return;
     pomodoro.awardedFocusSeconds %= 60;
     for (let index = 0; index < earnedMinutes; index += 1) awardPoints("focusMinute");
+  }
+
+  function pushHistoryEvent(event) {
+    state.history.push(event);
+    const cutoff = now() - HISTORY_MAX_AGE_MS;
+    state.history = state.history.filter((entry) => entry.at >= cutoff).slice(-HISTORY_LIMIT);
+  }
+
+  function recordFocusEvent(task, minutes) {
+    if (!Number.isInteger(minutes) || minutes <= 0) return;
+    pushHistoryEvent({
+      kind: "focus",
+      at: now(),
+      minutes,
+      // Focus-minute points are awarded incrementally while the timer runs.
+      points: minutes,
+      taskId: task ? task.id : null,
+      taskTitle: task ? task.title : null,
+      category: task ? task.category : null,
+    });
+  }
+
+  function recordTaskEvent(task, points) {
+    if (!task || task.completedAt == null) return;
+    pushHistoryEvent({
+      kind: "task",
+      at: task.completedAt,
+      points,
+      taskId: task.id,
+      taskTitle: task.title,
+      category: task.category,
+      quadrant: task.quadrant,
+      deadline: task.deadline,
+      startedAt: task.startedAt || task.createdAt,
+      focusMinutes: task.focusMinutes || 0,
+      elapsedMinutes: Math.max(0, Math.round((task.completedAt - task.createdAt) / 60000)),
+    });
+  }
+
+  function markTaskComplete(task) {
+    if (!task) return 0;
+    task.done = true;
+    const points = (task.quadrant === 0 ? awardPoints("quadrant0") : 0) + awardPoints("task");
+    if (task.completedAt == null) {
+      task.completedAt = now();
+      recordTaskEvent(task, points);
+    }
+    return points;
   }
 
   function stopTimer() {
@@ -328,6 +488,7 @@ function createStudyRuntime(options = {}) {
     pomodoro.phase = phase;
     pomodoro.running = running === true;
     pomodoro.awaitingContinue = false;
+    if (phase === "focus") pomodoro.sessionFocusSeconds = 0;
     if (pomodoro.mode === "countup") {
       pomodoro.totalSeconds = 0;
       pomodoro.remainingSeconds = 0;
@@ -358,6 +519,7 @@ function createStudyRuntime(options = {}) {
     pomodoro.awaitingContinue = false;
     pomodoro.elapsedSeconds = 0;
     pomodoro.awardedFocusSeconds = 0;
+    pomodoro.sessionFocusSeconds = 0;
     pomodoro.totalSeconds = pomodoro.focusMinutes * 60;
     pomodoro.remainingSeconds = pomodoro.totalSeconds;
   }
@@ -366,11 +528,17 @@ function createStudyRuntime(options = {}) {
     const pomodoro = state.pomodoro;
     const taskId = pomodoro.taskId;
     const completedSeconds = pomodoro.totalSeconds;
+    const actualFocusSeconds = Math.min(completedSeconds, pomodoro.sessionFocusSeconds || 0);
+    const actualFocusMinutes = Math.floor(actualFocusSeconds / 60);
     pomodoro.completedFocusCycles += 1;
     pomodoro.totalFocusCycles += 1;
     if (taskId) {
       const task = state.tasks.find((entry) => entry.id === taskId);
       if (task) task.completedPomodoros += 1;
+      if (task) {
+        recordFocusEvent(task, actualFocusMinutes);
+        task.focusMinutes = (task.focusMinutes || 0) + actualFocusMinutes;
+      }
       if (pomodoro.currentSubtaskId && task) {
         if (pomodoro.splitLongSubtasks && pomodoro.currentSubtaskRemainingSeconds > 0) {
           pomodoro.currentSubtaskRemainingSeconds = Math.max(
@@ -403,9 +571,7 @@ function createStudyRuntime(options = {}) {
           onFocusComplete({ taskId, taskFinished: false, intermediate: true });
           return;
         }
-        task.done = true;
-        if (task.quadrant === 0) awardPoints("quadrant0");
-        awardPoints("task");
+        markTaskComplete(task);
         pomodoro.currentSubtaskId = null;
         pomodoro.currentSubtaskRemainingSeconds = 0;
         pomodoro.subtaskIds = [];
@@ -419,15 +585,14 @@ function createStudyRuntime(options = {}) {
         stopTimer();
         persistNow();
         emitPhase();
+        pomodoro.sessionFocusSeconds = 0;
         onFocusComplete({ taskId, taskFinished: true });
         return;
       }
 
       pomodoro.taskRemainingSeconds = Math.max(0, pomodoro.taskRemainingSeconds - completedSeconds);
       if (pomodoro.taskRemainingSeconds === 0) {
-        task.done = true;
-        if (task.quadrant === 0) awardPoints("quadrant0");
-        awardPoints("task");
+        markTaskComplete(task);
         pomodoro.taskId = null;
         pomodoro.taskTotalSeconds = 0;
         pomodoro.subtaskIds = [];
@@ -438,6 +603,7 @@ function createStudyRuntime(options = {}) {
         stopTimer();
         persistNow();
         emitPhase();
+        pomodoro.sessionFocusSeconds = 0;
         onFocusComplete({ taskId, taskFinished: true });
         return;
       }
@@ -446,6 +612,8 @@ function createStudyRuntime(options = {}) {
       return;
     }
 
+    recordFocusEvent(null, actualFocusMinutes);
+    pomodoro.sessionFocusSeconds = 0;
     startPhase("shortBreak");
     onFocusComplete({ taskId: null, taskFinished: false });
   }
@@ -460,6 +628,7 @@ function createStudyRuntime(options = {}) {
     if (pomodoro.mode === "countup") {
       pomodoro.elapsedSeconds += elapsed;
       if (pomodoro.phase === "focus") {
+        pomodoro.sessionFocusSeconds += elapsed;
         pomodoro.awardedFocusSeconds += elapsed;
         awardFocusTimePoints();
       }
@@ -467,6 +636,7 @@ function createStudyRuntime(options = {}) {
       return;
     }
     if (pomodoro.phase === "focus") {
+      pomodoro.sessionFocusSeconds += elapsed;
       pomodoro.awardedFocusSeconds += elapsed;
       awardFocusTimePoints();
     }
@@ -495,6 +665,13 @@ function createStudyRuntime(options = {}) {
     return JSON.parse(JSON.stringify(state));
   }
 
+  function reportData() {
+    return {
+      history: state.history.slice(),
+      points: { ...state.points },
+    };
+  }
+
   // A running timer is resumed after a normal app restart.  The persisted
   // remaining value is intentionally the restart baseline; this avoids
   // guessing how long the machine was asleep while the app was closed.
@@ -502,6 +679,11 @@ function createStudyRuntime(options = {}) {
 
   return {
     getSnapshot: snapshot,
+    getReportData: reportData,
+    getReport(spec) {
+      const { buildReport } = require("./study-report");
+      return buildReport(reportData(), spec, now());
+    },
 
     // Replace the local working copy with an account-scoped cloud snapshot.
     // This is used on login and logout so one desktop installation can safely
@@ -533,9 +715,12 @@ function createStudyRuntime(options = {}) {
         createdAt: now(),
         estimatedMinutes: sanitizeMinutes(payload.estimatedMinutes),
         completedPomodoros: 0,
+        focusMinutes: 0,
+        startedAt: null,
         deadline: sanitizeDeadline(payload.deadline),
         category: sanitizeCategory(payload.category),
         quadrant: QUADRANTS.includes(payload.quadrant) ? payload.quadrant : null,
+        completedAt: null,
         subtasks: sanitizeSubtasks(payload.subtasks),
       });
       persistNow();
@@ -561,10 +746,13 @@ function createStudyRuntime(options = {}) {
       const task = state.tasks.find((entry) => entry.id === id);
       if (task) {
         task.done = !task.done;
-        if (task.done && state.pomodoro.taskId === id) {
-          stopTimer();
-          resetToIdle();
-          emitPhase();
+        if (task.done) {
+          markTaskComplete(task);
+          if (state.pomodoro.taskId === id) {
+            stopTimer();
+            resetToIdle();
+            emitPhase();
+          }
         }
         persistNow();
       }
@@ -640,12 +828,11 @@ function createStudyRuntime(options = {}) {
 
     setFocusMinutes(minutes) {
       const value = Number(minutes);
-      if (state.pomodoro.phase === "idle" && FOCUS_MINUTE_OPTIONS.includes(value)) {
-        state.pomodoro.focusMinutes = value;
-        state.pomodoro.totalSeconds = value * 60;
-        state.pomodoro.remainingSeconds = value * 60;
-        persistNow();
-      }
+      if (state.pomodoro.phase !== "idle" || !FOCUS_MINUTE_OPTIONS.includes(value)) return snapshot();
+      state.pomodoro.focusMinutes = value;
+      state.pomodoro.totalSeconds = value * 60;
+      state.pomodoro.remainingSeconds = value * 60;
+      persistNow();
       return snapshot();
     },
 
@@ -691,6 +878,7 @@ function createStudyRuntime(options = {}) {
       const pendingSubtasks = (task.subtasks || []).filter((entry) => !entry.done);
       pomodoro.mode = "countdown";
       pomodoro.taskId = id;
+      if (task.startedAt == null) task.startedAt = now();
       pomodoro.subtaskIds = pendingSubtasks.map((entry) => entry.id);
       pomodoro.currentSubtaskId = pomodoro.subtaskIds[0] || null;
       const first = pendingSubtasks[0];
@@ -718,6 +906,88 @@ function createStudyRuntime(options = {}) {
         pomodoro.taskRemainingSeconds = 0;
       }
       startPhase("focus");
+      persistNow();
+      return snapshot();
+    },
+
+    addSchedule(input) {
+      const payload = input && typeof input === "object" ? input : {};
+      const title = cleanText(payload.title);
+      if (!title) return snapshot();
+      const date = Number(payload.date);
+      const clock = normalizeScheduleClock(payload.timeMinutes, payload.endTimeMinutes);
+      state.schedules.push({
+        id: makeId(now),
+        title,
+        date: Number.isFinite(date) && date > 0 ? Math.floor(date) : null,
+        timeMinutes: clock.start,
+        endTimeMinutes: clock.end,
+        done: false,
+        category: sanitizeCategory(payload.category),
+        createdAt: now(),
+      });
+      persistNow();
+      return snapshot();
+    },
+
+    updateSchedule(id, patch) {
+      const schedule = state.schedules.find((entry) => entry.id === id);
+      if (!schedule || !patch || typeof patch !== "object") return snapshot();
+      if (typeof patch.title === "string") {
+        const title = cleanText(patch.title);
+        if (title) schedule.title = title;
+      }
+      if ("date" in patch) {
+        const date = Number(patch.date);
+        schedule.date = Number.isFinite(date) && date > 0 ? Math.floor(date) : null;
+      }
+      if ("timeMinutes" in patch || "endTimeMinutes" in patch) {
+        const clock = normalizeScheduleClock(
+          "timeMinutes" in patch ? patch.timeMinutes : schedule.timeMinutes,
+          "endTimeMinutes" in patch ? patch.endTimeMinutes : schedule.endTimeMinutes,
+        );
+        schedule.timeMinutes = clock.start;
+        schedule.endTimeMinutes = clock.end;
+      }
+      if ("category" in patch) schedule.category = sanitizeCategory(patch.category);
+      if ("done" in patch) schedule.done = patch.done === true;
+      persistNow();
+      return snapshot();
+    },
+
+    toggleSchedule(id) {
+      const schedule = state.schedules.find((entry) => entry.id === id);
+      if (schedule) {
+        schedule.done = !schedule.done;
+        persistNow();
+      }
+      return snapshot();
+    },
+
+    removeSchedule(id) {
+      state.schedules = state.schedules.filter((entry) => entry.id !== id);
+      persistNow();
+      return snapshot();
+    },
+
+    setDailyGoal(payload) {
+      const input = payload && typeof payload === "object" ? payload : {};
+      const minutes = Number(input.minutes);
+      const next = Number.isInteger(minutes) && minutes > 0 && minutes <= 1440 ? minutes : null;
+      let key = null;
+      if (typeof input.date === "string") {
+        key = /^\d{4}-\d{2}-\d{2}$/.test(input.date) ? input.date : null;
+      } else if (Number.isFinite(Number(input.date)) && Number(input.date) > 0) {
+        key = localDayKey(Number(input.date));
+      }
+      const hasDate = Object.prototype.hasOwnProperty.call(input, "date");
+      if (hasDate && !key) return snapshot();
+      if (key) {
+        if (next == null) delete state.goals.overrides[key];
+        else state.goals.overrides[key] = next;
+      } else {
+        state.goals.defaultMinutes = next;
+      }
       persistNow();
       return snapshot();
     },
@@ -788,7 +1058,11 @@ module.exports = {
   createStudyRuntime,
   defaultState,
   defaultPoints,
+  defaultGoals,
   sanitizePoints,
+  sanitizeGoals,
+  sanitizeSchedules,
+  sanitizeHistory,
   sanitizeState,
   DEFAULT_FOCUS_MIN,
   DEFAULT_SHORT_BREAK_MIN,

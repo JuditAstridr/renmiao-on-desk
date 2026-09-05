@@ -352,6 +352,7 @@
     return Array.isArray(runtime.petAccessoryOptions)
       ? runtime.petAccessoryOptions.filter((entry) => (
         entry
+        && entry.unlocked !== false
         && typeof entry.id === "string"
         && /^[a-z][a-z0-9-]{0,31}$/.test(entry.id)
         && typeof entry.labelKey === "string"
