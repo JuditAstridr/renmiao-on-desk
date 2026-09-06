@@ -56,7 +56,7 @@ jobs:
           node scripts/audit-packaged-native.js --app-root dist/win-unpacked --target windows-x64 --output dist/native-package-manifests/windows-x64.json
           node scripts/audit-packaged-native.js --app-root dist/win-arm64-unpacked --target windows-arm64 --output dist/native-package-manifests/windows-arm64.json
       - name: Run native-host packaged Koffi smoke
-        run: node scripts/run-packaged-koffi-smoke.js --executable "dist/win-unpacked/Clawd on Desk.exe" --target windows-x64 --output dist/koffi-smoke/windows-x64.json
+        run: node scripts/run-packaged-koffi-smoke.js --executable "dist/win-unpacked/renmiao.exe" --target windows-x64 --output dist/koffi-smoke/windows-x64.json
       - name: Verify Windows updater metadata
         run: node scripts/verify-updater-metadata.js --metadata dist/latest.yml --artifact-root dist --contract windows --package-json package.json --output dist/updater-metadata-manifests/windows.json
       - uses: actions/upload-artifact@v4
@@ -239,8 +239,8 @@ jobs:
             rm -f -- "$entitlements_file"
           }
 
-          verify_signed_app "dist/mac/Clawd on Desk.app"
-          verify_signed_app "dist/mac-arm64/Clawd on Desk.app"
+          verify_signed_app "dist/mac/renmiao.app"
+          verify_signed_app "dist/mac-arm64/renmiao.app"
 
           active_mount=""
           cleanup_mount() {
@@ -253,7 +253,7 @@ jobs:
           shopt -s nullglob
 
           for arch in x64 arm64; do
-            dmgs=(dist/Clawd-on-Desk-*-"$arch".dmg)
+            dmgs=(dist/renmiao-*-"$arch".dmg)
             if (( ${#dmgs[@]} != 1 )); then
               echo "Expected exactly one $arch DMG, found ${#dmgs[@]}" >&2
               exit 1
@@ -264,7 +264,7 @@ jobs:
             active_mount="$RUNNER_TEMP/clawd-dmg-$arch"
             mkdir "$active_mount"
             hdiutil attach -readonly -nobrowse -mountpoint "$active_mount" "$dmg"
-            verify_signed_app "$active_mount/Clawd on Desk.app"
+            verify_signed_app "$active_mount/renmiao.app"
             hdiutil detach "$active_mount"
             rmdir "$active_mount"
             active_mount=""
@@ -276,8 +276,8 @@ jobs:
         run: |
           set -euo pipefail
           for app in \
-            "dist/mac/Clawd on Desk.app" \
-            "dist/mac-arm64/Clawd on Desk.app"; do
+            "dist/mac/renmiao.app" \
+            "dist/mac-arm64/renmiao.app"; do
             signature_details="$(codesign -dv --verbose=4 "$app" 2>&1)"
             grep -q "Signature=adhoc" <<<"$signature_details"
             grep -Eq "flags=.*\\(adhoc,runtime\\)" <<<"$signature_details"
@@ -301,14 +301,14 @@ jobs:
           done
       - name: Assert retired Telegram sidecar is absent
         run: |
-          node scripts/assert-no-retired-telegram-sidecar.js --resources-root "dist/mac/Clawd on Desk.app/Contents/Resources" --output dist/telegram-retirement-manifests/darwin-x64.json
-          node scripts/assert-no-retired-telegram-sidecar.js --resources-root "dist/mac-arm64/Clawd on Desk.app/Contents/Resources" --output dist/telegram-retirement-manifests/darwin-arm64.json
+          node scripts/assert-no-retired-telegram-sidecar.js --resources-root "dist/mac/renmiao.app/Contents/Resources" --output dist/telegram-retirement-manifests/darwin-x64.json
+          node scripts/assert-no-retired-telegram-sidecar.js --resources-root "dist/mac-arm64/renmiao.app/Contents/Resources" --output dist/telegram-retirement-manifests/darwin-arm64.json
       - name: Audit packaged native payloads
         run: |
-          node scripts/audit-packaged-native.js --app-root "dist/mac/Clawd on Desk.app" --target darwin-x64 --output dist/native-package-manifests/darwin-x64.json
-          node scripts/audit-packaged-native.js --app-root "dist/mac-arm64/Clawd on Desk.app" --target darwin-arm64 --output dist/native-package-manifests/darwin-arm64.json
+          node scripts/audit-packaged-native.js --app-root "dist/mac/renmiao.app" --target darwin-x64 --output dist/native-package-manifests/darwin-x64.json
+          node scripts/audit-packaged-native.js --app-root "dist/mac-arm64/renmiao.app" --target darwin-arm64 --output dist/native-package-manifests/darwin-arm64.json
       - name: Run native-host packaged Koffi smoke
-        run: node scripts/run-packaged-koffi-smoke.js --executable "dist/mac-arm64/Clawd on Desk.app/Contents/MacOS/Clawd on Desk" --target darwin-arm64 --output dist/koffi-smoke/darwin-arm64.json
+        run: node scripts/run-packaged-koffi-smoke.js --executable "dist/mac-arm64/renmiao.app/Contents/MacOS/renmiao" --target darwin-arm64 --output dist/koffi-smoke/darwin-arm64.json
       - name: Verify macOS updater metadata
         run: node scripts/verify-updater-metadata.js --metadata dist/latest-mac.yml --artifact-root dist --contract mac --package-json package.json --output dist/updater-metadata-manifests/mac.json
       - uses: actions/upload-artifact@v4
@@ -367,7 +367,7 @@ jobs:
           sudo chown root:root dist/linux-unpacked/chrome-sandbox
           sudo chmod 4755 dist/linux-unpacked/chrome-sandbox
       - name: Run packaged Koffi smoke
-        run: node scripts/run-packaged-koffi-smoke.js --executable dist/linux-unpacked/clawd-on-desk --target linux-x64 --output dist/koffi-smoke/linux-x64.json --xvfb
+        run: node scripts/run-packaged-koffi-smoke.js --executable dist/linux-unpacked/renmiao --target linux-x64 --output dist/koffi-smoke/linux-x64.json --xvfb
       - name: Verify Linux updater metadata
         run: node scripts/verify-updater-metadata.js --metadata dist/latest-linux.yml --artifact-root dist --contract linux --package-json package.json --output dist/updater-metadata-manifests/linux.json
       - uses: actions/upload-artifact@v4

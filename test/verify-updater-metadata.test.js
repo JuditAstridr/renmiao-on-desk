@@ -61,8 +61,8 @@ test("minimal updater YAML parser keeps files and top-level path separate", () =
 test("Windows dual-architecture updater metadata verifies bytes and hashes", (t) => {
   const root = tempDir();
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
-  const x64 = writeArtifact(root, `Clawd-on-Desk-Setup-${CURRENT_VERSION}-x64.exe`, "x64");
-  const arm64 = writeArtifact(root, `Clawd-on-Desk-Setup-${CURRENT_VERSION}-arm64.exe`, "arm64");
+  const x64 = writeArtifact(root, `renmiao-Setup-${CURRENT_VERSION}-x64.exe`, "x64");
+  const arm64 = writeArtifact(root, `renmiao-Setup-${CURRENT_VERSION}-arm64.exe`, "arm64");
   const metadata = path.join(root, "latest.yml");
   fs.writeFileSync(metadata, yamlFor([x64, arm64], x64.name));
   const report = verifyUpdaterMetadata({
@@ -78,8 +78,8 @@ test("Windows dual-architecture updater metadata verifies bytes and hashes", (t)
 test("macOS contract requires two DMGs and no invented zip", (t) => {
   const root = tempDir();
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
-  const x64 = writeArtifact(root, `Clawd-on-Desk-${CURRENT_VERSION}-x64.dmg`, "x64");
-  const arm64 = writeArtifact(root, `Clawd-on-Desk-${CURRENT_VERSION}-arm64.dmg`, "arm64");
+  const x64 = writeArtifact(root, `renmiao-${CURRENT_VERSION}-x64.dmg`, "x64");
+  const arm64 = writeArtifact(root, `renmiao-${CURRENT_VERSION}-arm64.dmg`, "arm64");
   const metadata = path.join(root, "latest-mac.yml");
   fs.writeFileSync(metadata, yamlFor([x64, arm64], x64.name));
   assert.deepEqual(
@@ -96,8 +96,8 @@ test("macOS contract requires two DMGs and no invented zip", (t) => {
 test("Linux contract requires AppImage, deb, path, and blockMapSize", (t) => {
   const root = tempDir();
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
-  const appImage = writeArtifact(root, `Clawd-on-Desk-${CURRENT_VERSION}-x86_64.AppImage`, "appimage");
-  const deb = writeArtifact(root, `Clawd-on-Desk-${CURRENT_VERSION}-amd64.deb`, "deb");
+  const appImage = writeArtifact(root, `renmiao-${CURRENT_VERSION}-x86_64.AppImage`, "appimage");
+  const deb = writeArtifact(root, `renmiao-${CURRENT_VERSION}-amd64.deb`, "deb");
   const metadata = path.join(root, "latest-linux.yml");
   fs.writeFileSync(metadata, yamlFor([appImage, deb], appImage.name, { appImageBlockMap: true }));
   assert.deepEqual(
@@ -114,8 +114,8 @@ test("Linux contract requires AppImage, deb, path, and blockMapSize", (t) => {
 test("metadata verification reports missing artifacts and tampered hashes", (t) => {
   const root = tempDir();
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
-  const x64 = writeArtifact(root, `Clawd-on-Desk-Setup-${CURRENT_VERSION}-x64.exe`, "x64");
-  const arm64 = { name: `Clawd-on-Desk-Setup-${CURRENT_VERSION}-arm64.exe`, size: 10, sha512: "wrong" };
+  const x64 = writeArtifact(root, `renmiao-Setup-${CURRENT_VERSION}-x64.exe`, "x64");
+  const arm64 = { name: `renmiao-Setup-${CURRENT_VERSION}-arm64.exe`, size: 10, sha512: "wrong" };
   const metadata = path.join(root, "latest.yml");
   fs.writeFileSync(metadata, yamlFor([x64, arm64], x64.name));
   const report = verifyUpdaterMetadata({
@@ -130,8 +130,8 @@ test("metadata verification reports missing artifacts and tampered hashes", (t) 
 test("metadata and every artifact URL must match the expected release version", (t) => {
   const root = tempDir();
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
-  const x64 = writeArtifact(root, `Clawd-on-Desk-Setup-${CURRENT_VERSION}-x64.exe`, "x64");
-  const arm64 = writeArtifact(root, `Clawd-on-Desk-Setup-${CURRENT_VERSION}-arm64.exe`, "arm64");
+  const x64 = writeArtifact(root, `renmiao-Setup-${CURRENT_VERSION}-x64.exe`, "x64");
+  const arm64 = writeArtifact(root, `renmiao-Setup-${CURRENT_VERSION}-arm64.exe`, "arm64");
   const metadata = path.join(root, "latest.yml");
   fs.writeFileSync(metadata, yamlFor([x64, arm64], x64.name, { version: "0.14.0" }));
   const staleMetadata = verifyUpdaterMetadata({
@@ -142,7 +142,7 @@ test("metadata and every artifact URL must match the expected release version", 
   });
   assert.equal(staleMetadata.errors.some((error) => /metadata version/.test(error)), true);
 
-  const staleX64 = writeArtifact(root, "Clawd-on-Desk-Setup-0.14.0-x64.exe", "old-x64");
+  const staleX64 = writeArtifact(root, "renmiao-Setup-0.14.0-x64.exe", "old-x64");
   const mixedMetadata = path.join(root, "latest-mixed.yml");
   fs.writeFileSync(mixedMetadata, yamlFor([staleX64, arm64], staleX64.name));
   const mixedAssets = verifyUpdaterMetadata({
@@ -159,26 +159,26 @@ test("stable updater contracts reject prerelease or extra version segments exact
     {
       contract: "windows",
       files: [
-        { url: `Clawd-on-Desk-Setup-${CURRENT_VERSION}-rc.1-x64.exe` },
-        { url: `Clawd-on-Desk-Setup-${CURRENT_VERSION}-arm64.exe` },
+        { url: `renmiao-Setup-${CURRENT_VERSION}-rc.1-x64.exe` },
+        { url: `renmiao-Setup-${CURRENT_VERSION}-arm64.exe` },
       ],
-      path: `Clawd-on-Desk-Setup-${CURRENT_VERSION}-rc.1-x64.exe`,
+      path: `renmiao-Setup-${CURRENT_VERSION}-rc.1-x64.exe`,
     },
     {
       contract: "mac",
       files: [
-        { url: `Clawd-on-Desk-${CURRENT_VERSION}-rc.1-x64.dmg` },
-        { url: `Clawd-on-Desk-${CURRENT_VERSION}-arm64.dmg` },
+        { url: `renmiao-${CURRENT_VERSION}-rc.1-x64.dmg` },
+        { url: `renmiao-${CURRENT_VERSION}-arm64.dmg` },
       ],
-      path: `Clawd-on-Desk-${CURRENT_VERSION}-rc.1-x64.dmg`,
+      path: `renmiao-${CURRENT_VERSION}-rc.1-x64.dmg`,
     },
     {
       contract: "linux",
       files: [
-        { url: `Clawd-on-Desk-${CURRENT_VERSION}-rc.1-x86_64.AppImage`, blockMapSize: 1 },
-        { url: `Clawd-on-Desk-${CURRENT_VERSION}-amd64.deb` },
+        { url: `renmiao-${CURRENT_VERSION}-rc.1-x86_64.AppImage`, blockMapSize: 1 },
+        { url: `renmiao-${CURRENT_VERSION}-amd64.deb` },
       ],
-      path: `Clawd-on-Desk-${CURRENT_VERSION}-rc.1-x86_64.AppImage`,
+      path: `renmiao-${CURRENT_VERSION}-rc.1-x86_64.AppImage`,
     },
   ];
 

@@ -20,6 +20,12 @@ function sliceWorkflowBlock(workflow, startMarker, endMarker) {
 }
 
 describe("package build config", () => {
+  it("publishes updater metadata from the Renmiao GitHub repository", () => {
+    assert.deepStrictEqual(pkg.build.publish, [
+      { provider: "github", owner: "JuditAstridr", repo: "renmiao-on-desk" },
+    ]);
+  });
+
   describe("repository asset audit", () => {
     it("exposes a Windows-compatible npm audit command", () => {
       assert.strictEqual(
@@ -230,8 +236,8 @@ describe("package build config", () => {
         "      - name: Assert retired Telegram sidecar is absent",
       );
       assert.match(adHocVerification, /^\s+if: steps\.mac-signing\.outputs\.mode == 'adhoc'$/m);
-      assert.match(adHocVerification, /dist\/mac\/Clawd on Desk\.app/);
-      assert.match(adHocVerification, /dist\/mac-arm64\/Clawd on Desk\.app/);
+      assert.match(adHocVerification, /dist\/mac\/renmiao\.app/);
+      assert.match(adHocVerification, /dist\/mac-arm64\/renmiao\.app/);
       assert.match(adHocVerification, /Signature=adhoc/);
       assert.match(adHocVerification, /adhoc,runtime/);
       assert.match(adHocVerification, /codesign --verify --deep --strict/);
@@ -329,19 +335,19 @@ describe("package build config", () => {
       assert.match(developerVerification, /spctl --assess --type execute/);
       assert.match(developerVerification, /xcrun stapler validate "\$app"/);
       assert.strictEqual(
-        (developerVerification.match(/^\s+verify_signed_app "dist\/mac\/Clawd on Desk\.app"$/gm) || []).length,
+        (developerVerification.match(/^\s+verify_signed_app "dist\/mac\/renmiao\.app"$/gm) || []).length,
         1,
         "Developer ID verification must inspect the unpacked x64 app exactly once",
       );
       assert.strictEqual(
-        (developerVerification.match(/^\s+verify_signed_app "dist\/mac-arm64\/Clawd on Desk\.app"$/gm) || []).length,
+        (developerVerification.match(/^\s+verify_signed_app "dist\/mac-arm64\/renmiao\.app"$/gm) || []).length,
         1,
         "Developer ID verification must inspect the unpacked arm64 app exactly once",
       );
       assert.match(developerVerification, /for arch in x64 arm64/);
       assert.match(developerVerification, /hdiutil verify "\$dmg"/);
       assert.match(developerVerification, /hdiutil attach -readonly -nobrowse -mountpoint/);
-      assert.match(developerVerification, /verify_signed_app "\$active_mount\/Clawd on Desk\.app"/);
+      assert.match(developerVerification, /verify_signed_app "\$active_mount\/renmiao\.app"/);
       assert.doesNotMatch(workflow, /notarytool submit[^\n]*\.dmg/);
       assert.doesNotMatch(workflow, /stapler staple[^\n]*\.dmg/);
     });
@@ -468,8 +474,8 @@ describe("package build config", () => {
       for (const root of [
         "dist/win-unpacked/resources",
         "dist/win-arm64-unpacked/resources",
-        "dist/mac/Clawd on Desk.app/Contents/Resources",
-        "dist/mac-arm64/Clawd on Desk.app/Contents/Resources",
+        "dist/mac/renmiao.app/Contents/Resources",
+        "dist/mac-arm64/renmiao.app/Contents/Resources",
         "dist/linux-unpacked/resources",
       ]) {
         assert.match(workflow, new RegExp(root.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
@@ -561,8 +567,8 @@ describe("package build config", () => {
       assert.match(workflow, /runner: windows-11-arm/);
       assert.match(workflow, /runner: macos-15-intel/);
       assert.doesNotMatch(workflow, /fetch:sidecars|verify-sidecar|assert:packaged-sidecar/);
-      assert.match(workflow, /Clawd-on-Desk-\*-x86_64\.AppImage/);
-      assert.match(workflow, /Clawd-on-Desk-\*-amd64\.deb/);
+      assert.match(workflow, /renmiao-\*-x86_64\.AppImage/);
+      assert.match(workflow, /renmiao-\*-amd64\.deb/);
     });
 
     it("gates release artifacts on native payload, packaged calls, and updater metadata", () => {

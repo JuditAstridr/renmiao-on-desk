@@ -86,49 +86,49 @@ jobs:
             runner: windows-latest
             build_script: build:win:x64
             app_root: dist/win-unpacked
-            executable: dist/win-unpacked/Clawd on Desk.exe
+            executable: dist/win-unpacked/renmiao.exe
             smoke_extra: ""
             resources_root: dist/win-unpacked/resources
-            artifact_check_glob: dist/Clawd-on-Desk-Setup-*-x64.exe
-            artifact_glob: dist/Clawd-on-Desk-Setup-*-x64.exe
+            artifact_check_glob: dist/renmiao-Setup-*-x64.exe
+            artifact_glob: dist/renmiao-Setup-*-x64.exe
           - target: windows-arm64
             runner: windows-11-arm
             build_script: build:win:arm64
             app_root: dist/win-arm64-unpacked
-            executable: dist/win-arm64-unpacked/Clawd on Desk.exe
+            executable: dist/win-arm64-unpacked/renmiao.exe
             smoke_extra: ""
             resources_root: dist/win-arm64-unpacked/resources
-            artifact_check_glob: dist/Clawd-on-Desk-Setup-*-arm64.exe
-            artifact_glob: dist/Clawd-on-Desk-Setup-*-arm64.exe
+            artifact_check_glob: dist/renmiao-Setup-*-arm64.exe
+            artifact_glob: dist/renmiao-Setup-*-arm64.exe
           - target: darwin-x64
             runner: macos-15-intel
             build_script: build:mac:x64
-            app_root: dist/mac/Clawd on Desk.app
-            executable: dist/mac/Clawd on Desk.app/Contents/MacOS/Clawd on Desk
+            app_root: dist/mac/renmiao.app
+            executable: dist/mac/renmiao.app/Contents/MacOS/renmiao
             smoke_extra: ""
-            resources_root: dist/mac/Clawd on Desk.app/Contents/Resources
-            artifact_check_glob: dist/Clawd-on-Desk-*-x64.dmg
-            artifact_glob: dist/Clawd-on-Desk-*-x64.dmg
+            resources_root: dist/mac/renmiao.app/Contents/Resources
+            artifact_check_glob: dist/renmiao-*-x64.dmg
+            artifact_glob: dist/renmiao-*-x64.dmg
           - target: darwin-arm64
             runner: macos-latest
             build_script: build:mac:arm64
-            app_root: dist/mac-arm64/Clawd on Desk.app
-            executable: dist/mac-arm64/Clawd on Desk.app/Contents/MacOS/Clawd on Desk
+            app_root: dist/mac-arm64/renmiao.app
+            executable: dist/mac-arm64/renmiao.app/Contents/MacOS/renmiao
             smoke_extra: ""
-            resources_root: dist/mac-arm64/Clawd on Desk.app/Contents/Resources
-            artifact_check_glob: dist/Clawd-on-Desk-*-arm64.dmg
-            artifact_glob: dist/Clawd-on-Desk-*-arm64.dmg
+            resources_root: dist/mac-arm64/renmiao.app/Contents/Resources
+            artifact_check_glob: dist/renmiao-*-arm64.dmg
+            artifact_glob: dist/renmiao-*-arm64.dmg
           - target: linux-x64
             runner: ubuntu-latest
             build_script: build:linux:x64
             app_root: dist/linux-unpacked
-            executable: dist/linux-unpacked/clawd-on-desk
+            executable: dist/linux-unpacked/renmiao
             smoke_extra: "--xvfb"
             resources_root: dist/linux-unpacked/resources
-            artifact_check_glob: dist/Clawd-on-Desk-*-x86_64.AppImage
+            artifact_check_glob: dist/renmiao-*-x86_64.AppImage
             artifact_glob: |
-              dist/Clawd-on-Desk-*-x86_64.AppImage
-              dist/Clawd-on-Desk-*-amd64.deb
+              dist/renmiao-*-x86_64.AppImage
+              dist/renmiao-*-amd64.deb
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v4

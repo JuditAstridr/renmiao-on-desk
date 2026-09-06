@@ -58,7 +58,14 @@ function sha512Base64(filename) {
   return crypto.createHash("sha512").update(fs.readFileSync(filename)).digest("base64");
 }
 
-function validateContractShape(metadata, contract, expectedVersion) {
+function renderArtifactName(template, expectedVersion, arch, ext) {
+  return String(template || "")
+    .replace(/\$\{version\}/g, expectedVersion)
+    .replace(/\$\{arch\}/g, arch)
+    .replace(/\$\{ext\}/g, ext);
+}
+
+function validateContractShape(metadata, contract, expectedVersion, buildConfig) {
   if (typeof expectedVersion !== "string" || !expectedVersion.trim()) {
     throw new TypeError("expectedVersion is required");
   }
@@ -67,21 +74,25 @@ function validateContractShape(metadata, contract, expectedVersion) {
   if (String(metadata.version || "") !== expectedVersion) {
     errors.push(`Updater metadata version must be ${expectedVersion}, got ${metadata.version || "<empty>"}`);
   }
+  const build = buildConfig || require("../package.json").build || {};
   let expectedUrls;
   if (contract === "windows") {
+    const template = build.win && build.win.artifactName;
     expectedUrls = new Set([
-      `Clawd-on-Desk-Setup-${expectedVersion}-x64.exe`,
-      `Clawd-on-Desk-Setup-${expectedVersion}-arm64.exe`,
+      renderArtifactName(template, expectedVersion, "x64", "exe"),
+      renderArtifactName(template, expectedVersion, "arm64", "exe"),
     ]);
   } else if (contract === "mac") {
+    const template = build.mac && build.mac.artifactName;
     expectedUrls = new Set([
-      `Clawd-on-Desk-${expectedVersion}-x64.dmg`,
-      `Clawd-on-Desk-${expectedVersion}-arm64.dmg`,
+      renderArtifactName(template, expectedVersion, "x64", "dmg"),
+      renderArtifactName(template, expectedVersion, "arm64", "dmg"),
     ]);
   } else if (contract === "linux") {
+    const template = build.linux && build.linux.artifactName;
     expectedUrls = new Set([
-      `Clawd-on-Desk-${expectedVersion}-x86_64.AppImage`,
-      `Clawd-on-Desk-${expectedVersion}-amd64.deb`,
+      renderArtifactName(template, expectedVersion, "x86_64", "AppImage"),
+      renderArtifactName(template, expectedVersion, "amd64", "deb"),
     ]);
   }
   if (!expectedUrls) throw new Error(`Unknown updater contract: ${contract || "<empty>"}`);
