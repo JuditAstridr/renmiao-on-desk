@@ -930,7 +930,10 @@ async function refreshCalendar(force = false) {
   const key = `${calendarMode.year}-${calendarMode.month}:${calendarHistoryKey()}:${JSON.stringify({
     tasks: snapshot.tasks || [], schedules: snapshot.schedules || [], goals: snapshot.goals || {},
   })}`;
-  if (!force && calendarData && calendarData._key === key) { renderCalendar(calendarData); return; }
+  // Snapshot broadcasts arrive while the study timer is running. Rebuilding
+  // the calendar panel for an unchanged month would replace the goal inputs
+  // on every broadcast, stealing focus and dropping partially typed text.
+  if (!force && calendarData && calendarData._key === key) return;
   const requestId = ++calendarRequestId;
   const next = await studyApi.getReport({ unit: "month", offset: calendarOffset() }).catch((error) => { console.warn("study calendar report failed:", error); return null; });
   if (requestId !== calendarRequestId) return;

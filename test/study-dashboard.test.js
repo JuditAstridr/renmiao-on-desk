@@ -61,6 +61,12 @@ describe("Study Companion integration", () => {
     assert.match(renderer, /call\("setDailyGoal", \{ date: cell\.date/);
   });
 
+  it("does not rebuild an unchanged calendar during snapshot broadcasts", () => {
+    const renderer = read("src/study-dashboard-renderer.js");
+    assert.match(renderer, /calendarData && calendarData\._key === key\) return;/);
+    assert.match(renderer, /replace the goal inputs\n  \/\/ on every broadcast/);
+  });
+
   it("loads every Study browser script without a global lexical collision", () => {
     const scripts = ["src/study-calendar.js", "src/report-poster-renderer.js", "src/study-dashboard-renderer.js"]
       .map((file) => read(file)).join("\n");
