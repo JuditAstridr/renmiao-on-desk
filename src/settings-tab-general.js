@@ -1,50 +1,10 @@
 "use strict";
 
 (function initSettingsTabGeneral(root) {
-  const IS_RENMI_PROFILE = !!(root && root.settingsAPI && root.settingsAPI.isRenmiProfile);
   const GENERAL_IN_PLACE_KEYS = new Set([
     "size",
     "textScale",
     "textScaleByDisplay",
-    "soundMuted",
-    "flashTaskbarOnComplete",
-    "flashIntervalMs",
-    "flashDurationMs",
-    "testReactionsEnabled",
-    "soundVolume",
-    "lowPowerIdleMode",
-    "keepAwakeWhileWorking",
-    "showTray",
-    "showDock",
-    "sessionHudEnabled",
-    "sessionHudShowStateLabels",
-    "sessionHudShowElapsed",
-    "sessionHudShowContextUsage",
-    "sessionHudShowQuota",
-    "quotaRingDisplayMode",
-    "permissionAutomationMode",
-    "permissionAutomationAutoToolsWarningDismissed",
-    "permissionAutomationUnattendedWarningDismissed",
-    // claudeQuotaCollectionEnabled is deliberately absent: the switch moved to
-    // the Claude card on the Agents tab, so General has nothing mounted to
-    // patch and must fall through to a full re-render.
-    "quotaMergeSources",
-    "sessionHudCleanupDetached",
-    "allowEdgePinning",
-    "disableMiniMode",
-    "freeRoam",
-    "roamConstrainAxis",
-    "keepSizeAcrossDisplays",
-    "openAtLogin",
-    "hideBubbles",
-    "bubbleFollowPet",
-    "studyFollowPet",
-    "permissionBubblesEnabled",
-    "notificationBubbleAutoCloseSeconds",
-    "updateBubbleAutoCloseSeconds",
-    "sessionStaleMs",
-    "workingStaleMs",
-    "detachedIdleStaleMs",
   ]);
   const BUBBLE_POLICY_KEYS = new Set([
     "permissionBubblesEnabled",
@@ -334,100 +294,13 @@
     subtitle.className = "subtitle";
     subtitle.textContent = t("settingsSubtitle");
     parent.appendChild(subtitle);
-    // General tab IA: sections are ordered by how often they're touched, with
-    // the danger section pinned last. Appearance stays first (language sits at
-    // the top of settings by convention); Behavior & position and System &
-    // startup are set-once, so they sink toward the bottom.
+    // General intentionally contains only the appearance controls. Other
+    // preferences keep their existing storage and runtime APIs, but are no
+    // longer exposed from this tab.
     parent.appendChild(helpers.buildSection(t("sectionAppearance"), [
       buildLanguageRow(),
       buildSizeSliderRow(),
       buildTextScaleRow(),
-    ]));
-
-    // Alerts & feedback: every way the pet gets your attention — sound, screen
-    // flash, and the bubble preferences (visibility, auto-close policy, follow).
-    parent.appendChild(helpers.buildSection(t("sectionAlerts"), [
-      buildSoundGroup(),
-      buildFlashGroup(),
-      helpers.buildSwitchRow({
-        key: "testReactionsEnabled",
-        labelKey: "rowTestReactions",
-        descKey: "rowTestReactionsDesc",
-      }),
-      helpers.buildSwitchRow({
-        key: "hideBubbles",
-        labelKey: "rowHideBubbles",
-        descKey: "rowHideBubblesDesc",
-        onToggle: ({ nextRaw }) => window.settingsAPI.command("setAllBubblesHidden", { hidden: nextRaw }),
-      }),
-      buildBubblePolicyRow(),
-      helpers.buildSwitchRow({
-        key: "bubbleFollowPet",
-        labelKey: "rowBubbleFollow",
-        descKey: "rowBubbleFollowDesc",
-      }),
-    ]));
-
-    // Behavior & position: how the pet moves and sits on screen. Rarely changed
-    // after first setup, so it sits below the everyday sections.
-    parent.appendChild(helpers.buildSection(t("sectionBehavior"), [
-      buildFreeRoamGroup(),
-      helpers.buildSwitchRow({
-        key: "allowEdgePinning",
-        labelKey: "rowAllowEdgePinning",
-        descKey: "rowAllowEdgePinningDesc",
-      }),
-      helpers.buildSwitchRow({
-        key: "disableMiniMode",
-        labelKey: "rowDisableMiniMode",
-        descKey: "rowDisableMiniModeDesc",
-      }),
-      helpers.buildSwitchRow({
-        key: "keepSizeAcrossDisplays",
-        labelKey: "rowKeepSizeAcrossDisplays",
-        descKey: "rowKeepSizeAcrossDisplaysDesc",
-      }),
-      // #562: the fullscreenOverlay switch is intentionally NOT rendered here.
-      // For borderless-fullscreen games (the common case) "off" can't drop the
-      // pet behind the game anyway (a Windows limit), so the toggle was a
-      // non-choice. The pref + #538 stand-down logic stay (default on) as an
-      // escape hatch for exclusive-fullscreen games, whose overlay behavior is
-      // unverified. To restore the toggle: re-add a buildSwitchRow for
-      // "fullscreenOverlay" here AND add its key back into GENERAL_IN_PLACE_KEYS
-      // (dropped so patchInPlace doesn't force a full re-render for a pref that
-      // has no mounted control). The rowFullscreenOverlay[Desc] i18n keys remain.
-    ]));
-
-    // System & startup: machine-level toggles plus launch-at-login. Renmi is
-    // intentionally always-live, so its low-power idle control is not shown.
-    const systemStartupRows = [
-      ...buildMacAppPresenceRows(),
-    ];
-    if (!IS_RENMI_PROFILE) {
-      systemStartupRows.push(helpers.buildSwitchRow({
-        key: "lowPowerIdleMode",
-        labelKey: "rowLowPowerIdleMode",
-        descKey: "rowLowPowerIdleModeDesc",
-      }));
-    }
-    systemStartupRows.push(
-      helpers.buildSwitchRow({
-        key: "keepAwakeWhileWorking",
-        labelKey: "rowKeepAwakeWhileWorking",
-        descKey: "rowKeepAwakeWhileWorkingDesc",
-      }),
-      helpers.buildSwitchRow({
-        key: "openAtLogin",
-        labelKey: "rowOpenAtLogin",
-        descKey: "rowOpenAtLoginDesc",
-      }),
-    );
-    parent.appendChild(helpers.buildSection(t("sectionSystemStartup"), systemStartupRows));
-
-    // Permission automation stays last: both automatic modes carry a broad
-    // trust boundary and require an explicit confirmation.
-    parent.appendChild(helpers.buildSection(t("sectionPermissions"), [
-      buildPermissionAutomationRow(),
     ]));
   }
 
