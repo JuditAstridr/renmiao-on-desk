@@ -1,6 +1,9 @@
 "use strict";
 
-const api = window.studyAPI;
+// Keep this binding private to the Study renderer.  study-calendar.js is a
+// classic script loaded before this file and also exposes a top-level `api`
+// constant; redeclaring it here aborts the entire renderer with a SyntaxError.
+const studyApi = window.studyAPI;
 let i18nPayload = { lang: "en", translations: {} };
 let snapshot = { tasks: [], pomodoro: null, view: { sortBy: "created", groupBy: "none" } };
 let lastTaskKey = "";
@@ -124,8 +127,8 @@ function renderPoints() {
 }
 
 function call(method, ...args) {
-  if (!api || typeof api[method] !== "function") return Promise.resolve(snapshot);
-  return Promise.resolve(api[method](...args)).then((next) => {
+  if (!studyApi || typeof studyApi[method] !== "function") return Promise.resolve(snapshot);
+  return Promise.resolve(studyApi[method](...args)).then((next) => {
     if (next && typeof next === "object") {
       snapshot = next;
       render();
@@ -658,8 +661,8 @@ function ensurePosterResources() {
   posterResourcesPromise = (async () => {
     try {
       const ids = POSTER_STAT_ICONS.concat(POSTER_DECO_IDS);
-      if (api && typeof api.getPosterAssets === "function") {
-        const assets = await api.getPosterAssets(ids);
+      if (studyApi && typeof studyApi.getPosterAssets === "function") {
+        const assets = await studyApi.getPosterAssets(ids);
         await Promise.all(Object.entries(assets || {}).map(([id, src]) => new Promise((resolve) => {
           const image = new Image();
           image.onload = () => { posterResources[id] = image; resolve(); };
@@ -667,8 +670,8 @@ function ensurePosterResources() {
           image.src = src;
         })));
       }
-      if (api && typeof api.getPosterFont === "function" && typeof FontFace === "function") {
-        const font = await api.getPosterFont();
+      if (studyApi && typeof studyApi.getPosterFont === "function" && typeof FontFace === "function") {
+        const font = await studyApi.getPosterFont();
         if (font && font.base64) {
           const bytes = Uint8Array.from(atob(font.base64), (char) => char.charCodeAt(0));
           const face = await new FontFace("YEFONTXiaoShiTou", bytes.buffer).load().catch(() => null);
@@ -689,8 +692,8 @@ const posterResources = {};
 function ensurePosterPet(force = false) {
   if (force) posterPetPromise = null;
   if (posterPetPromise) return posterPetPromise;
-  if (!api || typeof api.getPosterActivePet !== "function") return Promise.resolve(null);
-  posterPetPromise = api.getPosterActivePet()
+  if (!studyApi || typeof studyApi.getPosterActivePet !== "function") return Promise.resolve(null);
+  posterPetPromise = studyApi.getPosterActivePet()
     .then((pet) => { posterPet = pet || null; return posterPet; })
     .catch((error) => {
       posterPet = null;
@@ -808,7 +811,7 @@ async function refreshReport(force = false) {
   const key = reportSignature();
   if (!force && reportData && reportData._key === key) return;
   const requestId = ++reportRequestId;
-  const next = await api.getReport(reportSpec).catch((error) => { console.warn("study report failed:", error); return null; });
+  const next = await studyApi.getReport(reportSpec).catch((error) => { console.warn("study report failed:", error); return null; });
   if (requestId !== reportRequestId) return;
   if (!next || activeTab !== "report") return;
   next._key = key;
@@ -916,7 +919,7 @@ async function refreshCalendar(force = false) {
   })}`;
   if (!force && calendarData && calendarData._key === key) { renderCalendar(calendarData); return; }
   const requestId = ++calendarRequestId;
-  const next = await api.getReport({ unit: "month", offset: calendarOffset() }).catch((error) => { console.warn("study calendar report failed:", error); return null; });
+  const next = await studyApi.getReport({ unit: "month", offset: calendarOffset() }).catch((error) => { console.warn("study calendar report failed:", error); return null; });
   if (requestId !== calendarRequestId) return;
   if (activeTab !== "calendar") return;
   if (next) next._key = key;
@@ -997,12 +1000,12 @@ $("reportMonth").addEventListener("click", () => {
 $("reportPrev").addEventListener("click", () => moveReport(-1));
 $("reportNext").addEventListener("click", () => moveReport(1));
 $("reportSave").addEventListener("click", async () => {
-  if (!api || typeof api.saveReportPoster !== "function" || !reportData) return;
+  if (!studyApi || typeof studyApi.saveReportPoster !== "function" || !reportData) return;
   reportSaveStatus.textContent = label("studyReportSaving", "Saving…");
   try {
     if (!posterDataUrl) await drawPoster(reportData);
     if (!posterDataUrl) throw new Error("poster unavailable");
-    const result = await api.saveReportPoster({
+    const result = await studyApi.saveReportPoster({
       dataUrl: posterDataUrl,
       suggestedName: `renmi-study-${reportSpec.unit}-${new Date().toISOString().slice(0, 10)}.png`,
     });
@@ -1035,8 +1038,8 @@ taskForm.addEventListener("submit", (event) => {
 });
 
 buildTimerControls();
-if (api && typeof api.onSnapshot === "function") api.onSnapshot((next) => { snapshot = next || snapshot; render(); });
-if (api && typeof api.onLangChange === "function") api.onLangChange((next) => {
+if (studyApi && typeof studyApi.onSnapshot === "function") studyApi.onSnapshot((next) => { snapshot = next || snapshot; render(); });
+if (studyApi && typeof studyApi.onLangChange === "function") studyApi.onLangChange((next) => {
   i18nPayload = next || i18nPayload;
   lastTaskKey = "";
   lastViewKey = "";
@@ -1046,8 +1049,8 @@ if (api && typeof api.onLangChange === "function") api.onLangChange((next) => {
 });
 
 Promise.all([
-  api && typeof api.getSnapshot === "function" ? api.getSnapshot() : Promise.resolve(snapshot),
-  api && typeof api.getI18n === "function" ? api.getI18n() : Promise.resolve(i18nPayload),
+  studyApi && typeof studyApi.getSnapshot === "function" ? studyApi.getSnapshot() : Promise.resolve(snapshot),
+  studyApi && typeof studyApi.getI18n === "function" ? studyApi.getI18n() : Promise.resolve(i18nPayload),
 ]).then(([nextSnapshot, nextI18n]) => {
   snapshot = nextSnapshot || snapshot;
   i18nPayload = nextI18n || i18nPayload;

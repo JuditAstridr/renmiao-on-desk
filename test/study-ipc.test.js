@@ -28,6 +28,7 @@ describe("study IPC boundary", () => {
     const registration = registerStudyIpc({
       ipcMain,
       studyRuntime: runtime,
+      getI18n: () => ({ lang: "zh-CN" }),
       getStudyWindow: () => studyWindow,
       broadcast: (snapshot) => broadcasts.push(snapshot),
     });
@@ -38,6 +39,7 @@ describe("study IPC boundary", () => {
     assert.deepEqual(calls, [["addTask", { title: "T" }]]);
     assert.deepEqual(broadcasts, [{ ok: true }]);
     assert.equal(ipcMain.handlers.get("study:pomodoro-command")(event, "start").ok, true);
+    assert.deepEqual(await ipcMain.handlers.get("study:get-i18n")(event), { lang: "zh-CN" });
 
     const rejected = await ipcMain.handlers.get("study:get-snapshot")({ sender: {} });
     assert.deepEqual(rejected, { status: "error", message: "untrusted-study-sender" });

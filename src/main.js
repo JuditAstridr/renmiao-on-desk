@@ -2757,6 +2757,7 @@ broadcastStudySnapshot = _studyWindow.broadcastStudySnapshot;
 studyIpcRuntime = registerStudyIpc({
   ipcMain,
   studyRuntime: _studyRuntime,
+  getI18n: () => getDashboardI18nPayload(),
   posterAssets: _studyPosterAssets,
   getStudyWindow: () => _studyWindow.getWindow(),
   broadcast: (snapshot) => _studyWindow.broadcastStudySnapshot(snapshot),

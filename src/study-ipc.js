@@ -12,6 +12,7 @@ function requiredDependency(value, name) {
 function registerStudyIpc(options = {}) {
   const ipcMain = requiredDependency(options.ipcMain, "ipcMain");
   const studyRuntime = requiredDependency(options.studyRuntime, "studyRuntime");
+  const getI18n = typeof options.getI18n === "function" ? options.getI18n : () => ({});
   const broadcast = typeof options.broadcast === "function" ? options.broadcast : () => {};
   const getStudyWindow = typeof options.getStudyWindow === "function"
     ? options.getStudyWindow
@@ -53,6 +54,7 @@ function registerStudyIpc(options = {}) {
   }
 
   handle("study:get-snapshot", () => studyRuntime.getSnapshot());
+  handle("study:get-i18n", () => getI18n());
   handle("study:get-report", (_event, spec) => studyRuntime.getReport(spec));
   if (posterAssets) {
     handle("study:get-poster-active-pet", () => posterAssets.getActivePet());

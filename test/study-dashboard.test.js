@@ -3,6 +3,7 @@
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
+const vm = require("node:vm");
 const { describe, it } = require("node:test");
 
 const root = path.join(__dirname, "..");
@@ -50,6 +51,14 @@ describe("Study Companion integration", () => {
     assert.match(renderer, /saveReportPoster/);
     assert.match(preload, /addSchedule/);
     assert.match(preload, /setDailyGoal/);
+  });
+
+  it("loads every Study browser script without a global lexical collision", () => {
+    const scripts = ["src/study-calendar.js", "src/report-poster-renderer.js", "src/study-dashboard-renderer.js"]
+      .map((file) => read(file)).join("\n");
+    assert.doesNotThrow(() => new vm.Script(scripts), "Study scripts must be valid when loaded as classic scripts");
+    assert.match(read("src/preload-study-dashboard.js"), /study:get-i18n/);
+    assert.match(read("src/study-ipc.js"), /study:get-i18n/);
   });
 
   it("keeps v5 poster, points, matrix, and focus-mode features in Study only", () => {

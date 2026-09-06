@@ -23,7 +23,7 @@ contextBridge.exposeInMainWorld("studyAPI", {
   getPosterActivePet: () => ipcRenderer.invoke("study:get-poster-active-pet"),
   getPosterAssets: (ids) => ipcRenderer.invoke("study:get-poster-assets", ids),
   getPosterFont: () => ipcRenderer.invoke("study:get-poster-font"),
-  getI18n: () => ipcRenderer.invoke("dashboard:get-i18n"),
+  getI18n: () => ipcRenderer.invoke("study:get-i18n"),
   addTask: (payload) => ipcRenderer.invoke("study:add-task", payload),
   updateTask: (id, patch) => ipcRenderer.invoke("study:update-task", { id, patch }),
   toggleTask: (id) => ipcRenderer.invoke("study:toggle-task", id),
