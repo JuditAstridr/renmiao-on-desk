@@ -46,6 +46,7 @@ contextBridge.exposeInMainWorld("studyAPI", {
   setDailyGoal: (payload) => ipcRenderer.invoke("study:set-daily-goal", payload),
   addDailyGoal: (payload) => ipcRenderer.invoke("study:add-daily-goal", payload),
   removeDailyGoal: (id) => ipcRenderer.invoke("study:remove-daily-goal", id),
+  updateDailyGoal: (id, patch) => ipcRenderer.invoke("study:update-daily-goal", { id, patch }),
   saveReportPoster: (payload) => ipcRenderer.invoke("study:save-report-poster", payload),
   pomodoroCommand: (command) => ipcRenderer.invoke("study:pomodoro-command", command),
   onSnapshot: (callback) => {

@@ -75,6 +75,16 @@ describe("study runtime", () => {
     });
   });
 
+  it("updates and removes a saved daily goal", () => {
+    const { runtime } = createRuntime({ now: () => new Date(2026, 8, 2, 12).getTime() });
+    let snapshot = runtime.addDailyGoal({ date: new Date(2026, 8, 2).getTime(), name: "旧目标", minutes: 30 });
+    const id = snapshot.goals.items[0].id;
+    snapshot = runtime.updateDailyGoal(id, { name: "新目标", description: "说明", minutes: 45 });
+    assert.deepEqual(snapshot.goals.items[0], { id, date: "2026-09-02", name: "新目标", description: "说明", minutes: 45 });
+    snapshot = runtime.removeDailyGoal(id);
+    assert.deepEqual(snapshot.goals.items, []);
+  });
+
   it("completes subtasks in order and then auto-completes the parent task", () => {
     const { runtime } = createRuntime({ now: () => 1000 });
     let snapshot = runtime.addTask({ title: "Project" });

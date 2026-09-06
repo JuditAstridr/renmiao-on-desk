@@ -896,10 +896,15 @@ function renderCalendarPanel(cell) {
   }
   const goalList = document.createElement("div"); goalList.className = "calendar-goal-list";
   for (const item of (cell.goals || [])) {
-    const row = document.createElement("div"); row.className = "calendar-goal-row";
-    const text = document.createElement("span"); text.textContent = `${item.name || label("studyCalendarGoalDefaultName", "Daily goal")} · ${item.minutes}m${item.description ? ` — ${item.description}` : ""}`;
-    const remove = document.createElement("button"); remove.type = "button"; remove.textContent = "×"; remove.title = label("studyCalendarGoalRemove", "Remove goal"); remove.addEventListener("click", () => item.legacy ? call("setDailyGoal", { date: cell.date, minutes: null }) : call("removeDailyGoal", item.id));
-    row.append(text, remove); goalList.appendChild(row);
+    const row = document.createElement("form"); row.className = "calendar-goal-card";
+    const name = document.createElement("input"); name.type = "text"; name.value = item.name || ""; name.placeholder = label("studyCalendarGoalName", "Goal name"); name.maxLength = "120";
+    const description = document.createElement("input"); description.type = "text"; description.value = item.description || ""; description.placeholder = label("studyCalendarGoalDescription", "Description"); description.maxLength = "500";
+    const minutes = document.createElement("input"); minutes.type = "number"; minutes.value = item.minutes || ""; minutes.min = "1"; minutes.max = "1440"; minutes.className = "calendar-goal-minutes";
+    const save = document.createElement("button"); save.type = "submit"; save.className = "primary"; save.textContent = label("studyCalendarGoalSave", "Save");
+    const remove = document.createElement("button"); remove.type = "button"; remove.textContent = "×"; remove.title = label("studyCalendarGoalRemove", "Remove goal");
+    remove.addEventListener("click", () => item.legacy ? call("setDailyGoal", { date: cell.date, minutes: null }) : call("removeDailyGoal", item.id));
+    row.addEventListener("submit", (event) => { event.preventDefault(); item.legacy ? call("setDailyGoal", { date: cell.date, name: name.value, description: description.value, minutes: Number(minutes.value) }) : call("updateDailyGoal", item.id, { name: name.value, description: description.value, minutes: Number(minutes.value) }); });
+    row.append(name, description, minutes, save, remove); goalList.appendChild(row);
   }
   if (goalList.childElementCount) calendarPanel.appendChild(goalList);
   const goalRow = document.createElement("form"); goalRow.className = "calendar-form";

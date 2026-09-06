@@ -1042,6 +1042,17 @@ function createStudyRuntime(options = {}) {
       return snapshot();
     },
 
+    updateDailyGoal(id, patch) {
+      const item = state.goals.items.find((entry) => entry.id === id);
+      if (!item || !patch || typeof patch !== "object") return snapshot();
+      const minutes = Number(patch.minutes);
+      if (Number.isInteger(minutes) && minutes > 0 && minutes <= 1440) item.minutes = minutes;
+      if (typeof patch.name === "string") item.name = cleanText(patch.name, 120);
+      if (typeof patch.description === "string") item.description = cleanText(patch.description, 500);
+      persistNow();
+      return snapshot();
+    },
+
     pomodoroCommand(command) {
       const pomodoro = state.pomodoro;
       if (command === "start") {
