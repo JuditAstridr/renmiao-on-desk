@@ -144,7 +144,9 @@ function createAuthRuntime({
     }
     showMainWindows();
     closeAuthWindow();
-    if (session.user && session.user.role === "admin") openAdminWindow();
+    // Admin authentication grants the dashboard permission but must not
+    // interrupt the normal desktop-pet flow by opening another window.
+    // The tray/account menu remains the explicit entry point.
     return { status: "ok", user: session.user };
   }
 
@@ -332,7 +334,6 @@ function createAuthRuntime({
         throw error;
       }
       showMainWindows();
-      if (session.user && session.user.role === "admin") openAdminWindow();
       return true;
     } catch (error) {
       if (error && [401, 403].includes(error.status)) sessionStore.clear();
