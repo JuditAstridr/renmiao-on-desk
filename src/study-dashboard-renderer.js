@@ -887,14 +887,23 @@ function renderCalendarPanel(cell) {
   calendarPanel.replaceChildren();
   const title = document.createElement("h3"); title.textContent = new Date(cell.date).toLocaleDateString(i18nPayload.lang || undefined, { weekday: "long", month: "long", day: "numeric" }); calendarPanel.appendChild(title);
   const summary = document.createElement("div"); summary.className = "calendar-summary"; summary.textContent = `${cell.focusMinutes}m focus · ${cell.focusCount} ${label("studyReportFocusCount", "sessions")}`; calendarPanel.appendChild(summary);
+  if (cell.goalSet) {
+    const goalInfo = document.createElement("div"); goalInfo.className = "calendar-goal-info";
+    const goalTitle = document.createElement("strong"); goalTitle.textContent = `${cell.goalName || label("studyCalendarGoalDefaultName", "Daily goal")} · ${cell.goal}m`;
+    goalInfo.appendChild(goalTitle);
+    if (cell.goalDescription) { const description = document.createElement("div"); description.textContent = cell.goalDescription; goalInfo.appendChild(description); }
+    calendarPanel.appendChild(goalInfo);
+  }
   const goalRow = document.createElement("form"); goalRow.className = "calendar-form";
-  const goal = document.createElement("input"); goal.type = "number"; goal.min = "1"; goal.max = "1440"; goal.placeholder = label("studyCalendarGoalPlaceholder", "Daily goal (min)"); goal.value = snapshot.goals && snapshot.goals.overrides && snapshot.goals.overrides[localDateKey(cell.date)] || "";
+  const goalName = document.createElement("input"); goalName.type = "text"; goalName.maxLength = "120"; goalName.placeholder = label("studyCalendarGoalName", "Goal name"); goalName.value = cell.goalName || "";
+  const goalDescription = document.createElement("input"); goalDescription.type = "text"; goalDescription.maxLength = "500"; goalDescription.placeholder = label("studyCalendarGoalDescription", "Description"); goalDescription.value = cell.goalDescription || "";
+  const goal = document.createElement("input"); goal.type = "number"; goal.min = "1"; goal.max = "1440"; goal.placeholder = label("studyCalendarGoalPlaceholder", "Daily goal (min)"); goal.value = cell.goal || "";
   const setGoal = document.createElement("button"); setGoal.type = "submit"; setGoal.className = "primary"; setGoal.textContent = label("studyCalendarGoalSet", "Set goal");
   goalRow.addEventListener("submit", (event) => {
     event.preventDefault();
-    call("setDailyGoal", { date: cell.date, minutes: goal.value ? Number(goal.value) : null });
+    call("setDailyGoal", { date: cell.date, name: goalName.value, description: goalDescription.value, minutes: goal.value ? Number(goal.value) : null });
   });
-  goalRow.append(goal, setGoal); calendarPanel.appendChild(goalRow);
+  goalRow.append(goalName, goalDescription, goal, setGoal); calendarPanel.appendChild(goalRow);
   const taskTitle = document.createElement("div"); taskTitle.className = "report-card-title"; taskTitle.textContent = label("studyCalendarTasksDue", "Tasks due"); calendarPanel.appendChild(taskTitle);
   const taskListEl = document.createElement("div"); taskListEl.className = "calendar-list";
   if (!cell.tasks.length) { const empty = document.createElement("div"); empty.className = "report-muted"; empty.textContent = label("studyCalendarNoTasksDue", "No tasks due"); taskListEl.appendChild(empty); }

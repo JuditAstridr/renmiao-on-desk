@@ -28,6 +28,8 @@ function emptyCell(date, today) {
     taskCount: 0,
     points: 0,
     goal: null,
+    goalName: "",
+    goalDescription: "",
     goalSet: false,
     goalMet: false,
     tasks: [],
@@ -85,6 +87,8 @@ function buildMonthGrid(data = {}) {
   const overrides = goals.overrides && typeof goals.overrides === "object" ? goals.overrides : {};
   const defaultGoal = Number.isInteger(Number(goals.defaultMinutes)) && Number(goals.defaultMinutes) > 0
     ? Number(goals.defaultMinutes) : null;
+  const defaultGoalName = typeof goals.defaultName === "string" ? goals.defaultName : "";
+  const defaultGoalDescription = typeof goals.defaultDescription === "string" ? goals.defaultDescription : "";
   const cells = [];
   for (let index = 0; index < leading; index += 1) {
     const cell = emptyCell(first - (leading - index) * MS_DAY, today);
@@ -114,6 +118,9 @@ function buildMonthGrid(data = {}) {
     const goal = overrides[dateKey(date)] != null ? Number(overrides[dateKey(date)]) : defaultGoal;
     cell.goal = Number.isInteger(goal) && goal > 0 ? goal : null;
     cell.goalSet = cell.goal !== null;
+    const key = dateKey(date);
+    cell.goalName = cell.goal !== null ? (goals.overrideNames && goals.overrideNames[key] || defaultGoalName) : "";
+    cell.goalDescription = cell.goal !== null ? (goals.overrideDescriptions && goals.overrideDescriptions[key] || defaultGoalDescription) : "";
     cell.goalMet = cell.goalSet && cell.focusMinutes >= cell.goal;
     focusMinutes += cell.focusMinutes;
     focusCount += cell.focusCount;

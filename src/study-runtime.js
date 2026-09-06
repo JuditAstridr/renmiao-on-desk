@@ -48,7 +48,7 @@ function defaultPoints() {
 }
 
 function defaultGoals() {
-  return { defaultMinutes: null, overrides: {} };
+  return { defaultMinutes: null, defaultName: "", defaultDescription: "", overrides: {}, overrideNames: {}, overrideDescriptions: {} };
 }
 
 function sanitizePoints(raw) {
@@ -88,6 +88,8 @@ function sanitizeGoals(raw) {
   if (Number.isInteger(defaultMinutes) && defaultMinutes > 0 && defaultMinutes <= 1440) {
     out.defaultMinutes = defaultMinutes;
   }
+  out.defaultName = cleanText(raw.defaultName, 120);
+  out.defaultDescription = cleanText(raw.defaultDescription, 500);
   if (raw.overrides && typeof raw.overrides === "object") {
     for (const [key, value] of Object.entries(raw.overrides)) {
       const minutes = Number(value);
@@ -96,6 +98,12 @@ function sanitizeGoals(raw) {
         out.overrides[key] = minutes;
       }
     }
+  }
+  for (const [key, value] of Object.entries(raw.overrideNames || {})) {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(key)) out.overrideNames[key] = cleanText(value, 120);
+  }
+  for (const [key, value] of Object.entries(raw.overrideDescriptions || {})) {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(key)) out.overrideDescriptions[key] = cleanText(value, 500);
   }
   return out;
 }
@@ -982,11 +990,22 @@ function createStudyRuntime(options = {}) {
       }
       const hasDate = Object.prototype.hasOwnProperty.call(input, "date");
       if (hasDate && !key) return snapshot();
+      const name = cleanText(input.name, 120);
+      const description = cleanText(input.description, 500);
       if (key) {
-        if (next == null) delete state.goals.overrides[key];
-        else state.goals.overrides[key] = next;
+        if (next == null) {
+          delete state.goals.overrides[key];
+          delete state.goals.overrideNames[key];
+          delete state.goals.overrideDescriptions[key];
+        } else {
+          state.goals.overrides[key] = next;
+          state.goals.overrideNames[key] = name;
+          state.goals.overrideDescriptions[key] = description;
+        }
       } else {
         state.goals.defaultMinutes = next;
+        state.goals.defaultName = name;
+        state.goals.defaultDescription = description;
       }
       persistNow();
       return snapshot();

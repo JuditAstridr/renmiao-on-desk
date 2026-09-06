@@ -3463,7 +3463,7 @@ const studyTranslations = {
 const studyReportTranslations = {
   en: {
     studyTabTasks: "Tasks", studyTabCalendar: "Calendar", studyTabReport: "Reports", studyCalendarToday: "Today", studyReportWeek: "Week", studyReportMonth: "Month",
-    studyAdd: "Add", studyCalendarGoalLabel: "Daily goal", studyCalendarGoalPlaceholder: "Daily goal (min)",
+    studyAdd: "Add", studyCalendarGoalLabel: "Daily goal", studyCalendarGoalPlaceholder: "Daily goal (min)", studyCalendarGoalName: "Goal name", studyCalendarGoalDescription: "Description", studyCalendarGoalDefaultName: "Daily goal",
     studyCalendarGoalSet: "Set goal", studyCalendarTasksDue: "Tasks due", studyCalendarNoTasksDue: "No tasks due",
     studyCalendarSchedules: "Schedules", studyCalendarNoSchedules: "No schedules", studyCalendarAddSchedule: "Add a schedule",
     studyReportSectionTitle: "Study report", studyReportFocusCount: "Focus sessions", studyReportFocusTime: "Focus time",
@@ -3478,7 +3478,7 @@ const studyReportTranslations = {
   },
   zh: {
     studyTabTasks: "任务", studyTabCalendar: "日历", studyTabReport: "报告", studyCalendarToday: "今天", studyReportWeek: "周", studyReportMonth: "月", studyAdd: "添加",
-    studyCalendarGoalLabel: "每日目标", studyCalendarGoalPlaceholder: "每日目标（分钟）", studyCalendarGoalSet: "设置目标",
+    studyCalendarGoalLabel: "每日目标", studyCalendarGoalPlaceholder: "每日目标（分钟）", studyCalendarGoalName: "目标名称", studyCalendarGoalDescription: "目标描述", studyCalendarGoalDefaultName: "每日目标", studyCalendarGoalSet: "设置目标",
     studyCalendarTasksDue: "截止任务", studyCalendarNoTasksDue: "没有截止任务", studyCalendarSchedules: "日程",
     studyCalendarNoSchedules: "没有日程", studyCalendarAddSchedule: "添加日程", studyReportSectionTitle: "学习报告",
     studyReportFocusCount: "专注次数", studyReportFocusTime: "专注时长", studyReportTasksDone: "完成任务",

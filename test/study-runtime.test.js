@@ -48,11 +48,15 @@ describe("study runtime", () => {
 
   it("keeps the default daily goal separate from per-day overrides", () => {
     const { runtime } = createRuntime({ now: () => new Date(2026, 8, 2, 12).getTime() });
-    let snapshot = runtime.setDailyGoal({ minutes: 60 });
+    let snapshot = runtime.setDailyGoal({ name: "阅读", description: "完成一章教材", minutes: 60 });
     assert.equal(snapshot.goals.defaultMinutes, 60);
+    assert.equal(snapshot.goals.defaultName, "阅读");
+    assert.equal(snapshot.goals.defaultDescription, "完成一章教材");
     assert.deepEqual(snapshot.goals.overrides, {});
-    snapshot = runtime.setDailyGoal({ date: "2026-09-02", minutes: 30 });
+    snapshot = runtime.setDailyGoal({ date: "2026-09-02", name: "练习", description: "完成 10 道题", minutes: 30 });
     assert.equal(snapshot.goals.overrides["2026-09-02"], 30);
+    assert.equal(snapshot.goals.overrideNames["2026-09-02"], "练习");
+    assert.equal(snapshot.goals.overrideDescriptions["2026-09-02"], "完成 10 道题");
     snapshot = runtime.setDailyGoal({ date: "not-a-date", minutes: 15 });
     assert.equal(snapshot.goals.defaultMinutes, 60);
     assert.equal(snapshot.goals.overrides["not-a-date"], undefined);

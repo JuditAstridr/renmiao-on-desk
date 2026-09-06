@@ -43,10 +43,15 @@ describe("study calendar month grid", () => {
     const grid = buildMonthGrid({
       year: 2026, month: 9, nowMs: REF,
       daily: [{ day: overrideDay, focusMinutes: 40, focusCount: 2 }],
-      goals: { defaultMinutes: 60, overrides: { [key]: 30 } },
+      goals: {
+        defaultMinutes: 60, defaultName: "阅读", defaultDescription: "教材",
+        overrides: { [key]: 30 }, overrideNames: { [key]: "练习" }, overrideDescriptions: { [key]: "习题" },
+      },
     });
     const cell = cells(grid).find((entry) => entry.date === overrideDay);
     assert.equal(cell.goal, 30);
+    assert.equal(cell.goalName, "练习");
+    assert.equal(cell.goalDescription, "习题");
     assert.equal(cell.goalMet, true);
     assert.equal(grid.summary.goalDays, 30);
     assert.equal(grid.summary.goalsMetDays, 1);
