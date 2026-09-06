@@ -25,7 +25,6 @@ const SIDEBAR_TAB_IDS = [
   "study",
   "theme",
   "ambient",
-  "animOverrides",
   "shortcuts",
 ];
 

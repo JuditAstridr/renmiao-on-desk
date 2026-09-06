@@ -53,14 +53,6 @@ const ICONS = {
     '<circle cx="16" cy="16" r="3"/>' +
     '</svg>',
 
-  // film strip
-  animOverrides:
-    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="100%" height="100%">' +
-    '<rect x="3" y="4" width="18" height="16" rx="2"/>' +
-    '<path d="M7 4v16M17 4v16"/>' +
-    '<path d="M3 9h4M17 9h4M3 15h4M17 15h4"/>' +
-    '</svg>',
-
   // keyboard
   shortcuts:
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="100%" height="100%">' +

@@ -10,7 +10,6 @@ const SIDEBAR_TABS = [
   { id: "study", labelKey: "sidebarStudy", action: "embeddedStudy", available: true },
   { id: "theme", labelKey: "sidebarTheme", available: true },
   { id: "ambient", labelKey: "sidebarAmbient", available: true },
-  { id: "animOverrides", labelKey: "sidebarAnimOverrides", available: true },
   { id: "shortcuts", labelKey: "sidebarShortcuts", available: true },
 ];
 
@@ -92,10 +91,6 @@ core.ops.installRenderHooks({
 globalThis.ClawdSettingsTabGeneral.init(core);
 globalThis.ClawdSettingsTabTheme.init(core);
 globalThis.ClawdSettingsTabAmbient.init(core);
-// Not a top-level tab anymore — it provides the "on / off" subtab that
-// ClawdSettingsTabAnimOverrides renders. init() just wires up the core refs.
-globalThis.ClawdSettingsTabAnimMap.init(core);
-globalThis.ClawdSettingsTabAnimOverrides.init(core);
 globalThis.ClawdSettingsTabShortcuts.init(core);
 
 core.ops.restoreNavigationState();
@@ -105,10 +100,6 @@ if (typeof window.addEventListener === "function") {
 
 if (window.settingsAPI && typeof window.settingsAPI.onChanged === "function") {
   window.settingsAPI.onChanged((payload) => core.ops.applyChanges(payload));
-}
-
-if (window.settingsAPI && typeof window.settingsAPI.onAnimationPreviewPosterReady === "function") {
-  window.settingsAPI.onAnimationPreviewPosterReady((payload) => core.ops.applyAnimationPreviewPoster(payload));
 }
 
 if (window.settingsAPI && typeof window.settingsAPI.onShortcutRecordKey === "function") {

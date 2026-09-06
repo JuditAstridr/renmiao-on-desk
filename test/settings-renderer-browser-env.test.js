@@ -1663,8 +1663,6 @@ describe("settings renderer browser environment", () => {
       "settings-tab-general.js",
       "settings-tab-theme.js",
       "settings-tab-ambient.js",
-      "settings-tab-anim-map.js",
-      "settings-tab-anim-overrides.js",
       "settings-tab-shortcuts.js",
       "settings-doctor-modal.js",
       "settings-icons.js",
@@ -1718,6 +1716,20 @@ describe("settings renderer browser environment", () => {
     assert.ok(!rendererSource.includes('{ id: "about"'));
     assert.ok(!rendererSource.includes("ClawdSettingsTabAbout"));
     assert.ok(!rendererSource.includes("onUpdateCheckStatus"));
+  });
+
+  it("does not expose the removed Animation & Sound Settings tab", () => {
+    const html = fs.readFileSync(SETTINGS_HTML, "utf8");
+    const rendererSource = fs.readFileSync(SETTINGS_RENDERER, "utf8");
+    const iconsSource = fs.readFileSync(path.join(SRC_DIR, "settings-icons.js"), "utf8");
+
+    assert.ok(!html.includes("settings-tab-anim-map.js"));
+    assert.ok(!html.includes("settings-tab-anim-overrides.js"));
+    assert.ok(!rendererSource.includes('{ id: "animOverrides"'));
+    assert.ok(!rendererSource.includes("ClawdSettingsTabAnimMap"));
+    assert.ok(!rendererSource.includes("ClawdSettingsTabAnimOverrides"));
+    assert.ok(!rendererSource.includes("onAnimationPreviewPosterReady"));
+    assert.ok(!iconsSource.includes("animOverrides:"));
   });
 
   it("renders the Study Companion sidebar entry inside the Settings content pane", () => {
@@ -5262,7 +5274,7 @@ describe("settings renderer browser environment", () => {
     });
   });
 
-  it("groups Theme cards and exposes theme import actions in Settings", () => {
+  it("groups Theme cards while removing import action groups from Settings", () => {
     const tabSource = fs.readFileSync(path.join(SRC_DIR, "settings-tab-theme.js"), "utf8");
     const generalSource = fs.readFileSync(SETTINGS_TAB_GENERAL, "utf8");
     const preloadSource = fs.readFileSync(PRELOAD_SETTINGS, "utf8");
@@ -5275,12 +5287,14 @@ describe("settings renderer browser environment", () => {
     assert.ok(tabSource.includes("themeGroupBuiltIn"));
     assert.ok(tabSource.includes("themeGroupImportedCodexPets"));
     assert.ok(tabSource.includes("themeGroupUserThemes"));
-    assert.ok(tabSource.includes("handleImportCodexPetZip"));
-    assert.ok(tabSource.includes("handleImportUserThemeZip"));
-    assert.ok(!tabSource.includes("themeOpenCodexPetsFolder"));
-    assert.ok(!tabSource.includes("handleOpenCodexPetsFolder"));
-    assert.ok(tabSource.includes("handleOpenUserThemesFolder"));
-    assert.ok(tabSource.includes("handleRefreshThemes"));
+    assert.ok(!tabSource.includes("function buildThemeActions"));
+    assert.ok(!tabSource.includes("themeActionGroupCodexPets"));
+    assert.ok(!tabSource.includes("themeActionGroupUserThemes"));
+    assert.ok(!tabSource.includes("handleImportCodexPetZip"));
+    assert.ok(!tabSource.includes("handleImportUserThemeZip"));
+    assert.ok(!tabSource.includes("handleOpenUserThemesFolder"));
+    assert.ok(!tabSource.includes("handleRefreshCodexPets"));
+    assert.ok(!tabSource.includes("handleRefreshThemes"));
     assert.ok(tabSource.includes("handleRemoveCodexPet"));
     assert.ok(tabSource.includes("themeUninstallPetLabel"));
     assert.ok(tabSource.includes('footer.className = "theme-card-footer";'));
@@ -5293,8 +5307,8 @@ describe("settings renderer browser environment", () => {
     assert.ok(tabSource.includes("themeCapabilityFineMotion"));
     assert.ok(tabSource.includes('if (!theme.active) indicator.setAttribute("aria-hidden", "true");'));
     assert.ok(!tabSource.includes("if (theme.active || canDelete || canRemoveCodexPet)"));
-    assert.ok(coreSource.includes("codexPetZipImportPending"));
-    assert.ok(coreSource.includes("userThemeZipImportPending"));
+    assert.ok(!coreSource.includes("codexPetZipImportPending"));
+    assert.ok(!coreSource.includes("userThemeZipImportPending"));
     assert.ok(coreSource.includes("codexPetRemovalPendingThemeId"));
     assert.ok(preloadSource.includes("openUserThemesDir"));
     assert.ok(preloadSource.includes("importUserThemeZip"));
@@ -5307,8 +5321,9 @@ describe("settings renderer browser environment", () => {
     assert.ok(settingsIpcSource.includes('handle("settings:import-codex-pet-zip"'));
     assert.ok(settingsIpcSource.includes('handle("settings:remove-codex-pet"'));
     assert.ok(css.includes(".theme-section-title"));
-    assert.ok(css.includes(".theme-action-group"));
-    assert.ok(css.includes(".theme-action-buttons"));
+    assert.ok(!css.includes(".theme-actions"));
+    assert.ok(!css.includes(".theme-action-group"));
+    assert.ok(!css.includes(".theme-action-buttons"));
     assert.ok(css.includes(".theme-uninstall-btn"));
     assert.ok(css.includes(".theme-customize-btn"));
     assert.ok(css.includes(".theme-detail-hero"));
@@ -5352,6 +5367,20 @@ describe("settings renderer browser environment", () => {
     assert.strictEqual(strings.zh.themeImportUserThemeZip, "导入 Clawd 主题包（.zip）");
     assert.ok(strings.zh.themeImportUserThemeZipHint.includes("theme.json"));
     assert.strictEqual(strings.zh.themeOpenUserThemesFolder, "打开主题文件夹");
+  });
+
+  it("does not render Codex Pet or user-theme import action groups", () => {
+    const { content } = loadThemeTabForTest({
+      themes: [
+        { id: "clawd", name: "Clawd", builtin: true, active: true },
+        { id: "pet", name: "Imported Pet", managedCodexPet: true, active: false },
+        { id: "user", name: "User Theme", active: false },
+      ],
+    });
+
+    assert.strictEqual(content.querySelector(".theme-actions"), null);
+    assert.strictEqual(content.querySelector(".theme-action-group"), null);
+    assert.strictEqual(content.querySelectorAll(".theme-card").length, 3);
   });
 
   it("keeps Theme card footers reserved without leaking button keyboard events to card activation", async () => {
@@ -8005,7 +8034,7 @@ describe("settings renderer browser environment", () => {
     assert.ok(animationOverridesSource.includes("capturePage"));
     assert.ok(animationOverridesSource.includes("settings:animation-preview-poster-ready"));
     assert.ok(preloadSource.includes("onAnimationPreviewPosterReady"));
-    assert.ok(rendererSource.includes("onAnimationPreviewPosterReady"));
+    assert.ok(!rendererSource.includes("onAnimationPreviewPosterReady"));
     assert.ok(animationOverridesSource.includes("theme._builtin"));
     assert.ok(animationOverridesSource.includes("trustedRuntime.scriptedSvgFiles"));
     assert.ok(animationOverridesSource.includes("currentFilePreviewUrl: preview.previewImageUrl"));
