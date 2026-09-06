@@ -336,29 +336,13 @@
     parent.appendChild(subtitle);
     // General tab IA: sections are ordered by how often they're touched, with
     // the danger section pinned last. Appearance stays first (language sits at
-    // the top of settings by convention); Session ranks high because it's
-    // checked often; Behavior & position and System & startup are set-once, so
-    // they sink toward the bottom.
+    // the top of settings by convention); Behavior & position and System &
+    // startup are set-once, so they sink toward the bottom.
     parent.appendChild(helpers.buildSection(t("sectionAppearance"), [
       buildLanguageRow(),
       buildSizeSliderRow(),
       buildTextScaleRow(),
     ]));
-
-    const sessionRows = [
-      buildSessionHudGroup(),
-      buildQuotaRingGroup(),
-      buildSessionCleanupGroup(),
-      buildDashboardRow(),
-    ];
-    if (IS_RENMI_PROFILE) {
-      sessionRows.push(helpers.buildSwitchRow({
-        key: "studyFollowPet",
-        labelKey: "rowStudyFollowPet",
-        descKey: "rowStudyFollowPetDesc",
-      }));
-    }
-    parent.appendChild(helpers.buildSection(t("sectionSession"), sessionRows));
 
     // Alerts & feedback: every way the pet gets your attention — sound, screen
     // flash, and the bubble preferences (visibility, auto-close policy, follow).
