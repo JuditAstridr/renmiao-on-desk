@@ -67,6 +67,13 @@ describe("Study Companion integration", () => {
     assert.match(renderer, /replace the goal inputs\n  \/\/ on every broadcast/);
   });
 
+  it("gives the daily goal minutes field enough room for its placeholder", () => {
+    const renderer = read("src/study-dashboard-renderer.js");
+    const html = read("src/study-dashboard.html");
+    assert.match(renderer, /goal\.className = "calendar-goal-minutes"/);
+    assert.match(html, /\.calendar-form \.calendar-goal-minutes \{ width: 130px; \}/);
+  });
+
   it("loads every Study browser script without a global lexical collision", () => {
     const scripts = ["src/study-calendar.js", "src/report-poster-renderer.js", "src/study-dashboard-renderer.js"]
       .map((file) => read(file)).join("\n");

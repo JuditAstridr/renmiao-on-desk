@@ -897,7 +897,7 @@ function renderCalendarPanel(cell) {
   const goalRow = document.createElement("form"); goalRow.className = "calendar-form";
   const goalName = document.createElement("input"); goalName.type = "text"; goalName.maxLength = "120"; goalName.placeholder = label("studyCalendarGoalName", "Goal name"); goalName.value = cell.goalName || "";
   const goalDescription = document.createElement("input"); goalDescription.type = "text"; goalDescription.maxLength = "500"; goalDescription.placeholder = label("studyCalendarGoalDescription", "Description"); goalDescription.value = cell.goalDescription || "";
-  const goal = document.createElement("input"); goal.type = "number"; goal.min = "1"; goal.max = "1440"; goal.placeholder = label("studyCalendarGoalPlaceholder", "Daily goal (min)"); goal.value = cell.goal || "";
+  const goal = document.createElement("input"); goal.type = "number"; goal.className = "calendar-goal-minutes"; goal.min = "1"; goal.max = "1440"; goal.placeholder = label("studyCalendarGoalPlaceholder", "Daily goal (min)"); goal.value = cell.goal || "";
   const setGoal = document.createElement("button"); setGoal.type = "submit"; setGoal.className = "primary"; setGoal.textContent = label("studyCalendarGoalSet", "Set goal");
   goalRow.addEventListener("submit", (event) => {
     event.preventDefault();
