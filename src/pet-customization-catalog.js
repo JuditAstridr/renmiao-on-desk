@@ -1,6 +1,7 @@
 "use strict";
 
 const { commitPetAccessoryPayload } = require("./pet-accessory-state");
+const renmiAccessoryConfig = require("../themes/renmi/accessories.json");
 
 // Canonical catalogs for pet customization choices. Persisted settings store
 // stable ids only; renderer-facing values are resolved here so neither menus
@@ -68,41 +69,11 @@ const PET_ACCESSORY_IDS = Object.freeze(PET_ACCESSORY_CATALOG.map((entry) => ent
 // Renmi's chest badges are deliberately theme-owned. Keeping them out of the
 // global Clawd wardrobe means the existing Clawd selector, holiday logic, and
 // persisted choices cannot accidentally expose or render them for another
-// theme. The points are read from the account-scoped Study Companion state by
+// theme. The JSON file is the theme-owned source of truth for badge order and
+// geometry; points are read from the account-scoped Study Companion state by
 // the main process; `unlocked` is only a derived UI hint and never persisted.
 const THEME_PET_ACCESSORY_CATALOG = Object.freeze({
-  renmi: Object.freeze([
-    freezeAccessory({
-      id: "renmi-ruc",
-      labelKey: "accessoryRenmiRuc",
-      file: "renmi-ruc.svg",
-      viewBox: { x: 0, y: 0, width: 160, height: 120 },
-      // The badge art occupies only part of its 160x120 viewBox. This
-      // theme-relative scale makes the visible badge about twice as large
-      // while remaining proportional to the pet at every window size.
-      widthScale: 2,
-      offsetY: 0,
-      unlockPoints: 60,
-    }),
-    freezeAccessory({
-      id: "renmi-renmi",
-      labelKey: "accessoryRenmiRenmi",
-      file: "renmi-renmi.svg",
-      viewBox: { x: 0, y: 0, width: 160, height: 120 },
-      widthScale: 2,
-      offsetY: 0,
-      unlockPoints: 180,
-    }),
-    freezeAccessory({
-      id: "renmi-1937",
-      labelKey: "accessoryRenmi1937",
-      file: "renmi-1937.svg",
-      viewBox: { x: 0, y: 0, width: 160, height: 120 },
-      widthScale: 2,
-      offsetY: 0,
-      unlockPoints: 520,
-    }),
-  ]),
+  renmi: Object.freeze(renmiAccessoryConfig.badges.map((entry) => freezeAccessory(entry))),
 });
 
 const THEME_PET_ACCESSORY_BY_THEME = new Map(

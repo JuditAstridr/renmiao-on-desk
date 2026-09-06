@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "themeId": "renmi",
+  "badges": [
+    {
+      "id": "renmi-ruc",
+      "labelKey": "accessoryRenmiRuc",
+      "file": "renmi-ruc.svg",
+      "viewBox": { "x": 0, "y": 0, "width": 160, "height": 120 },
+      "widthScale": 2,
+      "offsetY": 0,
+      "unlockPoints": 60
+    },
+    {
+      "id": "renmi-renmi",
+      "labelKey": "accessoryRenmiRenmi",
+      "file": "renmi-renmi.svg",
+      "viewBox": { "x": 0, "y": 0, "width": 160, "height": 120 },
+      "widthScale": 2,
+      "offsetY": 0,
+      "unlockPoints": 180
+    },
+    {
+      "id": "renmi-1937",
+      "labelKey": "accessoryRenmi1937",
+      "file": "renmi-1937.svg",
+      "viewBox": { "x": 0, "y": 0, "width": 160, "height": 120 },
+      "widthScale": 2,
+      "offsetY": 0,
+      "unlockPoints": 520
+    }
+  ]
+}
