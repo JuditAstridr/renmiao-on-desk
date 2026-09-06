@@ -898,7 +898,7 @@ function renderCalendarPanel(cell) {
   for (const item of (cell.goals || [])) {
     const row = document.createElement("div"); row.className = "calendar-goal-row";
     const text = document.createElement("span"); text.textContent = `${item.name || label("studyCalendarGoalDefaultName", "Daily goal")} · ${item.minutes}m${item.description ? ` — ${item.description}` : ""}`;
-    const remove = document.createElement("button"); remove.type = "button"; remove.textContent = "×"; remove.title = label("studyCalendarGoalRemove", "Remove goal"); remove.addEventListener("click", () => call("removeDailyGoal", item.id));
+    const remove = document.createElement("button"); remove.type = "button"; remove.textContent = "×"; remove.title = label("studyCalendarGoalRemove", "Remove goal"); remove.addEventListener("click", () => item.legacy ? call("setDailyGoal", { date: cell.date, minutes: null }) : call("removeDailyGoal", item.id));
     row.append(text, remove); goalList.appendChild(row);
   }
   if (goalList.childElementCount) calendarPanel.appendChild(goalList);

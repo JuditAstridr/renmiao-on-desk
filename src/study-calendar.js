@@ -132,6 +132,9 @@ function buildMonthGrid(data = {}) {
       cell.goalName = cell.goals.length === 1 ? cell.goals[0].name : `${cell.goals.length} goals`;
       cell.goalDescription = cell.goals.length === 1 ? cell.goals[0].description : "";
     }
+    if (cell.goalSet && !cell.goals.length) {
+      cell.goals = [{ id: `legacy:${key}`, legacy: true, name: cell.goalName, description: cell.goalDescription, minutes: cell.goal }];
+    }
     cell.goalMet = cell.goalSet && cell.focusMinutes >= cell.goal;
     focusMinutes += cell.focusMinutes;
     focusCount += cell.focusCount;

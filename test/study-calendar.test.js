@@ -74,4 +74,13 @@ describe("study calendar month grid", () => {
     assert.equal(cell.primarySchedule.id, "early");
     assert.equal(cell.primaryTask.id, "urgent");
   });
+
+  it("projects legacy single goals into the visible goal list", () => {
+    const grid = buildMonthGrid({
+      year: 2026, month: 9, nowMs: REF,
+      goals: { defaultMinutes: 60, defaultName: "阅读", defaultDescription: "教材" },
+    });
+    const cell = cells(grid).find((entry) => entry.date === new Date(2026, 8, 2).getTime());
+    assert.deepEqual(cell.goals, [{ id: "legacy:2026-09-02", legacy: true, name: "阅读", description: "教材", minutes: 60 }]);
+  });
 });
