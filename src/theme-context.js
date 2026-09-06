@@ -94,6 +94,10 @@ function createThemeContext(theme, options = {}) {
       trustedScriptedSvgFiles: [...trustedScriptedSvgFiles],
       rendering: theme.rendering || { svgChannel: "auto" },
       petTintSupported: !!(theme._capabilities && theme._capabilities.petTint),
+      petSkinSupported: !!(theme._capabilities && theme._capabilities.petSkins),
+      petSkinCatalog: theme.customization && typeof theme.customization.petSkinCatalog === "string"
+        ? theme.customization.petSkinCatalog
+        : null,
       petTintMode: theme.customization && theme.customization.petTintMode === "default-white-regions"
         ? "default-white-regions"
         : "filter",

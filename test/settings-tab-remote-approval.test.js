@@ -39,7 +39,6 @@ test("other Settings tabs remain available after Remote Approval removal", () =>
     "theme",
     "animOverrides",
     "shortcuts",
-    "about",
   ]) {
     assert.match(renderer, new RegExp(`id: "${id}"`));
   }

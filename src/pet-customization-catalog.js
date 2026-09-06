@@ -2,6 +2,7 @@
 
 const { commitPetAccessoryPayload } = require("./pet-accessory-state");
 const renmiAccessoryConfig = require("../themes/renmi/accessories.json");
+const renmiSkinConfig = require("../themes/renmi/skins.json");
 
 // Canonical catalogs for pet customization choices. Persisted settings store
 // stable ids only; renderer-facing values are resolved here so neither menus
@@ -34,6 +35,43 @@ const THEME_PET_TINT_CATALOG = Object.freeze({
 
 const THEME_PET_TINT_BY_THEME = new Map(
   Object.entries(THEME_PET_TINT_CATALOG).map(([themeId, entries]) => [
+    themeId,
+    new Map(entries.map((entry) => [entry.id, entry])),
+  ])
+);
+
+// Renmiao skins currently reuse the theme's transparent SVGs and recolor only
+// the regions that are white in the default artwork. Keeping the catalog in a
+// separate theme-owned JSON file makes the unlock order/data independent from
+// the global Clawd tint catalog and leaves room for per-skin artwork later.
+function freezePetSkin(entry) {
+  if (!entry || typeof entry !== "object" || Array.isArray(entry)) return null;
+  const id = typeof entry.id === "string" ? entry.id : "";
+  const labelKey = typeof entry.labelKey === "string" ? entry.labelKey : "";
+  const unlockPoints = Number.isFinite(entry.unlockPoints) && entry.unlockPoints >= 0
+    ? entry.unlockPoints
+    : null;
+  const color = entry.color === null
+    ? null
+    : (typeof entry.color === "string" && /^#[0-9a-f]{6}$/i.test(entry.color)
+      ? entry.color.toLowerCase()
+      : null);
+  if (!/^[a-z][a-z0-9-]{0,31}$/.test(id) || !/^[A-Za-z][A-Za-z0-9]{0,63}$/.test(labelKey)) return null;
+  if (unlockPoints === null || (id !== "default" && color === null)) return null;
+  return Object.freeze({ id, labelKey, unlockPoints, color });
+}
+
+const RENMI_PET_SKINS = Object.freeze(
+  (Array.isArray(renmiSkinConfig.skins) ? renmiSkinConfig.skins : [])
+    .map(freezePetSkin)
+    .filter(Boolean)
+);
+const RENMI_PET_SKIN_DEFAULT_ID = RENMI_PET_SKINS.some((entry) => entry.id === "default")
+  ? "default"
+  : (RENMI_PET_SKINS[0] ? RENMI_PET_SKINS[0].id : "default");
+const THEME_PET_SKIN_CATALOG = Object.freeze({ renmi: RENMI_PET_SKINS });
+const THEME_PET_SKIN_BY_THEME = new Map(
+  Object.entries(THEME_PET_SKIN_CATALOG).map(([themeId, entries]) => [
     themeId,
     new Map(entries.map((entry) => [entry.id, entry])),
   ])
@@ -161,6 +199,71 @@ function getPetTintSaturationForTheme(selections, theme) {
   return value;
 }
 
+function isPetSkinIdForTheme(value, themeId) {
+  if (typeof themeId !== "string" || !themeId) return false;
+  const themeCatalog = THEME_PET_SKIN_BY_THEME.get(themeId);
+  return !!(themeCatalog && themeCatalog.has(value));
+}
+
+function getPetSkinForTheme(value, themeId) {
+  const themeCatalog = THEME_PET_SKIN_BY_THEME.get(themeId);
+  return (themeCatalog && themeCatalog.get(value))
+    || (themeCatalog && themeCatalog.get(RENMI_PET_SKIN_DEFAULT_ID))
+    || null;
+}
+
+function getPetSkinUnlockPoints(value, themeId) {
+  const entry = getPetSkinForTheme(value, themeId);
+  return entry && Number.isFinite(entry.unlockPoints) ? entry.unlockPoints : 0;
+}
+
+function isPetSkinUnlockedForTheme(value, themeId, pointsTotal) {
+  const required = getPetSkinUnlockPoints(value, themeId);
+  if (required <= 0) return true;
+  return Number.isFinite(pointsTotal) && pointsTotal >= required;
+}
+
+function getPetSkinIdForTheme(selections, themeId, pointsTotal = null) {
+  if (typeof themeId !== "string" || !themeId) return "default";
+  const themeCatalog = THEME_PET_SKIN_BY_THEME.get(themeId);
+  if (!themeCatalog) return "default";
+  const value = selections && typeof selections === "object" && !Array.isArray(selections)
+    ? selections[themeId]
+    : null;
+  if (!isPetSkinIdForTheme(value, themeId)) return RENMI_PET_SKIN_DEFAULT_ID;
+  if (!isPetSkinUnlockedForTheme(value, themeId, pointsTotal)) return RENMI_PET_SKIN_DEFAULT_ID;
+  return value;
+}
+
+function isPetSkinSupportedForTheme(theme) {
+  return !!(theme && theme._capabilities && theme._capabilities.petSkins === true);
+}
+
+function buildPetSkinPayload(value, theme = null, options = {}) {
+  const themeId = theme && theme._id;
+  if (!isPetSkinSupportedForTheme(theme)) return { id: "default", color: null };
+  const entry = getPetSkinForTheme(value, themeId);
+  if (!entry || !isPetSkinUnlockedForTheme(entry.id, themeId, options.pointsTotal)) {
+    return { id: RENMI_PET_SKIN_DEFAULT_ID, color: null };
+  }
+  return { id: entry.id, color: entry.color };
+}
+
+function resolvePetSkinPayload(value, theme = null, options = {}) {
+  return buildPetSkinPayload(value, theme, options);
+}
+
+function listPetSkinOptions(themeId = null, pointsTotal = null) {
+  const themeCatalog = THEME_PET_SKIN_CATALOG[themeId];
+  if (!themeCatalog) return [];
+  return themeCatalog.map(({ id, labelKey, unlockPoints }) => ({
+    id,
+    labelKey,
+    unlockPoints,
+    unlocked: isPetSkinUnlockedForTheme(id, themeId, pointsTotal),
+  }));
+}
+
 function isPetAccessoryId(value) {
   return typeof value === "string" && PET_ACCESSORY_BY_ID.has(value);
 }
@@ -278,6 +381,16 @@ module.exports = {
   listPetTintOptions,
   getPetTintSaturationConfig,
   getPetTintSaturationForTheme,
+  THEME_PET_SKIN_CATALOG,
+  isPetSkinIdForTheme,
+  getPetSkinForTheme,
+  getPetSkinUnlockPoints,
+  isPetSkinUnlockedForTheme,
+  getPetSkinIdForTheme,
+  isPetSkinSupportedForTheme,
+  buildPetSkinPayload,
+  resolvePetSkinPayload,
+  listPetSkinOptions,
   PET_ACCESSORY_CATALOG,
   PET_ACCESSORY_IDS,
   isPetAccessoryId,

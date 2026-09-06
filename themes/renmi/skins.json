@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "defaultId": "default",
+  "skins": [
+    {
+      "id": "default",
+      "labelKey": "skinDefault",
+      "unlockPoints": 0,
+      "color": null
+    },
+    {
+      "id": "tiao-tiao",
+      "labelKey": "skinTiaoTiao",
+      "unlockPoints": 10,
+      "color": "#f2b8b5"
+    },
+    {
+      "id": "yun-jin",
+      "labelKey": "skinYunJin",
+      "unlockPoints": 25,
+      "color": "#a9c8e8"
+    },
+    {
+      "id": "ming-ming",
+      "labelKey": "skinMingMing",
+      "unlockPoints": 50,
+      "color": "#e7c59f"
+    },
+    {
+      "id": "ju-dou",
+      "labelKey": "skinJuDou",
+      "unlockPoints": 90,
+      "color": "#e7a35b"
+    },
+    {
+      "id": "chan-chan",
+      "labelKey": "skinChanChan",
+      "unlockPoints": 150,
+      "color": "#d8c2a6"
+    },
+    {
+      "id": "ling-jiao",
+      "labelKey": "skinLingJiao",
+      "unlockPoints": 230,
+      "color": "#a8c8a0"
+    },
+    {
+      "id": "hai-xing",
+      "labelKey": "skinHaiXing",
+      "unlockPoints": 340,
+      "color": "#89b7cf"
+    },
+    {
+      "id": "hei-bei",
+      "labelKey": "skinHeiBei",
+      "unlockPoints": 500,
+      "color": "#5d6067"
+    }
+  ]
+}

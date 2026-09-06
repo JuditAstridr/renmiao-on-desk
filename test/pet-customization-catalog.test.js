@@ -21,6 +21,12 @@ const {
   isPetAccessoryIdForTheme,
   resolvePetAccessoryPayload,
   listPetAccessoryOptions,
+  THEME_PET_SKIN_CATALOG,
+  isPetSkinIdForTheme,
+  getPetSkinIdForTheme,
+  isPetSkinSupportedForTheme,
+  resolvePetSkinPayload,
+  listPetSkinOptions,
 } = require("../src/pet-customization-catalog");
 
 describe("pet customization catalog", () => {
@@ -258,5 +264,35 @@ describe("pet customization catalog", () => {
         assert.ok(entry.viewBox.height > 0);
       }
     }
+  });
+
+  it("keeps Renmiao skins ordered, point-gated, and separate from tint settings", () => {
+    const renmi = { _id: "renmi", _capabilities: { petSkins: true } };
+    const skinIds = THEME_PET_SKIN_CATALOG.renmi.map((entry) => entry.id);
+    assert.deepStrictEqual(skinIds, [
+      "default",
+      "tiao-tiao",
+      "yun-jin",
+      "ming-ming",
+      "ju-dou",
+      "chan-chan",
+      "ling-jiao",
+      "hai-xing",
+      "hei-bei",
+    ]);
+    assert.strictEqual(isPetSkinSupportedForTheme(renmi), true);
+    assert.strictEqual(isPetSkinIdForTheme("tiao-tiao", "renmi"), true);
+    assert.strictEqual(isPetSkinIdForTheme("tiao-tiao", "clawd"), false);
+    assert.strictEqual(getPetSkinIdForTheme({ renmi: "hei-bei" }, "renmi", 499), "default");
+    assert.strictEqual(getPetSkinIdForTheme({ renmi: "hei-bei" }, "renmi", 500), "hei-bei");
+    assert.equal(listPetSkinOptions("renmi", 10).filter((entry) => entry.unlocked).length, 2);
+    assert.deepStrictEqual(resolvePetSkinPayload("hei-bei", renmi), {
+      id: "default",
+      color: null,
+    });
+    assert.deepStrictEqual(resolvePetSkinPayload("hei-bei", renmi, { pointsTotal: 99999 }), {
+      id: "hei-bei",
+      color: "#5d6067",
+    });
   });
 });

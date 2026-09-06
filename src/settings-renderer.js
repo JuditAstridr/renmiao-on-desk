@@ -12,7 +12,6 @@ const SIDEBAR_TABS = [
   { id: "ambient", labelKey: "sidebarAmbient", available: true },
   { id: "animOverrides", labelKey: "sidebarAnimOverrides", available: true },
   { id: "shortcuts", labelKey: "sidebarShortcuts", available: true },
-  { id: "about", labelKey: "sidebarAbout", available: true },
 ];
 
 function getTabIcon(tabId) {
@@ -98,7 +97,6 @@ globalThis.ClawdSettingsTabAmbient.init(core);
 globalThis.ClawdSettingsTabAnimMap.init(core);
 globalThis.ClawdSettingsTabAnimOverrides.init(core);
 globalThis.ClawdSettingsTabShortcuts.init(core);
-globalThis.ClawdSettingsTabAbout.init(core);
 
 core.ops.restoreNavigationState();
 if (typeof window.addEventListener === "function") {
@@ -121,16 +119,6 @@ if (window.settingsAPI && typeof window.settingsAPI.onShortcutFailuresChanged ==
   window.settingsAPI.onShortcutFailuresChanged((failures) => core.ops.applyShortcutFailures(failures));
 }
 
-if (window.settingsAPI && typeof window.settingsAPI.onUpdateCheckStatus === "function") {
-  window.settingsAPI.onUpdateCheckStatus((snapshot) => {
-    core.runtime.about.updateCheckSnapshot = snapshot || { state: "idle" };
-    const tab = core.tabs.about;
-    if (tab && typeof tab.applyUpdateCheckStatus === "function") {
-      tab.applyUpdateCheckStatus(core.runtime.about.updateCheckSnapshot);
-    }
-  });
-}
-
 if (window.settingsAPI && typeof window.settingsAPI.onPetAccessoryOptionsChanged === "function") {
   window.settingsAPI.onPetAccessoryOptionsChanged(() => {
     if (typeof window.settingsAPI.getPetAccessoryOptions !== "function") return;
@@ -141,6 +129,20 @@ if (window.settingsAPI && typeof window.settingsAPI.onPetAccessoryOptionsChanged
       }
     }).catch((err) => {
       console.warn("settings: refresh pet accessory options failed", err);
+    });
+  });
+}
+
+if (window.settingsAPI && typeof window.settingsAPI.onPetSkinOptionsChanged === "function") {
+  window.settingsAPI.onPetSkinOptionsChanged(() => {
+    if (typeof window.settingsAPI.getPetSkinOptions !== "function") return;
+    window.settingsAPI.getPetSkinOptions().then((options) => {
+      core.runtime.petSkinOptions = Array.isArray(options) ? options : [];
+      if (core.state && core.state.activeTab === "theme") {
+        core.ops.requestRender({ content: true });
+      }
+    }).catch((err) => {
+      console.warn("settings: refresh pet skin options failed", err);
     });
   });
 }
@@ -168,12 +170,21 @@ if (window.settingsAPI && typeof window.settingsAPI.getSnapshot === "function") 
         return [];
       })
       : Promise.resolve([]);
+  const skinOptionsPromise =
+    typeof window.settingsAPI.getPetSkinOptions === "function"
+      ? window.settingsAPI.getPetSkinOptions().catch((err) => {
+        console.warn("settings: getPetSkinOptions failed", err);
+        return [];
+      })
+      : Promise.resolve([]);
   Promise.all([
     window.settingsAPI.getSnapshot(),
     tintOptionsPromise,
+    skinOptionsPromise,
     accessoryOptionsPromise,
-  ]).then(([snapshot, petTintOptions, petAccessoryOptions]) => {
+  ]).then(([snapshot, petTintOptions, petSkinOptions, petAccessoryOptions]) => {
     core.runtime.petTintOptions = Array.isArray(petTintOptions) ? petTintOptions : [];
+    core.runtime.petSkinOptions = Array.isArray(petSkinOptions) ? petSkinOptions : [];
     core.runtime.petAccessoryOptions = Array.isArray(petAccessoryOptions)
       ? petAccessoryOptions
       : [];

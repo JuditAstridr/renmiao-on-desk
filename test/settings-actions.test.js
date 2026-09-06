@@ -155,6 +155,24 @@ describe("updateRegistry pure-data validators", () => {
     );
   });
 
+  it("petSkin enforces Renmiao unlock points while allowing an empty map", () => {
+    assert.strictEqual(updateRegistry.petSkin({}, {}).status, "ok");
+    assert.strictEqual(
+      updateRegistry.petSkin({ renmi: "tiao-tiao" }, { getStudyPoints: () => 9 }).status,
+      "error"
+    );
+    assert.strictEqual(
+      updateRegistry.petSkin({ renmi: "tiao-tiao" }, { getStudyPoints: () => 10 }).status,
+      "ok"
+    );
+    assert.strictEqual(
+      updateRegistry.petSkin({ renmi: "hei-bei" }, { getStudyPoints: () => 99999 }).status,
+      "ok"
+    );
+    assert.strictEqual(updateRegistry.petSkin({ renmi: "default" }, {}).status, "error");
+    assert.strictEqual(updateRegistry.petSkin({ clawd: "tiao-tiao" }, {}).status, "error");
+  });
+
   it("holidayAccessoryEnabled accepts only canonical per-theme true entries", () => {
     const deps = { snapshot: baseSnapshot };
     assert.strictEqual(updateRegistry.holidayAccessoryEnabled({}, deps).status, "ok");

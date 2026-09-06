@@ -27,7 +27,6 @@ const SIDEBAR_TAB_IDS = [
   "ambient",
   "animOverrides",
   "shortcuts",
-  "about",
 ];
 
 describe("settings-icons", () => {

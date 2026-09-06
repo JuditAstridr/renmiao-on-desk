@@ -113,6 +113,8 @@ const {
   getPetTintIdForTheme,
   resolvePetTintPayload,
   getPetTintSaturationForTheme,
+  getPetSkinIdForTheme,
+  resolvePetSkinPayload,
   buildPetAccessoryPayload,
   resolvePetAccessoryPayload,
 } = require("./pet-customization-catalog");
@@ -1241,6 +1243,7 @@ let lowPowerIdleMode = isRenmiProfile ? false : _settingsController.get("lowPowe
 let keepAwakeWhileWorking = _settingsController.get("keepAwakeWhileWorking");
 let petTint = _settingsController.get("petTint");
 let petTintSaturation = _settingsController.get("petTintSaturation");
+let petSkin = _settingsController.get("petSkin");
 let petAccessory = _settingsController.get("petAccessory");
 let allowEdgePinningCached = _settingsController.get("allowEdgePinning");
 let disableMiniModeCached = _settingsController.get("disableMiniMode");
@@ -1471,6 +1474,15 @@ function syncHitStateAfterLoad() {
 function syncRendererStateAfterLoad({ includeStartupRecovery = true } = {}) {
   syncSoundPreloads();
   const activeTheme = getActiveTheme();
+  const skinId = getPetSkinIdForTheme(
+    _settingsController.get("petSkin"),
+    activeTheme && activeTheme._id,
+    getStudyPointsTotal()
+  );
+  sendToRenderer(
+    "pet-skin-change",
+    resolvePetSkinPayload(skinId, activeTheme, { pointsTotal: getStudyPointsTotal() })
+  );
   const tintId = getPetTintIdForTheme(petTint, activeTheme && activeTheme._id);
   sendToRenderer("pet-tint-change", resolvePetTintPayload(tintId, activeTheme));
   sendToRenderer(
@@ -2002,6 +2014,11 @@ function buildRendererThemeConfig() {
   const cfg = themeRuntime.getRendererConfig();
   if (cfg) {
     const activeTheme = getActiveTheme();
+    const skinId = getPetSkinIdForTheme(
+      _settingsController.get("petSkin"),
+      activeTheme && activeTheme._id,
+      getStudyPointsTotal()
+    );
     const tintSelections = _settingsController.get("petTint");
     const tintId = getPetTintIdForTheme(tintSelections, activeTheme && activeTheme._id);
     const accessoryId = getEffectivePetAccessoryIdForTheme({
@@ -2011,6 +2028,9 @@ function buildRendererThemeConfig() {
       pointsTotal: getStudyPointsTotal(),
     });
     cfg.idleDefaultVisual = getIdleVisualChoice();
+    cfg.petSkinPayload = resolvePetSkinPayload(skinId, activeTheme, {
+      pointsTotal: getStudyPointsTotal(),
+    });
     cfg.petTintPayload = resolvePetTintPayload(tintId, activeTheme);
     cfg.petTintSaturationValue = getPetTintSaturationForTheme(
       _settingsController.get("petTintSaturation"),
@@ -2280,6 +2300,7 @@ function buildCurrentAccountProfile() {
   const themeId = activeTheme && activeTheme._id || settings.theme || "renmi";
   const variantMap = settings.themeVariant || {};
   const petTintMap = settings.petTint || {};
+  const petSkinMap = settings.petSkin || {};
   const petAccessoryMap = settings.petAccessory || {};
   const holidayMap = settings.holidayAccessoryEnabled || {};
   const idleVisualMap = settings.idleVisual || {};
@@ -2296,6 +2317,9 @@ function buildCurrentAccountProfile() {
         ? rememberedFallback.requestedVariantId
         : (activeTheme && activeTheme._variantId || variantMap[themeId] || "default"),
       tintId: rememberedFallback ? rememberedFallback.tintId : (petTintMap[themeId] || "none"),
+      skinId: rememberedFallback
+        ? rememberedFallback.skinId
+        : getPetSkinIdForTheme(petSkinMap, themeId, getStudyPointsTotal()),
       accessoryId: rememberedFallback
         ? rememberedFallback.accessoryId
         : (petAccessoryMap[themeId] || "none"),
@@ -2325,6 +2349,7 @@ async function applyAccountProfile(rawProfile) {
     // second account on the same computer from inheriting hidden choices.
     _settingsController.hydrate({
       petTint: {},
+      petSkin: {},
       petAccessory: {},
       holidayAccessoryEnabled: {},
       idleVisual: {},
@@ -2346,6 +2371,7 @@ async function applyAccountProfile(rawProfile) {
         requestedThemeId: pet.themeId,
         requestedVariantId: pet.variantId,
         tintId: pet.tintId,
+        skinId: pet.skinId,
         accessoryId: pet.accessoryId,
         holidayAccessoryEnabled: pet.holidayAccessoryEnabled,
         idleVisual: pet.idleVisual,
@@ -2357,8 +2383,15 @@ async function applyAccountProfile(rawProfile) {
       });
     }
 
+    // Hydrate points before applying point-gated cosmetics so an account's
+    // saved skin/accessory is evaluated against its own score, not the
+    // previous account's score.
+    _studyRuntime.hydrate(profile.study);
     if (pet.tintId !== "none") {
       _settingsController.applyUpdate("petTint", { [resolvedThemeId]: pet.tintId });
+    }
+    if (pet.skinId !== "default") {
+      _settingsController.applyUpdate("petSkin", { [resolvedThemeId]: pet.skinId });
     }
     if (pet.accessoryId !== "none") {
       _settingsController.applyUpdate("petAccessory", { [resolvedThemeId]: pet.accessoryId });
@@ -2369,7 +2402,6 @@ async function applyAccountProfile(rawProfile) {
     if (pet.idleVisual) {
       _settingsController.applyUpdate("idleVisual", { [resolvedThemeId]: pet.idleVisual });
     }
-    _studyRuntime.hydrate(profile.study);
     return profile;
   } finally {
     accountProfileApplying = false;
@@ -2486,10 +2518,21 @@ let studyBroadcastTimer = setInterval(() => {
   const pointsTotal = getStudyPointsTotal();
   if (pointsTotal !== lastStudyPointsForAccessory) {
     lastStudyPointsForAccessory = pointsTotal;
+    const activeTheme = getActiveTheme();
+    const skinId = getPetSkinIdForTheme(
+      _settingsController.get("petSkin"),
+      activeTheme && activeTheme._id,
+      pointsTotal
+    );
+    sendToRenderer(
+      "pet-skin-change",
+      resolvePetSkinPayload(skinId, activeTheme, { pointsTotal })
+    );
     if (holidayAccessoryRuntime && typeof holidayAccessoryRuntime.refresh === "function") {
       holidayAccessoryRuntime.refresh({ force: true });
     }
     broadcastSettingsWindow("settings:pet-accessory-options-changed", { pointsTotal });
+    broadcastSettingsWindow("settings:pet-skin-options-changed", { pointsTotal });
   }
   broadcastStudySnapshot(studySnapshot);
   const pomodoro = studySnapshot.pomodoro;
@@ -4562,6 +4605,7 @@ const SETTINGS_MIRROR_SETTERS = {
   keepAwakeWhileWorking: (v) => { keepAwakeWhileWorking = v; },
   petTint: (v) => { petTint = v; },
   petTintSaturation: (v) => { petTintSaturation = v; },
+  petSkin: (v) => { petSkin = v; },
   petAccessory: (v) => { petAccessory = v; },
   allowEdgePinning: (v) => { allowEdgePinningCached = v; }, disableMiniMode: (v) => { disableMiniModeCached = v; }, keepSizeAcrossDisplays: (v) => { keepSizeAcrossDisplaysCached = v; resetKeepSizeFrozen(); },
   fullscreenOverlay: (v) => { fullscreenOverlayCached = v; },

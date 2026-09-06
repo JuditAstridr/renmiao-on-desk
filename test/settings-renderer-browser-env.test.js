@@ -34,7 +34,6 @@ const TAB_MODULES = [
   path.join(SRC_DIR, "settings-tab-anim-overrides.js"),
   path.join(SRC_DIR, "settings-tab-shortcuts.js"),
   SETTINGS_TAB_DISCORD_PRESENCE,
-  path.join(SRC_DIR, "settings-tab-about.js"),
 ];
 const VERIFIED_GITHUB_CONTRIBUTORS = [
   "Bynlk",
@@ -1667,7 +1666,6 @@ describe("settings renderer browser environment", () => {
       "settings-tab-anim-map.js",
       "settings-tab-anim-overrides.js",
       "settings-tab-shortcuts.js",
-      "settings-tab-about.js",
       "settings-doctor-modal.js",
       "settings-icons.js",
       "settings-renderer.js",
@@ -1710,6 +1708,16 @@ describe("settings renderer browser environment", () => {
     assert.ok(!html.includes("settings-tab-discord-presence.js"));
     assert.ok(!rendererSource.includes('{ id: "discord-presence"'));
     assert.ok(!rendererSource.includes("ClawdSettingsTabDiscordPresence"));
+  });
+
+  it("does not expose the removed About Settings tab", () => {
+    const html = fs.readFileSync(SETTINGS_HTML, "utf8");
+    const rendererSource = fs.readFileSync(SETTINGS_RENDERER, "utf8");
+
+    assert.ok(!html.includes("settings-tab-about.js"));
+    assert.ok(!rendererSource.includes('{ id: "about"'));
+    assert.ok(!rendererSource.includes("ClawdSettingsTabAbout"));
+    assert.ok(!rendererSource.includes("onUpdateCheckStatus"));
   });
 
   it("renders the Study Companion sidebar entry inside the Settings content pane", () => {

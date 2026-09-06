@@ -44,6 +44,7 @@ const shortcutRecordKeyListeners = new Set();
 const textScaleContextListeners = new Set();
 const agentActivityListeners = new Set();
 const updateCheckStatusListeners = new Set();
+const petSkinOptionsListeners = new Set();
 const petAccessoryOptionsListeners = new Set();
 const studySnapshotListeners = new Set();
 const studyLangListeners = new Set();
@@ -85,6 +86,11 @@ ipcRenderer.on("settings:pet-accessory-options-changed", (_event, payload) => {
     try { cb(payload); } catch (err) { console.warn("pet accessory options listener threw:", err); }
   }
 });
+ipcRenderer.on("settings:pet-skin-options-changed", (_event, payload) => {
+  for (const cb of petSkinOptionsListeners) {
+    try { cb(payload); } catch (err) { console.warn("pet skin options listener threw:", err); }
+  }
+});
 ipcRenderer.on("study:dashboard-snapshot", (_event, snapshot) => {
   for (const cb of studySnapshotListeners) {
     try { cb(snapshot); } catch (err) { console.warn("study snapshot listener threw:", err); }
@@ -111,7 +117,13 @@ contextBridge.exposeInMainWorld("settingsAPI", {
   disconnectKimiQuota: () => ipcRenderer.invoke("settings:kimi-quota-disconnect"),
   forgetKimiQuotaCredential: () => ipcRenderer.invoke("settings:kimi-quota-forget"),
   getPetTintOptions: () => ipcRenderer.invoke("settings:get-pet-tint-options"),
+  getPetSkinOptions: () => ipcRenderer.invoke("settings:get-pet-skin-options"),
   getPetAccessoryOptions: () => ipcRenderer.invoke("settings:get-pet-accessory-options"),
+  onPetSkinOptionsChanged: (cb) => {
+    if (typeof cb !== "function") return () => {};
+    petSkinOptionsListeners.add(cb);
+    return () => petSkinOptionsListeners.delete(cb);
+  },
   onPetAccessoryOptionsChanged: (cb) => {
     if (typeof cb !== "function") return () => {};
     petAccessoryOptionsListeners.add(cb);

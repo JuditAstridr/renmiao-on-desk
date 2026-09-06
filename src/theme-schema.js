@@ -190,6 +190,21 @@ function validateTheme(cfg) {
         errors.push(`customization.petTint must be a boolean, got ${JSON.stringify(cfg.customization.petTint)}`);
       }
       if (
+        cfg.customization.petSkins !== undefined
+        && typeof cfg.customization.petSkins !== "boolean"
+      ) {
+        errors.push(`customization.petSkins must be a boolean, got ${JSON.stringify(cfg.customization.petSkins)}`);
+      }
+      if (
+        cfg.customization.petSkinCatalog !== undefined
+        && (
+          typeof cfg.customization.petSkinCatalog !== "string"
+          || !/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}\.json$/.test(cfg.customization.petSkinCatalog)
+        )
+      ) {
+        errors.push("customization.petSkinCatalog must be a safe JSON filename when present");
+      }
+      if (
         cfg.customization.petTintMode !== undefined
         && cfg.customization.petTintMode !== "filter"
         && cfg.customization.petTintMode !== "default-white-regions"
@@ -1024,6 +1039,7 @@ function buildCapabilities(cfg, options = {}) {
     accessories: deriveAccessoryCapability(cfg),
   };
   const customization = isPlainObject(cfg && cfg.customization) ? cfg.customization : null;
+  if (customization && customization.petSkins === true) capabilities.petSkins = true;
   if (customization && customization.petTintOptions !== undefined) {
     const options = normalizePetTintOptions(customization.petTintOptions);
     if (options) capabilities.petTintOptions = options;
@@ -1227,6 +1243,11 @@ function mergeDefaults(raw, themeId, isBuiltin) {
     accessories: null,
   };
   if (rawCustomization) {
+    if (rawCustomization.petSkins === true) theme.customization.petSkins = true;
+    if (typeof rawCustomization.petSkinCatalog === "string"
+      && /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}\.json$/.test(rawCustomization.petSkinCatalog)) {
+      theme.customization.petSkinCatalog = rawCustomization.petSkinCatalog;
+    }
     theme.customization.petTintMode = rawCustomization.petTintMode === "default-white-regions"
       ? "default-white-regions"
       : "filter";

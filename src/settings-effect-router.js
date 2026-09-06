@@ -4,6 +4,8 @@ const {
   getPetTintIdForTheme,
   resolvePetTintPayload,
   getPetTintSaturationForTheme,
+  getPetSkinIdForTheme,
+  resolvePetSkinPayload,
   buildPetAccessoryPayload,
 } = require("./pet-customization-catalog");
 const {
@@ -178,6 +180,27 @@ function createSettingsEffectRouter(options = {}) {
       const activeTheme = getActiveTheme();
       const tintId = getPetTintIdForTheme(changes.petTint, activeTheme && activeTheme._id);
       sendToRenderer("pet-tint-change", resolvePetTintPayload(tintId, activeTheme));
+    }
+    if ("petSkin" in changes) {
+      const activeTheme = getActiveTheme();
+      const snapshot = settingsController.getSnapshot();
+      const skinId = getPetSkinIdForTheme(
+        snapshot.petSkin,
+        activeTheme && activeTheme._id,
+        getStudyPoints()
+      );
+      sendToRenderer(
+        "pet-skin-change",
+        resolvePetSkinPayload(skinId, activeTheme, { pointsTotal: getStudyPoints() })
+      );
+      // Switching back to default must immediately restore the saved tint and
+      // saturation. Non-default skins take precedence inside the renderer.
+      const tintId = getPetTintIdForTheme(snapshot.petTint, activeTheme && activeTheme._id);
+      sendToRenderer("pet-tint-change", resolvePetTintPayload(tintId, activeTheme));
+      sendToRenderer(
+        "pet-tint-saturation-change",
+        getPetTintSaturationForTheme(snapshot.petTintSaturation, activeTheme)
+      );
     }
     if ("petTintSaturation" in changes) {
       const activeTheme = getActiveTheme();

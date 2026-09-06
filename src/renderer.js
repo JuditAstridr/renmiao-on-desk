@@ -53,6 +53,7 @@ let _petTintMode = "filter";
 let _petTintColors = null;
 let _petTintSaturationConfig = null;
 let _petTintSaturationValue = 100;
+let _petSkinPayload = { id: "default", color: null };
 let _accessoryPayload = {
   id: "none",
   assetFile: null,
@@ -100,6 +101,7 @@ function initWithConfig(cfg) {
     && !Array.isArray(tc.petTintColors) ? tc.petTintColors : null;
   _petTintSaturationConfig = normalizePetTintSaturationConfig(tc.petTintSaturation);
   _petTintSaturationValue = normalizePetTintSaturationValue(tc.petTintSaturationValue);
+  _petSkinPayload = normalizePetSkinPayload(tc.petSkinPayload);
   if (Object.prototype.hasOwnProperty.call(tc, "petTintPayload")) {
     _petTintPayload = normalizePetTintPayload(tc.petTintPayload);
   }
@@ -630,6 +632,19 @@ function normalizePetTintPayload(payload) {
 
 const PET_TINT_COLOR_RE = /^#[0-9a-f]{6}$/i;
 
+function normalizePetSkinPayload(payload) {
+  if (!payload || typeof payload !== "object") return { id: "default", color: null };
+  const id = typeof payload.id === "string" ? payload.id : "";
+  const color = typeof payload.color === "string" && PET_TINT_COLOR_RE.test(payload.color)
+    ? payload.color.toLowerCase()
+    : null;
+  if (id === "default") return { id, color: null };
+  if (!/^[a-z][a-z0-9-]{0,31}$/.test(id) || !color) {
+    return { id: "default", color: null };
+  }
+  return { id, color };
+}
+
 function normalizePetTintSaturationConfig(value) {
   if (!value || typeof value !== "object" || Array.isArray(value) || value.enabled !== true) return null;
   const min = Number.isFinite(value.min) ? value.min : 0;
@@ -686,6 +701,12 @@ function adjustPetTintSaturation(color) {
 }
 
 function getPetTintColor() {
+  if (_petSkinPayload.id !== "default" && _petSkinPayload.color) {
+    // A skin is a finished appearance: do not apply the user's saved tint or
+    // saturation on top of it. Those preferences remain stored and return
+    // when the user switches back to the default skin.
+    return _petSkinPayload.color;
+  }
   if (_petTintMode !== "default-white-regions" || !_petTintColors) return null;
   const color = _petTintColors[_petTintPayload.id];
   return typeof color === "string" && PET_TINT_COLOR_RE.test(color)
@@ -734,11 +755,19 @@ function setPetTintSaturation(value) {
   applyPetTintToAllMedia();
 }
 
+function setPetSkinPayload(payload) {
+  _petSkinPayload = normalizePetSkinPayload(payload);
+  applyPetTintToAllMedia();
+}
+
 if (window.electronAPI && typeof window.electronAPI.onPetTintChange === "function") {
   window.electronAPI.onPetTintChange(setPetTintPayload);
 }
 if (window.electronAPI && typeof window.electronAPI.onPetTintSaturationChange === "function") {
   window.electronAPI.onPetTintSaturationChange(setPetTintSaturation);
+}
+if (window.electronAPI && typeof window.electronAPI.onPetSkinChange === "function") {
+  window.electronAPI.onPetSkinChange(setPetSkinPayload);
 }
 
 // ── Pet accessory wardrobe ──

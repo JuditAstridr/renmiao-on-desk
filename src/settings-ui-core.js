@@ -114,6 +114,7 @@
     petTintOptions: [],
     petAccessoryOptions: [],
     animationOverridesFetchSeq: 0,
+    petSkinOptions: [],
     animationPosterRenderPending: false,
     animationPosterRenderFlags: null,
     animationPreviewPosterCache: new Map(),

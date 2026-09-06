@@ -69,6 +69,8 @@ const {
   isPetTintIdForTheme,
   isPetAccessoryIdForTheme,
   getPetAccessoryUnlockPoints,
+  isPetSkinIdForTheme,
+  getPetSkinUnlockPoints,
 } = require("./pet-customization-catalog");
 const { isValidDisplaySnapshot } = require("./work-area");
 const {
@@ -468,6 +470,36 @@ const updateRegistry = {
           return {
             status: "error",
             message: `petAccessory entry "${themeId}" is locked until ${requiredPoints} points`,
+          };
+        }
+      }
+    }
+    return { status: "ok" };
+  },
+  petSkin(value, deps) {
+    if (!value || typeof value !== "object" || Array.isArray(value)) {
+      return { status: "error", message: "petSkin must be a theme-to-skin object" };
+    }
+    for (const [themeId, skinId] of Object.entries(value)) {
+      if (
+        !/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$/.test(themeId)
+        || !isPetSkinIdForTheme(skinId, themeId)
+        || skinId === "default"
+      ) {
+        return {
+          status: "error",
+          message: `petSkin entry "${themeId}" must map a safe theme id to a non-default catalog skin id`,
+        };
+      }
+      const requiredPoints = getPetSkinUnlockPoints(skinId, themeId);
+      if (requiredPoints > 0) {
+        const points = deps && typeof deps.getStudyPoints === "function"
+          ? deps.getStudyPoints()
+          : null;
+        if (!Number.isFinite(points) || points < requiredPoints) {
+          return {
+            status: "error",
+            message: `petSkin entry "${themeId}" is locked until ${requiredPoints} points`,
           };
         }
       }
@@ -1166,6 +1198,7 @@ async function removeTheme(payload, deps) {
   const currentIdleVisual = snapshot.idleVisual || {};
   const currentPetTint = snapshot.petTint || {};
   const currentPetTintSaturation = snapshot.petTintSaturation || {};
+  const currentPetSkin = snapshot.petSkin || {};
   const currentPetAccessory = snapshot.petAccessory || {};
   const currentHolidayAccessoryEnabled = snapshot.holidayAccessoryEnabled || {};
   const nextCommit = {};
@@ -1193,6 +1226,11 @@ async function removeTheme(payload, deps) {
     const nextPetTintSaturation = { ...currentPetTintSaturation };
     delete nextPetTintSaturation[themeId];
     nextCommit.petTintSaturation = nextPetTintSaturation;
+  }
+  if (currentPetSkin[themeId] !== undefined) {
+    const nextPetSkin = { ...currentPetSkin };
+    delete nextPetSkin[themeId];
+    nextCommit.petSkin = nextPetSkin;
   }
   if (currentPetAccessory[themeId] !== undefined) {
     const nextPetAccessory = { ...currentPetAccessory };
@@ -1258,10 +1296,16 @@ function setThemeSelection(payload, deps) {
     && typeof activeTheme._capabilities === "object"
     && !Array.isArray(activeTheme._capabilities)
   )
-    ? {
-        petTint: activeTheme._capabilities.petTint === true,
-        accessories: activeTheme._capabilities.accessories === true,
-      }
+    ? (() => {
+        const capabilities = {
+          petTint: activeTheme._capabilities.petTint === true,
+          accessories: activeTheme._capabilities.accessories === true,
+        };
+        // Keep the existing metadata contract for themes that do not expose
+        // skins; only add the optional capability when authored.
+        if (activeTheme._capabilities.petSkins === true) capabilities.petSkins = true;
+        return capabilities;
+      })()
     : null;
 
   const nextVariantMap = { ...currentVariantMap, [themeId]: resolvedVariant };

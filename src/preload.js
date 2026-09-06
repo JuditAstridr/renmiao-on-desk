@@ -22,6 +22,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   onViewportOffsetX: (cb) => ipcRenderer.on("viewport-offset-x", (_, offsetX) => cb(Number.isFinite(offsetX) ? offsetX : 0)),
   onPetTintChange: (cb) => ipcRenderer.on("pet-tint-change", (_, payload) => cb(payload)),
   onPetTintSaturationChange: (cb) => ipcRenderer.on("pet-tint-saturation-change", (_, value) => cb(value)),
+  onPetSkinChange: (cb) => ipcRenderer.on("pet-skin-change", (_, payload) => cb(payload)),
   onPetAccessoryChange: (cb) => ipcRenderer.on("pet-accessory-change", (_, payload) => cb(payload)),
   // State sync from main
   onStateChange: (callback) => ipcRenderer.on("state-change", (_, state, svg) => callback(state, svg)),

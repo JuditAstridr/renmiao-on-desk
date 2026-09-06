@@ -7,6 +7,8 @@
   "description": "A clean white sitting cat with a curled tail.",
   "customization": {
     "petTint": true,
+    "petSkins": true,
+    "petSkinCatalog": "skins.json",
     "petTintMode": "default-white-regions",
     "petTintColors": {
       "cream": "#f1e3c4",

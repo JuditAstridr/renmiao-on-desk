@@ -60,6 +60,7 @@ const {
 const {
   isPetTintIdForTheme,
   isPetAccessoryIdForTheme,
+  isPetSkinIdForTheme,
 } = require("./pet-customization-catalog");
 
 const CURRENT_VERSION = 18;
@@ -455,6 +456,14 @@ const SCHEMA = {
     type: "object",
     defaultFactory: () => ({}),
     normalize: normalizePetAccessory,
+  },
+  // Per-theme skin choice. Missing entries mean Renmiao's default skin. The
+  // unlock check is performed by the action/runtime resolver with account
+  // points; prefs only validates the stable catalog id.
+  petSkin: {
+    type: "object",
+    defaultFactory: () => ({}),
+    normalize: normalizePetSkin,
   },
   // Per-theme opt-in for temporary date-based holiday accessories. Missing
   // entries mean disabled; the saved manual petAccessory choice remains the
@@ -1451,6 +1460,17 @@ function normalizePetAccessory(value, defaultsValue) {
   return out;
 }
 
+function normalizePetSkin(value, defaultsValue) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return defaultsValue;
+  const out = {};
+  for (const [themeId, skinId] of Object.entries(value)) {
+    if (!/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$/.test(themeId)) continue;
+    if (!isPetSkinIdForTheme(skinId, themeId) || skinId === "default") continue;
+    out[themeId] = skinId;
+  }
+  return out;
+}
+
 function normalizeHolidayAccessoryEnabled(value, defaultsValue) {
   if (!value || typeof value !== "object" || Array.isArray(value)) return defaultsValue;
   const out = {};
@@ -1649,6 +1669,7 @@ module.exports = {
   normalizeThemeOverrides,
   normalizePetTint,
   normalizePetTintSaturation,
+  normalizePetSkin,
   normalizeAmbientLayers,
   normalizeAmbientStateBinding,
   normalizeAmbientUserPresets,

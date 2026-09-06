@@ -8,6 +8,7 @@ const { DEFAULT_INTEGRATION_INSTALLED_IDS } = require("./prefs");
 const settingsThemeImporter = require("./settings-theme-importer");
 const {
   listPetTintOptions,
+  listPetSkinOptions,
   listPetAccessoryOptions,
 } = require("./pet-customization-catalog");
 
@@ -422,6 +423,10 @@ function registerSettingsIpc(options = {}) {
       : { status: "error", reason: "runtime-unavailable" };
   });
   handle("settings:get-pet-tint-options", () => listPetTintOptions());
+  handle("settings:get-pet-skin-options", () => {
+    const theme = getActiveTheme();
+    return listPetSkinOptions(theme && theme._id, getStudyPoints());
+  });
   handle("settings:get-pet-accessory-options", () => {
     const theme = getActiveTheme();
     return listPetAccessoryOptions(theme && theme._id, getStudyPoints());

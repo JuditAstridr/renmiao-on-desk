@@ -25,6 +25,7 @@ function defaultPet() {
     themeId: "renmi",
     variantId: "default",
     tintId: "none",
+    skinId: "default",
     accessoryId: "none",
     holidayAccessoryEnabled: false,
     idleVisual: "",
@@ -56,6 +57,7 @@ function sanitizePet(raw) {
   pet.themeId = safeId(source.themeId, pet.themeId);
   pet.variantId = safeId(source.variantId, pet.variantId);
   pet.tintId = safeId(source.tintId, pet.tintId);
+  pet.skinId = safeId(source.skinId, pet.skinId);
   pet.accessoryId = safeId(source.accessoryId, pet.accessoryId);
   pet.holidayAccessoryEnabled = source.holidayAccessoryEnabled === true;
   const idleVisual = typeof source.idleVisual === "string" ? source.idleVisual.trim() : "";
