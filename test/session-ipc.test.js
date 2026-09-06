@@ -79,6 +79,9 @@ function createHarness(overrides = {}) {
     showDashboard: overrides.showDashboard || ((options) => {
       calls.push(["showDashboard", options]);
     }),
+    showStudyDashboard: overrides.showStudyDashboard || (() => {
+      calls.push(["showStudyDashboard"]);
+    }),
     setSessionHudPinned: overrides.setSessionHudPinned || ((value) => {
       calls.push(["setSessionHudPinned", value]);
     }),
@@ -145,6 +148,7 @@ test("session IPC registers owned channels and disposes them", () => {
     "session-hud:open-dashboard",
     "session-hud:set-pinned",
     "settings:open-dashboard",
+    "settings:open-study-dashboard",
     "show-dashboard",
   ]);
 
@@ -249,11 +253,13 @@ test("session IPC owns dashboard open bridges", () => {
 
   ipcMain.send("session-hud:open-dashboard");
   ipcMain.send("settings:open-dashboard");
+  ipcMain.send("settings:open-study-dashboard");
   ipcMain.send("show-dashboard");
 
   assert.deepStrictEqual(calls, [
     ["showDashboard", { source: "hud" }],
     ["showDashboard", { source: "settings" }],
+    ["showStudyDashboard"],
     ["showDashboard", undefined],
   ]);
 });
@@ -345,6 +351,7 @@ test("registerSessionIpc requires ackSessionCompletion dep", () => {
       hideSession: () => {},
       setSessionAlias: () => {},
       showDashboard: () => {},
+      showStudyDashboard: () => {},
       setSessionHudPinned: () => {},
       openSessionFolder: () => {},
       setSessionAutomationOverride: () => {},

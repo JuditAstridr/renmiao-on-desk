@@ -17,6 +17,7 @@ describe("Study Companion integration", () => {
     assert.match(main, /createStudyWindowRuntime/);
     assert.match(main, /registerStudyIpc/);
     assert.match(main, /openStudyDashboard/);
+    assert.match(main, /showStudyDashboard: \(\) => showStudyDashboard\(\)/);
     assert.match(main, /require\("\.\/dashboard"\)/);
     assert.match(ipc, /study:get-snapshot/);
     assert.match(ipc, /study:pomodoro-command/);
@@ -79,6 +80,14 @@ describe("Study Companion integration", () => {
     assert.match(renderer, /goalName\.placeholder = label\("studyCalendarGoalName", "Goal name"\);\n  const goalDescription/);
     assert.doesNotMatch(renderer, /goalName\.value = cell\.goalName/);
     assert.doesNotMatch(renderer, /goal\.value = cell\.goal/);
+  });
+
+  it("renders today deadline tasks in a labeled task section", () => {
+    const renderer = read("src/study-dashboard-renderer.js");
+    assert.match(renderer, /function renderTodayTasks\(tasks\)/);
+    assert.match(renderer, /studyTodayTasks/);
+    assert.match(renderer, /studyTodayTaskTag/);
+    assert.match(renderer, /localDateKey\(task\.deadline\) === today/);
   });
 
   it("loads every Study browser script without a global lexical collision", () => {

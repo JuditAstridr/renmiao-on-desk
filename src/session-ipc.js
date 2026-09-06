@@ -18,6 +18,7 @@ function registerSessionIpc(options = {}) {
   const hideSession = requiredDependency(options.hideSession, "hideSession");
   const setSessionAlias = requiredDependency(options.setSessionAlias, "setSessionAlias");
   const showDashboard = requiredDependency(options.showDashboard, "showDashboard");
+  const showStudyDashboard = requiredDependency(options.showStudyDashboard, "showStudyDashboard");
   const setSessionHudPinned = requiredDependency(options.setSessionHudPinned, "setSessionHudPinned");
   const ackSessionCompletion = requiredDependency(options.ackSessionCompletion, "ackSessionCompletion");
   const openSessionFolder = requiredDependency(options.openSessionFolder, "openSessionFolder");
@@ -137,6 +138,7 @@ function registerSessionIpc(options = {}) {
   on("session-hud:set-pinned", (_event, value) => setSessionHudPinned(!!value));
 
   on("settings:open-dashboard", () => showDashboard({ source: "settings" }));
+  on("settings:open-study-dashboard", () => showStudyDashboard());
   on("show-dashboard", () => showDashboard());
 
   // Both HUD and Dashboard call into this — invoke/handle (not send) so the

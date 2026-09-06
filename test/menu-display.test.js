@@ -441,6 +441,8 @@ describe("menu dashboard action", () => {
 
     const openDashboard = ctx.contextMenu.template.find((item) => item.label === "Open Dashboard");
     assert.strictEqual(openDashboard, undefined, "context menu should not expose dashboard entry");
+    const openStudy = ctx.contextMenu.template.find((item) => item.label === "Open Study Companion");
+    assert.strictEqual(openStudy, undefined, "context menu should not expose Study Companion entry");
     assert.strictEqual(called, 0);
   });
 

@@ -487,12 +487,29 @@ function renderTasks() {
   }
   if (view.groupBy === "quadrant") {
     renderQuadrantMatrix(sorted);
+    renderTodayTasks(tasks);
     return;
   }
   for (const group of groupedTasks(sorted, view.groupBy)) {
     if (group.label) { const heading = document.createElement("div"); heading.className = "group-title"; heading.textContent = group.label; taskList.appendChild(heading); }
     for (const task of group.items) taskList.appendChild(createTaskCard(task));
   }
+  renderTodayTasks(tasks);
+}
+
+function renderTodayTasks(tasks) {
+  const today = localDateKey(Date.now());
+  const dueToday = tasks.filter((task) => task && task.deadline && localDateKey(task.deadline) === today);
+  if (!dueToday.length) return;
+  const section = document.createElement("section"); section.className = "today-tasks";
+  const heading = document.createElement("div"); heading.className = "today-tasks-heading";
+  const title = document.createElement("strong"); title.textContent = label("studyTodayTasks", "Today’s tasks");
+  const date = document.createElement("span"); date.textContent = new Date().toLocaleDateString(i18nPayload.lang || undefined, { year: "numeric", month: "long", day: "numeric" });
+  heading.append(title, date); section.appendChild(heading);
+  const tag = document.createElement("span"); tag.className = "today-tasks-tag"; tag.textContent = label("studyTodayTaskTag", "Today task"); section.appendChild(tag);
+  const list = document.createElement("div"); list.className = "today-tasks-list";
+  for (const task of dueToday) list.appendChild(createTaskCard(task));
+  section.appendChild(list); taskList.appendChild(section);
 }
 
 // Eisenhower matrix: keep all four cells visible so moving a task between

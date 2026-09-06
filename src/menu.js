@@ -372,19 +372,11 @@ module.exports = function initMenu(ctx) {
   }
 
   function buildContextMenu() {
-    // Grouped as state / study / display / app / quit and joined with a single
-    // separator between non-empty groups (see joinGroups).
+    // Grouped as state / display / app / quit and joined with a single
+    // separator between non-empty groups (see joinGroups). Study Companion is
+    // available from Settings and is intentionally absent from this menu.
     const stateGroup = [
       { ...buildMiniModeMenuItem() },
-    ];
-
-    const studyGroup = [
-      {
-        label: t("openStudyDashboard"),
-        click: () => {
-          if (typeof ctx.openStudyDashboard === "function") ctx.openStudyDashboard();
-        },
-      },
     ];
 
     // Display group: just the multi-display "send to display" entry. The mac
@@ -426,7 +418,7 @@ module.exports = function initMenu(ctx) {
       { label: t("quit"), click: () => requestAppQuit() },
     ];
 
-    const template = joinGroups([stateGroup, studyGroup, displayGroup, appGroup, quitGroup]);
+    const template = joinGroups([stateGroup, displayGroup, appGroup, quitGroup]);
     ctx.contextMenu = Menu.buildFromTemplate(template);
   }
 
