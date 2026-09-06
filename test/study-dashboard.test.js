@@ -113,6 +113,11 @@ describe("Study Companion integration", () => {
     assert.match(renderer, /lastTaskKey = ""/);
   });
 
+  it("renders calendar goals even when there are no regular tasks", () => {
+    const renderer = read("src/study-dashboard-renderer.js");
+    assert.match(renderer, /taskList\.appendChild\(empty\);\n    renderTodayTasks\(tasks\);\n    return;/);
+  });
+
   it("loads every Study browser script without a global lexical collision", () => {
     const scripts = ["src/study-calendar.js", "src/report-poster-renderer.js", "src/study-dashboard-renderer.js"]
       .map((file) => read(file)).join("\n");

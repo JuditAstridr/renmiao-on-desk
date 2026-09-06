@@ -483,7 +483,9 @@ function renderTasks() {
   taskList.replaceChildren();
   const sorted = sortTasks(tasks, view.sortBy);
   if (!sorted.length) {
-    const empty = document.createElement("div"); empty.className = "empty"; empty.textContent = t("studyNoTasks"); taskList.appendChild(empty); return;
+    const empty = document.createElement("div"); empty.className = "empty"; empty.textContent = t("studyNoTasks"); taskList.appendChild(empty);
+    renderTodayTasks(tasks);
+    return;
   }
   if (view.groupBy === "quadrant") {
     renderQuadrantMatrix(sorted);
@@ -1118,15 +1120,25 @@ taskForm.addEventListener("submit", (event) => {
 });
 
 buildTimerControls();
-if (studyApi && typeof studyApi.onSnapshot === "function") studyApi.onSnapshot((next) => { snapshot = next || snapshot; render(); });
-if (studyApi && typeof studyApi.onLangChange === "function") studyApi.onLangChange((next) => {
+const removeSnapshotListener = studyApi && typeof studyApi.onSnapshot === "function"
+  ? studyApi.onSnapshot((next) => { snapshot = next || snapshot; render(); })
+  : null;
+const removeLangListener = studyApi && typeof studyApi.onLangChange === "function"
+  ? studyApi.onLangChange((next) => {
   i18nPayload = next || i18nPayload;
   lastTaskKey = "";
   lastViewKey = "";
   reportData = null;
   calendarData = null;
   render();
-});
+  })
+  : null;
+if (typeof window.addEventListener === "function") {
+  window.addEventListener("beforeunload", () => {
+    if (typeof removeSnapshotListener === "function") removeSnapshotListener();
+    if (typeof removeLangListener === "function") removeLangListener();
+  }, { once: true });
+}
 
 Promise.all([
   studyApi && typeof studyApi.getSnapshot === "function" ? studyApi.getSnapshot() : Promise.resolve(snapshot),
