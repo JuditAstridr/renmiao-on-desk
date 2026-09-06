@@ -74,6 +74,13 @@ describe("Study Companion integration", () => {
     assert.match(html, /\.calendar-form \.calendar-goal-minutes \{ width: 130px; \}/);
   });
 
+  it("keeps the new goal form blank when existing goals are displayed", () => {
+    const renderer = read("src/study-dashboard-renderer.js");
+    assert.match(renderer, /goalName\.placeholder = label\("studyCalendarGoalName", "Goal name"\);\n  const goalDescription/);
+    assert.doesNotMatch(renderer, /goalName\.value = cell\.goalName/);
+    assert.doesNotMatch(renderer, /goal\.value = cell\.goal/);
+  });
+
   it("loads every Study browser script without a global lexical collision", () => {
     const scripts = ["src/study-calendar.js", "src/report-poster-renderer.js", "src/study-dashboard-renderer.js"]
       .map((file) => read(file)).join("\n");
