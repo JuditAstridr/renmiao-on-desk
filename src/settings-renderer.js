@@ -7,7 +7,6 @@ const core = globalThis.ClawdSettingsCore;
 // system fonts and didn't dark-mode well.
 const SIDEBAR_TABS = [
   { id: "general", labelKey: "sidebarGeneral", available: true },
-  { id: "agents", labelKey: "sidebarAgents", available: true },
   { id: "theme", labelKey: "sidebarTheme", available: true },
   { id: "ambient", labelKey: "sidebarAmbient", available: true },
   { id: "animOverrides", labelKey: "sidebarAnimOverrides", available: true },
@@ -82,7 +81,6 @@ core.ops.installRenderHooks({
 });
 
 globalThis.ClawdSettingsTabGeneral.init(core);
-globalThis.ClawdSettingsTabAgents.init(core);
 globalThis.ClawdSettingsTabTheme.init(core);
 globalThis.ClawdSettingsTabAmbient.init(core);
 // Not a top-level tab anymore — it provides the "on / off" subtab that
@@ -100,13 +98,6 @@ if (typeof window.addEventListener === "function") {
 
 if (window.settingsAPI && typeof window.settingsAPI.onChanged === "function") {
   window.settingsAPI.onChanged((payload) => core.ops.applyChanges(payload));
-}
-
-if (window.settingsAPI && typeof window.settingsAPI.onAgentActivity === "function") {
-  window.settingsAPI.onAgentActivity((payload) => {
-    const tab = core.tabs.agents;
-    if (tab && typeof tab.applyAgentActivity === "function") tab.applyAgentActivity(payload);
-  });
 }
 
 if (window.settingsAPI && typeof window.settingsAPI.onAnimationPreviewPosterReady === "function") {
@@ -178,14 +169,5 @@ if (window.settingsAPI && typeof window.settingsAPI.getSnapshot === "function") 
       ? petAccessoryOptions
       : [];
     core.ops.applyBootstrap(snapshot);
-  });
-}
-
-if (window.settingsAPI && typeof window.settingsAPI.listAgents === "function") {
-  window.settingsAPI.listAgents().then((list) => {
-    core.ops.applyAgentMetadata(list);
-  }).catch((err) => {
-    console.warn("settings: listAgents failed", err);
-    core.ops.applyAgentMetadata([]);
   });
 }

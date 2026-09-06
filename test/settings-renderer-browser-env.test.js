@@ -1660,9 +1660,7 @@ describe("settings renderer browser environment", () => {
       "settings-i18n.js",
       "settings-anim-overrides-merge.js",
       "settings-ui-core.js",
-      "settings-agent-order.js",
       "settings-tab-general.js",
-      "settings-tab-agents.js",
       "settings-tab-theme.js",
       "settings-tab-ambient.js",
       "settings-tab-anim-map.js",
@@ -1691,6 +1689,18 @@ describe("settings renderer browser environment", () => {
     assert.ok(html.includes('<link rel="stylesheet" href="settings.css">'));
     assert.ok(html.includes("style-src 'self' 'unsafe-inline'"));
     assert.ok(!html.includes("<style>"));
+  });
+
+  it("does not expose the removed Agent management Settings tab", () => {
+    const html = fs.readFileSync(SETTINGS_HTML, "utf8");
+    const rendererSource = fs.readFileSync(SETTINGS_RENDERER, "utf8");
+
+    assert.ok(!html.includes('settings-agent-order.js'));
+    assert.ok(!html.includes('settings-tab-agents.js'));
+    assert.ok(!rendererSource.includes('{ id: "agents"'));
+    assert.ok(!rendererSource.includes("ClawdSettingsTabAgents"));
+    assert.ok(!rendererSource.includes("onAgentActivity"));
+    assert.ok(!rendererSource.includes("listAgents"));
   });
 
   it("uses browser globals instead of CommonJS in settings renderer modules", () => {
