@@ -2029,7 +2029,7 @@ describe("settings renderer browser environment", () => {
     assert.ok(html.includes('<script src="settings-doctor-modal.js"></script>'));
     assert.ok(css.includes(".doctor-indicator"));
     assert.ok(css.includes(".doctor-modal"));
-    assert.ok(rendererSource.includes("ClawdSettingsDoctorModal.renderSidebarIndicator"));
+    assert.ok(!rendererSource.includes("ClawdSettingsDoctorModal.renderSidebarIndicator"));
     assert.ok(doctorModalSource.includes("initialRunStarted"));
     assert.ok(doctorModalSource.includes("runningPromise"));
     assert.ok(doctorModalSource.includes("root.doctor.runChecks"));
@@ -2226,6 +2226,20 @@ describe("settings renderer browser environment", () => {
     assert.ok(!i18nSource.includes('doctorOpenLogOpened: "已打开调试日志。"'));
     assert.ok(!i18nSource.includes('doctorOpenLogOpened: "디버그 로그를 열었습니다."'));
     assert.ok(!i18nSource.includes('doctorOpenLogOpened: "デバッグログを開きました。"'));
+  });
+
+  it("keeps only the first and last shortcut rows visible", () => {
+    const shortcutsSource = fs.readFileSync(
+      path.join(SRC_DIR, "settings-tab-shortcuts.js"),
+      "utf8"
+    );
+    assert.ok(shortcutsSource.includes('const VISIBLE_SHORTCUT_ACTION_IDS = Object.freeze(["togglePet"]);'));
+    assert.ok(shortcutsSource.includes('"shortcutLabelOpenDashboard"'));
+    assert.ok(!shortcutsSource.includes('"shortcutLabelBubbleNextOption"'));
+    assert.ok(!shortcutsSource.includes('"shortcutLabelBubblePrevOption"'));
+    assert.ok(!shortcutsSource.includes('"shortcutLabelBubbleToggleOption"'));
+    assert.ok(!shortcutsSource.includes('"shortcutLabelBubbleSubmit"'));
+    assert.ok(!shortcutsSource.includes('"shortcutLabelPetReveal"'));
   });
 
   it("unifies the size slider on the simple volume-style control (no floating bubble, no ticks)", () => {

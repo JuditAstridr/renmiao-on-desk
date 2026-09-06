@@ -9,6 +9,10 @@
   let i18n = null;
   let listenersAttached = false;
 
+  // Keep the full shortcut state and command surface intact, but expose only
+  // the two shortcuts that belong in the compact Settings UI.
+  const VISIBLE_SHORTCUT_ACTION_IDS = Object.freeze(["togglePet"]);
+
   function t(key) {
     return helpers.t(key);
   }
@@ -134,12 +138,7 @@
     ));
     parent.appendChild(head);
 
-    const rows = i18n.SHORTCUT_ACTION_IDS.map((actionId) => buildShortcutRow(actionId));
-    rows.push(buildFixedKeyRow("shortcutLabelBubbleNextOption", "Tab / ↓"));
-    rows.push(buildFixedKeyRow("shortcutLabelBubblePrevOption", "Shift+Tab / ↑"));
-    rows.push(buildFixedKeyRow("shortcutLabelBubbleToggleOption", "Space"));
-    rows.push(buildFixedKeyRow("shortcutLabelBubbleSubmit", "Enter"));
-    rows.push(buildFixedKeyRow("shortcutLabelPetReveal", "Click pet"));
+    const rows = VISIBLE_SHORTCUT_ACTION_IDS.map((actionId) => buildShortcutRow(actionId));
     rows.push(buildFixedKeyRow(
       "shortcutLabelOpenDashboard",
       i18n.IS_MAC ? "⌘ + Click pet" : "Ctrl + Click pet"
