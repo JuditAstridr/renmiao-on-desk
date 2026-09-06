@@ -694,7 +694,7 @@ function createStudyRuntime(options = {}) {
   // guessing how long the machine was asleep while the app was closed.
   if (state.pomodoro.running && state.pomodoro.phase !== "idle") ensureTimer();
 
-  return {
+  const api = {
     getSnapshot: snapshot,
     getReportData: reportData,
     getReport(spec) {
@@ -1053,6 +1053,24 @@ function createStudyRuntime(options = {}) {
       return snapshot();
     },
 
+    startDailyGoal(goal) {
+      const input = goal && typeof goal === "object" ? goal : {};
+      const id = typeof input.id === "string" && input.id ? input.id : null;
+      const date = typeof input.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(input.date) ? input.date : null;
+      const minutes = Number(input.minutes);
+      if (!id || !date || !Number.isInteger(minutes) || minutes <= 0 || minutes > 1440) return snapshot();
+      const taskId = `daily-goal:${id}`;
+      let task = state.tasks.find((entry) => entry.id === taskId);
+      if (!task) {
+        const deadline = new Date(`${date}T23:59:59`).getTime();
+        task = { id: taskId, title: cleanText(input.name, 500) || "Daily goal", done: false, createdAt: now(), estimatedMinutes: minutes, completedPomodoros: 0, deadline: Number.isFinite(deadline) ? deadline : null, category: null, quadrant: null, subtasks: [] };
+        state.tasks.push(task);
+      }
+      const next = api.startTaskPomodoro(task.id);
+      persistNow();
+      return next;
+    },
+
     pomodoroCommand(command) {
       const pomodoro = state.pomodoro;
       if (command === "start") {
@@ -1113,6 +1131,7 @@ function createStudyRuntime(options = {}) {
       persistNow();
     },
   };
+  return api;
 }
 
 module.exports = {

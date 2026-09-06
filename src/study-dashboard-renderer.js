@@ -529,7 +529,8 @@ function renderTodayTasks(tasks) {
     const duration = document.createElement("span"); duration.textContent = `${Number(goal.minutes) || 0}m`;
     const description = document.createElement("div"); description.textContent = goal.description || "";
     const date = document.createElement("time"); date.dateTime = goal.date; date.textContent = new Date(`${goal.date}T00:00:00`).toLocaleDateString(i18nPayload.lang || undefined, { year: "numeric", month: "long", day: "numeric" });
-    card.append(title, duration, date, description); list.appendChild(card);
+    const start = document.createElement("button"); start.type = "button"; start.className = "primary"; start.textContent = label("studyStartFocus", "Start focus"); start.addEventListener("click", () => call("startDailyGoal", goal));
+    card.append(title, duration, date, start, description); list.appendChild(card);
   }
   section.appendChild(list); taskList.appendChild(section);
 }

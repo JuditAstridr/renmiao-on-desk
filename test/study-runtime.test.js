@@ -85,6 +85,31 @@ describe("study runtime", () => {
     assert.deepEqual(snapshot.goals.items, []);
   });
 
+  it("starts a daily goal as a regular focus task", () => {
+    const { dataPath, runtime } = createRuntime({ now: () => new Date(2026, 8, 6, 12).getTime() });
+    const snapshot = runtime.startDailyGoal({
+      id: "goal-1",
+      date: "2026-09-06",
+      name: "学习",
+      description: "完成阅读",
+      minutes: 30,
+    });
+
+    assert.equal(snapshot.pomodoro.taskId, "daily-goal:goal-1");
+    assert.equal(snapshot.pomodoro.phase, "focus");
+    assert.equal(snapshot.pomodoro.running, true);
+    assert.deepEqual(snapshot.tasks.map(({ id, title, estimatedMinutes, deadline }) => ({ id, title, estimatedMinutes, deadline })), [{
+      id: "daily-goal:goal-1",
+      title: "学习",
+      estimatedMinutes: 30,
+      deadline: new Date("2026-09-06T23:59:59").getTime(),
+    }]);
+
+    const persisted = JSON.parse(fs.readFileSync(dataPath, "utf8"));
+    assert.equal(persisted.tasks[0].id, "daily-goal:goal-1");
+    assert.equal(persisted.pomodoro.taskId, "daily-goal:goal-1");
+  });
+
   it("completes subtasks in order and then auto-completes the parent task", () => {
     const { runtime } = createRuntime({ now: () => 1000 });
     let snapshot = runtime.addTask({ title: "Project" });
