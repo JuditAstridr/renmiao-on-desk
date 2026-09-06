@@ -225,14 +225,14 @@ describe("pet customization catalog", () => {
         id: "renmi-ruc",
         assetFile: "renmi-ruc.svg",
         aspect: 160 / 120,
-        widthScale: 2,
+        widthScale: 1.5,
         offsetY: 0,
       }
     );
     assert.strictEqual(resolvePetAccessoryPayload("renmi-1937", renmi, { pointsTotal: 519 }).id, "none");
     assert.strictEqual(
       resolvePetAccessoryPayload("renmi-1937", renmi, { pointsTotal: 520 }).widthScale,
-      2
+      1.5
     );
   });
 
