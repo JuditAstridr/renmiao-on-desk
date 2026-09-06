@@ -105,6 +105,14 @@ describe("Study Companion integration", () => {
     assert.match(renderer, /legacy:\$\{today\}/);
   });
 
+  it("refreshes the latest snapshot whenever the task tab is entered", () => {
+    const renderer = read("src/study-dashboard-renderer.js");
+    assert.match(renderer, /if \(tasks\) void refreshTasksOnEntry\(\)/);
+    assert.match(renderer, /async function refreshTasksOnEntry\(\)/);
+    assert.match(renderer, /studyApi\.getSnapshot\(\)/);
+    assert.match(renderer, /lastTaskKey = ""/);
+  });
+
   it("loads every Study browser script without a global lexical collision", () => {
     const scripts = ["src/study-calendar.js", "src/report-poster-renderer.js", "src/study-dashboard-renderer.js"]
       .map((file) => read(file)).join("\n");

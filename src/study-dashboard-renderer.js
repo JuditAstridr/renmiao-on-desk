@@ -1000,8 +1000,21 @@ function selectStudyTab(tab) {
   renderStudyTabs();
   const tasks = tab === "tasks";
   timerSection.hidden = !tasks; tasksSection.hidden = !tasks; calendarSection.hidden = tab !== "calendar"; reportSection.hidden = tab !== "report";
+  if (tasks) void refreshTasksOnEntry();
   if (tab === "calendar") void refreshCalendar();
   if (tab === "report") void refreshReport();
+}
+
+async function refreshTasksOnEntry() {
+  if (!studyApi || typeof studyApi.getSnapshot !== "function") return;
+  const next = await studyApi.getSnapshot().catch((error) => {
+    console.warn("study task snapshot refresh failed:", error);
+    return null;
+  });
+  if (!next || activeTab !== "tasks") return;
+  snapshot = next;
+  lastTaskKey = "";
+  renderTasks();
 }
 
 function moveCalendar(delta) {
