@@ -120,7 +120,7 @@ test("packaged auth config defaults to the shared Renmiao API and rejects placeh
   });
   assert.deepEqual(JSON.parse(fs.readFileSync(configPath, "utf8")), {
     version: 1,
-    apiUrl: "https://auth.renmiao.org",
+    apiUrl: "https://renmiao.org",
   });
   assert.throws(
     () => writePackagedAuthConfig({

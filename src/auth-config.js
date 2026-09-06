@@ -6,7 +6,7 @@ const defaultPath = require("node:path");
 // This is a public endpoint, not a secret. It lets release builds remain
 // usable when the build job does not provide a shell environment variable;
 // deployments can still override it with RENMI_AUTH_API_URL.
-const DEFAULT_AUTH_API_URL = "https://auth.renmiao.org";
+const DEFAULT_AUTH_API_URL = "https://renmiao.org";
 
 function isPlaceholderApiUrl(value) {
   try {

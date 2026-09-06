@@ -27,6 +27,7 @@ test("auth API URL falls back to the packaged non-secret endpoint", () => {
 
 test("packaged startup can use the shared Renmiao endpoint when no build env is present", () => {
   assert.equal(resolveAuthApiUrl({ env: {}, resourcesPath: "", userDataDir: "", defaultApiUrl: DEFAULT_AUTH_API_URL }), DEFAULT_AUTH_API_URL);
+  assert.equal(DEFAULT_AUTH_API_URL, "https://renmiao.org");
 });
 
 test("placeholder auth endpoints are ignored in favor of the real packaged default", () => {

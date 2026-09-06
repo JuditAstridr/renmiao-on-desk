@@ -32,7 +32,7 @@ database on multiple computers, first deploy the API in cloud mode with
 Supabase, then start the checkout with the shared public endpoint:
 
 ```bash
-RENMI_AUTH_API_URL=https://auth.renmiao.org npm start
+RENMI_AUTH_API_URL=https://renmiao.org npm start
 ```
 
 When this variable is present, `scripts/renmiao-dev.js` does not start a local
@@ -74,11 +74,11 @@ reads that cache.
 5. Configure the email provider's SPF/DKIM records.
 6. Start the API with `node cloud/api/index.js`.
 7. Build the Electron app with `RENMI_AUTH_API_URL` set to the deployed HTTPS
-   API URL. Release builds default to `https://auth.renmiao.org`, but setting
+   API URL. Release builds default to `https://renmiao.org`, but setting
    the variable explicitly is recommended:
 
 For example, use
-`RENMI_AUTH_API_URL=https://auth.renmiao.org npm run build:mac` or the
+`RENMI_AUTH_API_URL=https://renmiao.org npm run build:mac` or the
 corresponding Windows/Linux build command. The packaging hook embeds only this
 public endpoint in the app's Resources directory; database keys and
 administrator credentials remain server-side secrets. A package built before
