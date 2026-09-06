@@ -23,6 +23,7 @@ const {
   maskEmail,
 } = require("./auth-core");
 const {
+  defaultAdminProfile,
   sanitizeProfile,
   profileFromRow,
   profileUpdatedAt,
@@ -102,6 +103,11 @@ function createAuthService({ repo, emailer, config, now = Date.now, logger = con
       throw new AuthError("管理员凭证不正确", 401, "invalid_admin_credentials");
     }
     return row;
+  }
+
+  function requireProfileOwner(row) {
+    if (row && row.role === "admin") return requireAdmin(row);
+    return requireActive(row);
   }
 
   async function createChallenge({ userId = null, email, purpose, username = "" }) {
@@ -407,8 +413,10 @@ function createAuthService({ repo, emailer, config, now = Date.now, logger = con
 
   async function getUserProfile(userId) {
     const row = await repo.getUserById(userId);
-    if (!row || row.role !== "user") throw new AuthError("用户不存在", 404, "user_not_found");
-    requireActive(row);
+    if (!row || !["user", "admin"].includes(row.role)) {
+      throw new AuthError("用户不存在", 404, "user_not_found");
+    }
+    requireProfileOwner(row);
     return profileResponse(row);
   }
 
@@ -423,8 +431,10 @@ function createAuthService({ repo, emailer, config, now = Date.now, logger = con
 
   async function saveUserProfile({ userId, profile, expectedUpdatedAt, request = {}, admin = null }) {
     const current = await repo.getUserById(userId);
-    if (!current || current.role !== "user") throw new AuthError("用户不存在", 404, "user_not_found");
-    if (!admin) requireActive(current);
+    if (!current || !["user", "admin"].includes(current.role)) {
+      throw new AuthError("用户不存在", 404, "user_not_found");
+    }
+    if (!admin) requireProfileOwner(current);
     const nextProfile = sanitizeProfile(profile);
     const expected = typeof expectedUpdatedAt === "string" ? expectedUpdatedAt.trim() : "";
     const updated = await repo.updateUserProfile(userId, nextProfile, expected || undefined);
@@ -496,6 +506,11 @@ function createAuthService({ repo, emailer, config, now = Date.now, logger = con
         patch.status = "active";
         patch.email_verified_at = info.row.email_verified_at || isoNow(now);
       }
+      const existingProfile = info.row.profile_state;
+      if (!existingProfile || typeof existingProfile !== "object" || Array.isArray(existingProfile)
+        || !existingProfile.pet || !existingProfile.study) {
+        patch.profile_state = defaultAdminProfile();
+      }
       const updated = Object.keys(patch).length ? await repo.updateUser(info.row.id, patch) : info.row;
       if (passwordChanged) await repo.revokeUserSessions(info.row.id);
       return updated;
@@ -513,6 +528,7 @@ function createAuthService({ repo, emailer, config, now = Date.now, logger = con
       suspended_until: null,
       suspension_reason: null,
       deleted_at: null,
+      profile_state: defaultAdminProfile(),
     });
   }
 

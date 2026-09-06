@@ -15,6 +15,9 @@ const SOUND_OVERRIDE_ASSET_EXTS = new Set([".mp3", ".wav", ".ogg", ".m4a", ".aac
 // #895: cleanup prompts must skip the default integrations, referencing the
 // prefs list rather than a second hardcoded copy of the ids.
 const CLEANUP_EXEMPT_AGENT_IDS = new Set(DEFAULT_INTEGRATION_INSTALLED_IDS);
+// Keep the legacy themes on disk for the original Clawd app, but do not expose
+// them as selectable themes from the isolated Renmiao Settings profile.
+const RENMIAO_HIDDEN_THEME_IDS = new Set(["calico", "clawd"]);
 // These commands mutate trust material or persist facts learned from an SSH
 // transaction. They are main-process capabilities, not renderer commands.
 // Keeping the check at the IPC boundary means an injected/compromised Settings
@@ -444,6 +447,14 @@ function registerSettingsIpc(options = {}) {
     if (isRenmiProfile && payload && payload.key === "lowPowerIdleMode") {
       return { status: "ok", noop: true };
     }
+    if (
+      isRenmiProfile
+      && payload
+      && payload.key === "theme"
+      && RENMIAO_HIDDEN_THEME_IDS.has(payload.value)
+    ) {
+      return { status: "error", message: `theme "${payload.value}" is unavailable in the Renmiao profile` };
+    }
     if (!payload || typeof payload !== "object") {
       return { status: "error", message: "settings:update payload must be { key, value }" };
     }
@@ -500,6 +511,17 @@ function registerSettingsIpc(options = {}) {
   handle("settings:command", async (event, payload) => {
     if (!payload || typeof payload !== "object") {
       return { status: "error", message: "settings:command payload must be { action, payload }" };
+    }
+    if (isRenmiProfile && payload.action === "setThemeSelection") {
+      const requestedThemeId = typeof payload.payload === "string"
+        ? payload.payload
+        : payload.payload && payload.payload.themeId;
+      if (RENMIAO_HIDDEN_THEME_IDS.has(requestedThemeId)) {
+        return {
+          status: "error",
+          message: `theme "${requestedThemeId}" is unavailable in the Renmiao profile`,
+        };
+      }
     }
     if (payload.action === "feishuApproval.saveApproverByEmail") {
       const rejected = rejectUntrustedSettingsEvent(event);
@@ -626,8 +648,12 @@ function registerSettingsIpc(options = {}) {
   handle("settings:list-themes", () => {
     try {
       const activeTheme = getActiveTheme();
-      const activeId = activeTheme ? activeTheme._id : "clawd";
-      return themeLoader.listThemesWithMetadata().map((theme) => {
+      const activeId = activeTheme ? activeTheme._id : (isRenmiProfile ? "renmi" : "clawd");
+      const themes = themeLoader.listThemesWithMetadata();
+      const visibleThemes = isRenmiProfile
+        ? themes.filter((theme) => theme && !RENMIAO_HIDDEN_THEME_IDS.has(theme.id))
+        : themes;
+      return visibleThemes.map((theme) => {
         const active = theme.id === activeId;
         const runtimeCapabilities = active
           && activeTheme

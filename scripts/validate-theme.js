@@ -304,6 +304,7 @@ check(assetsDirExists, `assets/ directory exists`);
 /** Collect all referenced asset filenames */
 function collectFiles() {
   const files = new Set();
+  if (raw.preview) files.add(raw.preview);
   // States
   if (raw.states) {
     for (const [key, entry] of Object.entries(raw.states)) {

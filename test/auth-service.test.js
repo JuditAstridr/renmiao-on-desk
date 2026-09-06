@@ -187,6 +187,8 @@ test("admin password plus email code creates an admin session", async () => {
   const harness = createHarness({ adminPasswordHash });
   const admin = await harness.service.ensureAdmin();
   assert.equal(admin.role, "admin");
+  assert.equal(admin.profile_state.study.points.total, 99999);
+  assert.equal((await harness.service.getUserProfile(admin.id)).profile.study.points.total, 99999);
   const challenge = await harness.service.adminLoginStart({ email: harness.config.adminEmail, password: "Admin-Password-For-Test-123" });
   const code = harness.sent[harness.sent.length - 1].code;
   const result = await harness.service.adminLoginVerify({ challengeId: challenge.challengeId, code, request: {} });

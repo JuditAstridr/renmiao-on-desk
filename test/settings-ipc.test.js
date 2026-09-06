@@ -219,6 +219,7 @@ function createHarness(overrides = {}) {
     settingsController,
     themeLoader,
     codexPetMain,
+    isRenmiProfile: overrides.isRenmiProfile,
     getSettingsWindow: () => settingsWindow,
     getActiveTheme: () => activeTheme,
     getLang: overrides.getLang || (() => "en"),
@@ -686,6 +687,47 @@ test("settings:list-themes uses active runtime capabilities over raw metadata", 
     active: true,
     capabilities: { petTint: true, accessories: false, reactions: true },
   }]);
+});
+
+test("Renmiao Settings hides legacy themes and rejects direct selection", async () => {
+  const harness = createHarness({
+    isRenmiProfile: true,
+    activeTheme: { _id: "renmi", sounds: {} },
+    themeLoader: {
+      getPreviewSoundUrl: () => null,
+      getSoundOverridesDir: () => null,
+      getSoundUrl: () => null,
+      listThemesWithMetadata: () => [
+        { id: "renmi", name: "Renmiao" },
+        { id: "clawd", name: "Clawd" },
+        { id: "calico", name: "Calico" },
+        { id: "user-theme", name: "User theme" },
+      ],
+      getThemeMetadata: () => null,
+      ensureUserThemesDir: () => null,
+    },
+  });
+
+  assert.deepStrictEqual(
+    await harness.ipcMain.invoke("settings:list-themes"),
+    [
+      { id: "renmi", name: "Renmiao", active: true },
+      { id: "user-theme", name: "User theme", active: false },
+    ],
+  );
+  assert.deepStrictEqual(
+    await harness.ipcMain.invoke("settings:command", {
+      action: "setThemeSelection",
+      payload: { themeId: "clawd" },
+    }),
+    { status: "error", message: 'theme "clawd" is unavailable in the Renmiao profile' },
+  );
+  assert.deepStrictEqual(
+    await harness.ipcMain.invoke("settings:update", { key: "theme", value: "calico" }),
+    { status: "error", message: 'theme "calico" is unavailable in the Renmiao profile' },
+  );
+  assert.deepStrictEqual(harness.calls, []);
+  harness.runtime.dispose();
 });
 
 test("settings IPC opens the tutorial from Settings", async () => {

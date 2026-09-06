@@ -7,6 +7,7 @@
 const { defaultState, sanitizeState } = require("./study-runtime");
 
 const PROFILE_VERSION = 1;
+const ADMIN_DEFAULT_POINTS_TOTAL = 99999;
 const MAX_TASKS = 500;
 const MAX_SUBTASKS = 100;
 const MAX_HISTORY = 2000;
@@ -36,6 +37,12 @@ function defaultProfile() {
     pet: defaultPet(),
     study: defaultState(),
   };
+}
+
+function defaultAdminProfile() {
+  const profile = defaultProfile();
+  profile.study.points.total = ADMIN_DEFAULT_POINTS_TOTAL;
+  return profile;
 }
 
 function safeId(value, fallback) {
@@ -158,8 +165,10 @@ function profileSummary(raw) {
 
 module.exports = {
   PROFILE_VERSION,
+  ADMIN_DEFAULT_POINTS_TOTAL,
   MAX_PROFILE_BYTES,
   defaultProfile,
+  defaultAdminProfile,
   sanitizeProfile,
   profileFromRow,
   profileUpdatedAt,

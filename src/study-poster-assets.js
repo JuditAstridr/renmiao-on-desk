@@ -197,7 +197,7 @@ function createStudyPosterAssets(options = {}) {
     if (!frames) return null;
     return {
       id: theme._id || "renmi",
-      name: theme.name || theme._id || "Renmi",
+      name: theme.name || theme._id || "Renmiao",
       active: true,
       frames,
       tint: activeTint(theme),

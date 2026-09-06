@@ -928,6 +928,7 @@ codexPetMain = createCodexPetMain({
 });
 const REGISTER_PROTOCOL_DEV_ARG = codexPetMain.REGISTER_PROTOCOL_DEV_ARG;
 const DEFAULT_THEME_ID = isRenmiProfile ? "renmi" : "clawd";
+const RENMIAO_HIDDEN_THEME_IDS = new Set(["calico", "clawd"]);
 // Lenient load so a missing/corrupt user-selected theme can't brick boot.
 // If lenient fell back to the profile default OR the variant fell back to "default",
 // hydrate prefs to match so the store stays truth.
@@ -937,6 +938,13 @@ const DEFAULT_THEME_ID = isRenmiProfile ? "renmi" : "clawd";
 // setThemeSelection command (which goes through activateTheme). The runtime
 // switch path via UI goes through setThemeSelection post-window-ready.
 let _requestedThemeId = _settingsController.get("theme") || DEFAULT_THEME_ID;
+if (isRenmiProfile && RENMIAO_HIDDEN_THEME_IDS.has(_requestedThemeId)) {
+  _requestedThemeId = DEFAULT_THEME_ID;
+  const result = _settingsController.hydrate({ theme: _requestedThemeId });
+  if (result && result.status === "error") {
+    console.warn("Renmiao: hidden legacy theme fallback could not be persisted:", result.message);
+  }
+}
 const _initialVariantMap = _settingsController.get("themeVariant") || {};
 let _requestedVariantId = _initialVariantMap[_requestedThemeId] || "default";
 const _initialThemeOverrides = _settingsController.get("themeOverrides") || {};
@@ -2430,7 +2438,7 @@ async function pullAccountProfileIfNeeded() {
 }
 
 async function hydrateAccountProfileForUser(user) {
-  if (!user || user.role !== "user" || !authRuntime) return;
+  if (!user || !["user", "admin"].includes(user.role) || !authRuntime) return;
   const remote = await authRuntime.getProfile();
   const cache = readAccountProfileCache();
   const localStudy = _studyRuntime.getSnapshot();
@@ -2453,7 +2461,7 @@ async function hydrateAccountProfileForUser(user) {
 }
 
 async function deactivateAccountProfile(user) {
-  if (!user || user.role !== "user" || activeAccountProfileId !== user.id) return;
+  if (!user || !["user", "admin"].includes(user.role) || activeAccountProfileId !== user.id) return;
   await saveAccountProfile({ force: true });
   activeAccountProfileId = "";
   activeAccountProfileUpdatedAt = "";
@@ -5667,7 +5675,7 @@ if (!gotTheLock) {
         getMainWindows: () => [win, hitWin],
         setMainWindowsVisible,
         onAuthenticated: async (user) => {
-          if (user && user.role === "user") await hydrateAccountProfileForUser(user);
+          if (user && ["user", "admin"].includes(user.role)) await hydrateAccountProfileForUser(user);
           rebuildAllMenus();
         },
         onBeforeLoggedOut: (user) => deactivateAccountProfile(user),

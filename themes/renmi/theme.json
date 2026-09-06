@@ -1,6 +1,7 @@
 {
   "schemaVersion": 1,
-  "name": "Renmi",
+  "name": "Renmiao",
+  "preview": "renmiao-preview.png",
   "author": "renmi-on-desk",
   "version": "1.0.0",
   "description": "A clean white sitting cat with a curled tail.",
