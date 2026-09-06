@@ -98,10 +98,12 @@ test("settings preload exposes the embedded Study Companion bridge", async () =>
   const studyAPI = exposed.get("studyAPI");
   await studyAPI.getSnapshot();
   await studyAPI.addTask({ title: "Focus" });
+  await studyAPI.startDailyGoal({ id: "goal-1", date: "2026-09-06", name: "学习", minutes: 25 });
   await studyAPI.pomodoroCommand("start");
   assert.deepStrictEqual(invokes, [
     ["study:get-snapshot"],
     ["study:add-task", { title: "Focus" }],
+    ["study:start-daily-goal", { id: "goal-1", date: "2026-09-06", name: "学习", minutes: 25 }],
     ["study:pomodoro-command", "start"],
   ]);
 });
