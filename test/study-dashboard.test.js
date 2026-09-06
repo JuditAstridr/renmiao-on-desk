@@ -122,6 +122,11 @@ describe("Study Companion integration", () => {
     assert.match(renderer, /taskList\.appendChild\(empty\);\n    renderTodayTasks\(tasks\);\n    return;/);
   });
 
+  it("keeps the report content slightly narrower and centered", () => {
+    const html = read("src/study-dashboard.html");
+    assert.match(html, /#reportSection \{ width: calc\(100% - 24px\); max-width: 1120px; margin-left: auto; margin-right: auto;/);
+  });
+
   it("loads every Study browser script without a global lexical collision", () => {
     const scripts = ["src/study-calendar.js", "src/report-poster-renderer.js", "src/study-dashboard-renderer.js"]
       .map((file) => read(file)).join("\n");
