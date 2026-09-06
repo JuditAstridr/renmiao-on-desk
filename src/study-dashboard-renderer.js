@@ -887,9 +887,13 @@ function renderCalendarPanel(cell) {
   calendarPanel.replaceChildren();
   const title = document.createElement("h3"); title.textContent = new Date(cell.date).toLocaleDateString(i18nPayload.lang || undefined, { weekday: "long", month: "long", day: "numeric" }); calendarPanel.appendChild(title);
   const summary = document.createElement("div"); summary.className = "calendar-summary"; summary.textContent = `${cell.focusMinutes}m focus · ${cell.focusCount} ${label("studyReportFocusCount", "sessions")}`; calendarPanel.appendChild(summary);
-  const goalRow = document.createElement("div"); goalRow.className = "calendar-form";
+  const goalRow = document.createElement("form"); goalRow.className = "calendar-form";
   const goal = document.createElement("input"); goal.type = "number"; goal.min = "1"; goal.max = "1440"; goal.placeholder = label("studyCalendarGoalPlaceholder", "Daily goal (min)"); goal.value = snapshot.goals && snapshot.goals.overrides && snapshot.goals.overrides[localDateKey(cell.date)] || "";
-  const setGoal = document.createElement("button"); setGoal.type = "button"; setGoal.textContent = label("studyCalendarGoalSet", "Set goal"); setGoal.addEventListener("click", () => call("setDailyGoal", { date: cell.date, minutes: goal.value ? Number(goal.value) : null }));
+  const setGoal = document.createElement("button"); setGoal.type = "submit"; setGoal.className = "primary"; setGoal.textContent = label("studyCalendarGoalSet", "Set goal");
+  goalRow.addEventListener("submit", (event) => {
+    event.preventDefault();
+    call("setDailyGoal", { date: cell.date, minutes: goal.value ? Number(goal.value) : null });
+  });
   goalRow.append(goal, setGoal); calendarPanel.appendChild(goalRow);
   const taskTitle = document.createElement("div"); taskTitle.className = "report-card-title"; taskTitle.textContent = label("studyCalendarTasksDue", "Tasks due"); calendarPanel.appendChild(taskTitle);
   const taskListEl = document.createElement("div"); taskListEl.className = "calendar-list";

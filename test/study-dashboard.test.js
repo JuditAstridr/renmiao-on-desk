@@ -53,6 +53,14 @@ describe("Study Companion integration", () => {
     assert.match(preload, /setDailyGoal/);
   });
 
+  it("submits calendar day goals through a real form", () => {
+    const renderer = read("src/study-dashboard-renderer.js");
+    assert.match(renderer, /const goalRow = document\.createElement\("form"\)/);
+    assert.match(renderer, /goalRow\.addEventListener\("submit"/);
+    assert.match(renderer, /event\.preventDefault\(\)/);
+    assert.match(renderer, /call\("setDailyGoal", \{ date: cell\.date/);
+  });
+
   it("loads every Study browser script without a global lexical collision", () => {
     const scripts = ["src/study-calendar.js", "src/report-poster-renderer.js", "src/study-dashboard-renderer.js"]
       .map((file) => read(file)).join("\n");
