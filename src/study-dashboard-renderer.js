@@ -500,8 +500,18 @@ function renderTasks() {
 function renderTodayTasks(tasks) {
   const today = localDateKey(Date.now());
   const dueToday = tasks.filter((task) => task && task.deadline && localDateKey(task.deadline) === today);
-  const goals = (snapshot.goals && Array.isArray(snapshot.goals.items) ? snapshot.goals.items : [])
+  const goalState = snapshot.goals || {};
+  const goals = (Array.isArray(goalState.items) ? goalState.items : [])
     .filter((goal) => goal && goal.date === today);
+  const legacyMinutes = goalState.overrides && goalState.overrides[today] || goalState.defaultMinutes;
+  if (!goals.length && Number.isInteger(Number(legacyMinutes)) && Number(legacyMinutes) > 0) {
+    goals.push({
+      id: `legacy:${today}`, date: today,
+      name: goalState.overrideNames && goalState.overrideNames[today] || goalState.defaultName || label("studyCalendarGoalDefaultName", "Daily goal"),
+      description: goalState.overrideDescriptions && goalState.overrideDescriptions[today] || goalState.defaultDescription || "",
+      minutes: Number(legacyMinutes),
+    });
+  }
   if (!dueToday.length && !goals.length) return;
   const section = document.createElement("section"); section.className = "today-tasks";
   const heading = document.createElement("div"); heading.className = "today-tasks-heading";

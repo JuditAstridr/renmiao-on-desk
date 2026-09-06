@@ -92,9 +92,17 @@ describe("Study Companion integration", () => {
 
   it("syncs persisted calendar goals into the task page", () => {
     const renderer = read("src/study-dashboard-renderer.js");
-    assert.match(renderer, /snapshot\.goals[\s\S]*goals\.items/);
+    assert.match(renderer, /goalState = snapshot\.goals/);
+    assert.match(renderer, /Array\.isArray\(goalState\.items\)/);
     assert.match(renderer, /goal\.date === today/);
     assert.match(renderer, /today-goal-card/);
+  });
+
+  it("syncs legacy calendar goals into the task page too", () => {
+    const renderer = read("src/study-dashboard-renderer.js");
+    assert.match(renderer, /goalState\.overrides/);
+    assert.match(renderer, /goalState\.defaultMinutes/);
+    assert.match(renderer, /legacy:\$\{today\}/);
   });
 
   it("loads every Study browser script without a global lexical collision", () => {
