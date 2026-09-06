@@ -514,7 +514,9 @@ function renderTodayTasks(tasks) {
       minutes: Number(legacyMinutes),
     });
   }
-  if (!dueToday.length && !goals.length) return;
+  const taskIds = new Set(tasks.map((task) => task && task.id).filter(Boolean));
+  const visibleGoals = goals.filter((goal) => !taskIds.has(`daily-goal:${goal.id}`));
+  if (!dueToday.length && !visibleGoals.length) return;
   const section = document.createElement("section"); section.className = "today-tasks";
   const heading = document.createElement("div"); heading.className = "today-tasks-heading";
   const title = document.createElement("strong"); title.textContent = label("studyTodayTasks", "Today’s tasks");
@@ -523,7 +525,7 @@ function renderTodayTasks(tasks) {
   const tag = document.createElement("span"); tag.className = "today-tasks-tag"; tag.textContent = label("studyTodayTaskTag", "Today task"); section.appendChild(tag);
   const list = document.createElement("div"); list.className = "today-tasks-list";
   for (const task of dueToday) list.appendChild(createTaskCard(task));
-  for (const goal of goals) {
+  for (const goal of visibleGoals) {
     const card = document.createElement("article"); card.className = "today-goal-card";
     const title = document.createElement("strong"); title.textContent = goal.name || label("studyCalendarGoalDefaultName", "Daily goal");
     const duration = document.createElement("span"); duration.textContent = `${Number(goal.minutes) || 0}m`;

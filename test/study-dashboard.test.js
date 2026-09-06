@@ -98,6 +98,8 @@ describe("Study Companion integration", () => {
     assert.match(renderer, /Array\.isArray\(goalState\.items\)/);
     assert.match(renderer, /goal\.date === today/);
     assert.match(renderer, /today-goal-card/);
+    assert.match(renderer, /daily-goal:\$\{goal\.id\}/);
+    assert.match(renderer, /visibleGoals = goals\.filter/);
   });
 
   it("syncs legacy calendar goals into the task page too", () => {
