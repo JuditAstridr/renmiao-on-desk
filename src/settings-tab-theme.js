@@ -318,7 +318,10 @@
     }
     if (caps.accessories === true) {
       section.appendChild(buildThemeAccessoryRow(theme));
-      section.appendChild(buildHolidayAccessoryRow(theme));
+      // Renmiao uses an account-unlocked wardrobe selected by the user. Keep
+      // the legacy seasonal switch available to Clawd, but do not expose it
+      // for Renmiao.
+      if (theme.id !== "renmi") section.appendChild(buildHolidayAccessoryRow(theme));
     }
     parent.appendChild(section);
   }

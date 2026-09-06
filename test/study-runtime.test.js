@@ -62,6 +62,19 @@ describe("study runtime", () => {
     assert.equal(snapshot.goals.overrides["not-a-date"], undefined);
   });
 
+  it("persists a daily goal submitted with the calendar timestamp", () => {
+    const { runtime } = createRuntime({ now: () => new Date(2026, 8, 2, 12).getTime() });
+    const snapshot = runtime.addDailyGoal({ date: new Date(2026, 8, 2).getTime(), name: "Hackathon", description: "完成原型", minutes: 90 });
+    assert.equal(snapshot.goals.items.length, 1);
+    assert.deepEqual(snapshot.goals.items[0], {
+      id: snapshot.goals.items[0].id,
+      date: "2026-09-02",
+      name: "Hackathon",
+      description: "完成原型",
+      minutes: 90,
+    });
+  });
+
   it("completes subtasks in order and then auto-completes the parent task", () => {
     const { runtime } = createRuntime({ now: () => 1000 });
     let snapshot = runtime.addTask({ title: "Project" });

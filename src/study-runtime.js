@@ -1022,7 +1022,9 @@ function createStudyRuntime(options = {}) {
 
     addDailyGoal(payload) {
       const input = payload && typeof payload === "object" ? payload : {};
-      const date = typeof input.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(input.date) ? input.date : null;
+      const date = typeof input.date === "string"
+        ? (/^\d{4}-\d{2}-\d{2}$/.test(input.date) ? input.date : null)
+        : (Number.isFinite(Number(input.date)) && Number(input.date) > 0 ? localDayKey(Number(input.date)) : null);
       const minutes = Number(input.minutes);
       if (!date || !Number.isInteger(minutes) || minutes <= 0 || minutes > 1440) return snapshot();
       state.goals.items.push({

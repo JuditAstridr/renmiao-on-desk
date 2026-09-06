@@ -219,9 +219,21 @@ describe("pet customization catalog", () => {
       ]
     );
     assert.strictEqual(resolvePetAccessoryPayload("renmi-ruc", renmi).id, "none");
-    assert.strictEqual(resolvePetAccessoryPayload("renmi-ruc", renmi, { pointsTotal: 60 }).id, "renmi-ruc");
+    assert.deepStrictEqual(
+      resolvePetAccessoryPayload("renmi-ruc", renmi, { pointsTotal: 60 }),
+      {
+        id: "renmi-ruc",
+        assetFile: "renmi-ruc.svg",
+        aspect: 160 / 120,
+        widthScale: 2,
+        offsetY: 0,
+      }
+    );
     assert.strictEqual(resolvePetAccessoryPayload("renmi-1937", renmi, { pointsTotal: 519 }).id, "none");
-    assert.strictEqual(resolvePetAccessoryPayload("renmi-1937", renmi, { pointsTotal: 520 }).id, "renmi-1937");
+    assert.strictEqual(
+      resolvePetAccessoryPayload("renmi-1937", renmi, { pointsTotal: 520 }).widthScale,
+      2
+    );
   });
 
   it("keeps accessory assets and geometry inside a narrow local grammar", () => {

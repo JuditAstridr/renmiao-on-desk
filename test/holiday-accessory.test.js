@@ -122,6 +122,17 @@ describe("holiday accessory date rules", () => {
     }), "pumpkin-hat");
   });
 
+  it("does not apply legacy holiday dressing to Renmiao", () => {
+    assert.strictEqual(isHolidayAccessoryEnabledForTheme({ renmi: true }, "renmi"), false);
+    assert.strictEqual(getEffectivePetAccessoryIdForTheme({
+      petAccessory: { renmi: "renmi-ruc" },
+      holidayAccessoryEnabled: { renmi: true },
+      themeId: "renmi",
+      pointsTotal: 60,
+      date: localDate(12, 24),
+    }), "renmi-ruc");
+  });
+
   it("refreshes no later than the next local midnight or one hour", () => {
     const nearMidnight = new Date(2026, 9, 27, 23, 59, 30, 0);
     assert.strictEqual(getNextHolidayRefreshDelay(nearMidnight), 31_000);

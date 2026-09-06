@@ -13,6 +13,7 @@ const {
 
 const MAX_REFRESH_INTERVAL_MS = 60 * 60 * 1000;
 const MIN_REFRESH_DELAY_MS = 1000;
+const HOLIDAY_ACCESSORY_DISABLED_THEME_IDS = new Set(["renmi"]);
 
 function freezeWindow({ id, accessoryId, ranges }) {
   return Object.freeze({
@@ -54,6 +55,7 @@ function getHolidayAccessoryForDate(date = new Date()) {
 function isHolidayAccessoryEnabledForTheme(selections, themeId) {
   if (!selections || typeof selections !== "object" || Array.isArray(selections)) return false;
   if (typeof themeId !== "string" || !themeId) return false;
+  if (HOLIDAY_ACCESSORY_DISABLED_THEME_IDS.has(themeId)) return false;
   return selections[themeId] === true;
 }
 

@@ -77,7 +77,10 @@ const THEME_PET_ACCESSORY_CATALOG = Object.freeze({
       labelKey: "accessoryRenmiRuc",
       file: "renmi-ruc.svg",
       viewBox: { x: 0, y: 0, width: 160, height: 120 },
-      widthScale: 1,
+      // The badge art occupies only part of its 160x120 viewBox. This
+      // theme-relative scale makes the visible badge about twice as large
+      // while remaining proportional to the pet at every window size.
+      widthScale: 2,
       offsetY: 0,
       unlockPoints: 60,
     }),
@@ -86,7 +89,7 @@ const THEME_PET_ACCESSORY_CATALOG = Object.freeze({
       labelKey: "accessoryRenmiRenmi",
       file: "renmi-renmi.svg",
       viewBox: { x: 0, y: 0, width: 160, height: 120 },
-      widthScale: 1,
+      widthScale: 2,
       offsetY: 0,
       unlockPoints: 180,
     }),
@@ -95,7 +98,7 @@ const THEME_PET_ACCESSORY_CATALOG = Object.freeze({
       labelKey: "accessoryRenmi1937",
       file: "renmi-1937.svg",
       viewBox: { x: 0, y: 0, width: 160, height: 120 },
-      widthScale: 1,
+      widthScale: 2,
       offsetY: 0,
       unlockPoints: 520,
     }),
