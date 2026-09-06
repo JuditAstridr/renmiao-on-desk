@@ -2,8 +2,8 @@
   <g transform="translate(80 60)">
     <ellipse cx="0" cy="0" rx="43" ry="43" fill="#5f4438"/>
     <ellipse cx="0" cy="0" rx="38" ry="38" fill="#fffaf3"/>
-    <ellipse cx="0" cy="0" rx="34" ry="34" fill="#c84e61" stroke="#8f3548" stroke-width="3"/>
-    <path d="M-15-22h30M-16 21h32" fill="none" stroke="#ffe8c9" stroke-width="3" stroke-linecap="round"/>
-    <path d="M-25 10V-10h8c4 0 6 2 6 5s-2 5-6 5h-8M-17 0l7 10M-7-10V3c0 5 3 7 7 7s7-2 7-7v-13M25-7c-2-3-4-4-7-4-5 0-8 4-8 11s3 10 8 10c3 0 5-1 7-4" fill="none" stroke="#fffaf3" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>
+    <ellipse cx="0" cy="0" rx="33" ry="33" fill="#b84f5d" stroke="#5f4438" stroke-width="3"/>
+    <path d="M-14-21h28M-15 20h30" fill="none" stroke="#ffe8c9" stroke-width="3" stroke-linecap="round"/>
+    <path d="M-24 10V-10h8c4 0 6 2 6 5s-2 5-6 5h-8M-16 0l7 10M-6-10V3c0 5 3 7 7 7s7-2 7-7v-13M25-7c-2-3-4-4-7-4-5 0-8 4-8 11s3 10 8 10c3 0 5-1 7-4" fill="none" stroke="#fffaf3" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
   </g>
 </svg>
