@@ -30,6 +30,7 @@ function emptyCell(date, today) {
     goal: null,
     goalName: "",
     goalDescription: "",
+    goals: [],
     goalSet: false,
     goalMet: false,
     tasks: [],
@@ -89,6 +90,7 @@ function buildMonthGrid(data = {}) {
     ? Number(goals.defaultMinutes) : null;
   const defaultGoalName = typeof goals.defaultName === "string" ? goals.defaultName : "";
   const defaultGoalDescription = typeof goals.defaultDescription === "string" ? goals.defaultDescription : "";
+  const goalItems = Array.isArray(goals.items) ? goals.items : [];
   const cells = [];
   for (let index = 0; index < leading; index += 1) {
     const cell = emptyCell(first - (leading - index) * MS_DAY, today);
@@ -121,6 +123,15 @@ function buildMonthGrid(data = {}) {
     const key = dateKey(date);
     cell.goalName = cell.goal !== null ? (goals.overrideNames && goals.overrideNames[key] || defaultGoalName) : "";
     cell.goalDescription = cell.goal !== null ? (goals.overrideDescriptions && goals.overrideDescriptions[key] || defaultGoalDescription) : "";
+    cell.goals = goalItems.filter((item) => item && item.date === key).map((item) => ({
+      id: item.id, name: typeof item.name === "string" ? item.name : "", description: typeof item.description === "string" ? item.description : "", minutes: Number(item.minutes) || 0,
+    }));
+    if (cell.goals.length) {
+      cell.goalSet = true;
+      cell.goal = cell.goals.reduce((total, item) => total + item.minutes, 0);
+      cell.goalName = cell.goals.length === 1 ? cell.goals[0].name : `${cell.goals.length} goals`;
+      cell.goalDescription = cell.goals.length === 1 ? cell.goals[0].description : "";
+    }
     cell.goalMet = cell.goalSet && cell.focusMinutes >= cell.goal;
     focusMinutes += cell.focusMinutes;
     focusCount += cell.focusCount;

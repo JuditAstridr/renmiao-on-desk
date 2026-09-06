@@ -48,7 +48,7 @@ function defaultPoints() {
 }
 
 function defaultGoals() {
-  return { defaultMinutes: null, defaultName: "", defaultDescription: "", overrides: {}, overrideNames: {}, overrideDescriptions: {} };
+  return { defaultMinutes: null, defaultName: "", defaultDescription: "", overrides: {}, overrideNames: {}, overrideDescriptions: {}, items: [] };
 }
 
 function sanitizePoints(raw) {
@@ -104,6 +104,15 @@ function sanitizeGoals(raw) {
   }
   for (const [key, value] of Object.entries(raw.overrideDescriptions || {})) {
     if (/^\d{4}-\d{2}-\d{2}$/.test(key)) out.overrideDescriptions[key] = cleanText(value, 500);
+  }
+  if (Array.isArray(raw.items)) {
+    out.items = raw.items.flatMap((item) => {
+      if (!item || typeof item !== "object" || typeof item.id !== "string" || !item.id) return [];
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(item.date)) return [];
+      const minutes = Number(item.minutes);
+      if (!Number.isInteger(minutes) || minutes <= 0 || minutes > 1440) return [];
+      return [{ id: item.id.slice(0, 80), date: item.date, name: cleanText(item.name, 120), description: cleanText(item.description, 500), minutes }];
+    });
   }
   return out;
 }
@@ -1007,6 +1016,26 @@ function createStudyRuntime(options = {}) {
         state.goals.defaultName = name;
         state.goals.defaultDescription = description;
       }
+      persistNow();
+      return snapshot();
+    },
+
+    addDailyGoal(payload) {
+      const input = payload && typeof payload === "object" ? payload : {};
+      const date = typeof input.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(input.date) ? input.date : null;
+      const minutes = Number(input.minutes);
+      if (!date || !Number.isInteger(minutes) || minutes <= 0 || minutes > 1440) return snapshot();
+      state.goals.items.push({
+        id: makeId(now), date, name: cleanText(input.name, 120),
+        description: cleanText(input.description, 500), minutes,
+      });
+      persistNow();
+      return snapshot();
+    },
+
+    removeDailyGoal(id) {
+      if (typeof id !== "string" || !id) return snapshot();
+      state.goals.items = state.goals.items.filter((item) => item.id !== id);
       persistNow();
       return snapshot();
     },

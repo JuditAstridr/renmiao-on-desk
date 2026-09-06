@@ -58,7 +58,7 @@ describe("Study Companion integration", () => {
     assert.match(renderer, /const goalRow = document\.createElement\("form"\)/);
     assert.match(renderer, /goalRow\.addEventListener\("submit"/);
     assert.match(renderer, /event\.preventDefault\(\)/);
-    assert.match(renderer, /call\("setDailyGoal", \{ date: cell\.date/);
+    assert.match(renderer, /call\("addDailyGoal", \{ date: cell\.date/);
   });
 
   it("does not rebuild an unchanged calendar during snapshot broadcasts", () => {

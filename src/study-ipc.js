@@ -112,6 +112,8 @@ function registerStudyIpc(options = {}) {
   handle("study:toggle-schedule", (_event, id) => mutate("toggleSchedule", typeof id === "string" ? id : ""));
   handle("study:remove-schedule", (_event, id) => mutate("removeSchedule", typeof id === "string" ? id : ""));
   handle("study:set-daily-goal", (_event, payload) => mutate("setDailyGoal", payload));
+  handle("study:add-daily-goal", (_event, payload) => mutate("addDailyGoal", payload));
+  handle("study:remove-daily-goal", (_event, id) => mutate("removeDailyGoal", typeof id === "string" ? id : ""));
   handle("study:pomodoro-command", (_event, command) => mutate(
     "pomodoroCommand",
     typeof command === "string" ? command : "",
