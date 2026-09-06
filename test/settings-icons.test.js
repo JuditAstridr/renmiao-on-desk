@@ -22,6 +22,7 @@ function loadIcons() {
 // these must resolve to a real icon, not the placeholder fallback.
 const SIDEBAR_TAB_IDS = [
   "general",
+  "study",
   "theme",
   "ambient",
   "animOverrides",

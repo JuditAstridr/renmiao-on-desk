@@ -22,7 +22,7 @@ test("SSH Hosts is removed from the Settings surface", () => {
 
 test("other Settings tabs remain registered after removing SSH Hosts", () => {
   const renderer = fs.readFileSync(path.join(SRC_DIR, "settings-renderer.js"), "utf8");
-  for (const id of ["general", "theme", "animOverrides", "shortcuts", "about"]) {
+  for (const id of ["general", "study", "theme", "animOverrides", "shortcuts", "about"]) {
     assert.match(renderer, new RegExp(`id: "${id}"`));
   }
 });
