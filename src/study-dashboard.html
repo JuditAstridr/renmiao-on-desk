@@ -199,6 +199,10 @@ h1 { margin: 0; font-size: 20px; line-height: 1.2; }
 .today-tasks-heading strong { color: var(--text); }
 .today-tasks-tag { display: inline-block; margin-top: 7px; padding: 3px 7px; border-radius: 999px; background: var(--accent); color: #fff; font-size: 10px; }
 .today-tasks-list { display: grid; gap: 8px; margin-top: 8px; }
+.today-goal-card { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 5px 10px; padding: 9px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-alt); }
+.today-goal-card strong { color: var(--text); }
+.today-goal-card span, .today-goal-card time, .today-goal-card div { color: var(--muted); font-size: 11px; }
+.today-goal-card div { grid-column: 1 / -1; }
 .calendar-goal-info { margin-top: 8px; color: var(--muted); font-size: 11px; }
 .calendar-goal-info strong { display: block; color: var(--text); }
 .calendar-goal-list { display: grid; gap: 5px; margin-top: 8px; }

@@ -477,7 +477,7 @@ function renderTasks() {
   renderViewControls();
   const pomodoro = snapshot.pomodoro || {};
   const timerKey = `${pomodoro.phase || "idle"}|${pomodoro.taskId || ""}|${pomodoro.running === true}`;
-  const key = `${taskKey(tasks)}|${view.sortBy}|${view.groupBy}|${timerKey}`;
+  const key = `${taskKey(tasks)}|${JSON.stringify(snapshot.goals || {})}|${view.sortBy}|${view.groupBy}|${timerKey}`;
   if (key === lastTaskKey) return;
   lastTaskKey = key;
   taskList.replaceChildren();
@@ -500,7 +500,9 @@ function renderTasks() {
 function renderTodayTasks(tasks) {
   const today = localDateKey(Date.now());
   const dueToday = tasks.filter((task) => task && task.deadline && localDateKey(task.deadline) === today);
-  if (!dueToday.length) return;
+  const goals = (snapshot.goals && Array.isArray(snapshot.goals.items) ? snapshot.goals.items : [])
+    .filter((goal) => goal && goal.date === today);
+  if (!dueToday.length && !goals.length) return;
   const section = document.createElement("section"); section.className = "today-tasks";
   const heading = document.createElement("div"); heading.className = "today-tasks-heading";
   const title = document.createElement("strong"); title.textContent = label("studyTodayTasks", "Today’s tasks");
@@ -509,6 +511,14 @@ function renderTodayTasks(tasks) {
   const tag = document.createElement("span"); tag.className = "today-tasks-tag"; tag.textContent = label("studyTodayTaskTag", "Today task"); section.appendChild(tag);
   const list = document.createElement("div"); list.className = "today-tasks-list";
   for (const task of dueToday) list.appendChild(createTaskCard(task));
+  for (const goal of goals) {
+    const card = document.createElement("article"); card.className = "today-goal-card";
+    const title = document.createElement("strong"); title.textContent = goal.name || label("studyCalendarGoalDefaultName", "Daily goal");
+    const duration = document.createElement("span"); duration.textContent = `${Number(goal.minutes) || 0}m`;
+    const description = document.createElement("div"); description.textContent = goal.description || "";
+    const date = document.createElement("time"); date.dateTime = goal.date; date.textContent = new Date(`${goal.date}T00:00:00`).toLocaleDateString(i18nPayload.lang || undefined, { year: "numeric", month: "long", day: "numeric" });
+    card.append(title, duration, date, description); list.appendChild(card);
+  }
   section.appendChild(list); taskList.appendChild(section);
 }
 
