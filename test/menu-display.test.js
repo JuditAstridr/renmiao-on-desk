@@ -405,7 +405,7 @@ describe("menu taskbar recovery", () => {
 });
 
 describe("menu dashboard action", () => {
-  it("does not add an Open Dashboard item to the context menu", () => {
+  it("labels the context-menu settings action Dashboard without changing its handler", () => {
     const fakeElectron = {
       app: { quit: () => {}, setActivationPolicy: () => {}, dock: { show: () => {}, hide: () => {} } },
       BrowserWindow: function BrowserWindow() {},
@@ -432,21 +432,25 @@ describe("menu dashboard action", () => {
     const initMenu = loadMenuWithElectron(fakeElectron);
 
     let called = 0;
+    let settingsCalled = 0;
     const ctx = buildBaseCtx({
       openDashboard: () => { called += 1; },
+      openSettingsWindow: () => { settingsCalled += 1; },
     });
 
     const menu = initMenu(ctx);
     menu.buildContextMenu();
 
-    const openDashboard = ctx.contextMenu.template.find((item) => item.label === "Open Dashboard");
-    assert.strictEqual(openDashboard, undefined, "context menu should not expose dashboard entry");
+    const dashboard = ctx.contextMenu.template.find((item) => item.label === "Dashboard");
+    assert.ok(dashboard, "context menu should label the settings action Dashboard");
+    dashboard.click();
+    assert.strictEqual(settingsCalled, 1, "Dashboard should keep opening Settings");
     const openStudy = ctx.contextMenu.template.find((item) => item.label === "Open Study Companion");
     assert.strictEqual(openStudy, undefined, "context menu should not expose Study Companion entry");
     assert.strictEqual(called, 0);
   });
 
-  it("does not add an Open Dashboard item to the tray menu", () => {
+  it("keeps the tray settings label and handler unchanged", () => {
     const fakeElectron = {
       app: { quit: () => {}, setActivationPolicy: () => {}, dock: { show: () => {}, hide: () => {} } },
       BrowserWindow: function BrowserWindow() {},
@@ -477,15 +481,19 @@ describe("menu dashboard action", () => {
     const initMenu = loadMenuWithElectron(fakeElectron);
 
     let called = 0;
+    let settingsCalled = 0;
     const ctx = buildBaseCtx({
       openDashboard: () => { called += 1; },
+      openSettingsWindow: () => { settingsCalled += 1; },
     });
 
     const menu = initMenu(ctx);
     menu.createTray();
 
-    const openDashboard = ctx.tray.contextMenu.template.find((item) => item.label === "Open Dashboard");
-    assert.strictEqual(openDashboard, undefined, "tray menu should not expose dashboard entry");
+    const settings = ctx.tray.contextMenu.template.find((item) => item.label === "Settings…");
+    assert.ok(settings, "tray menu should keep the Settings label");
+    settings.click();
+    assert.strictEqual(settingsCalled, 1, "tray Settings should keep opening Settings");
     assert.strictEqual(called, 0);
   });
 });

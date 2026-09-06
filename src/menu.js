@@ -394,7 +394,7 @@ module.exports = function initMenu(ctx) {
 
   const appGroup = [
     {
-      label: t("settings"),
+      label: "Dashboard",
       click: () => ctx.openSettingsWindow(),
     },
   ];
