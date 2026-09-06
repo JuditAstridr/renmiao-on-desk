@@ -2746,8 +2746,10 @@ showDashboard = _dashboard.showDashboard;
 broadcastDashboardSessionSnapshot = _dashboard.broadcastSessionSnapshot;
 sendDashboardI18n = _dashboard.sendI18n;
 
-// Study has its own window so the established Sessions Dashboard and its
-// session IPC contract remain unchanged.
+// Study keeps its own standalone window for the tray entry, while Settings can
+// also host the same page inline. Both consumers receive the same snapshots
+// and language broadcasts; the established Sessions Dashboard contract stays
+// separate.
 const _studyWindow = createStudyWindowRuntime({
   t: (key) => translate(key),
   getStudySnapshot: () => _studyRuntime.getSnapshot(),
@@ -2761,15 +2763,37 @@ const _studyWindow = createStudyWindowRuntime({
 });
 studyWindowRuntime = _studyWindow;
 showStudyDashboard = _studyWindow.showStudyDashboard;
-broadcastStudySnapshot = _studyWindow.broadcastStudySnapshot;
+
+function sendStudySnapshotToSettings(snapshot) {
+  const settings = settingsWindowRuntime.getWindow();
+  const webContents = settings && settings.webContents;
+  if (!webContents || (typeof webContents.isDestroyed === "function" && webContents.isDestroyed())) return;
+  try { webContents.send("study:dashboard-snapshot", snapshot || _studyRuntime.getSnapshot()); } catch {}
+}
+
+function broadcastStudySnapshotToWindows(snapshot) {
+  _studyWindow.broadcastStudySnapshot(snapshot);
+  sendStudySnapshotToSettings(snapshot);
+}
+
+function sendStudyI18nToWindows() {
+  _studyWindow.sendI18n();
+  const settings = settingsWindowRuntime.getWindow();
+  const webContents = settings && settings.webContents;
+  if (!webContents || (typeof webContents.isDestroyed === "function" && webContents.isDestroyed())) return;
+  try { webContents.send("study:lang-change", getDashboardI18nPayload()); } catch {}
+}
+
+broadcastStudySnapshot = broadcastStudySnapshotToWindows;
 studyIpcRuntime = registerStudyIpc({
   ipcMain,
   studyRuntime: _studyRuntime,
   getI18n: () => getDashboardI18nPayload(),
   posterAssets: _studyPosterAssets,
   getStudyWindow: () => _studyWindow.getWindow(),
-  broadcast: (snapshot) => _studyWindow.broadcastStudySnapshot(snapshot),
-  saveReportPoster: async (_event, payload) => {
+  getSettingsWindow: () => settingsWindowRuntime.getWindow(),
+  broadcast: (snapshot) => broadcastStudySnapshotToWindows(snapshot),
+  saveReportPoster: async (event, payload) => {
     const dataUrl = payload && typeof payload.dataUrl === "string" ? payload.dataUrl : "";
     const match = /^data:image\/png;base64,([A-Za-z0-9+/=]+)$/.exec(dataUrl);
     if (!match || match[1].length > 16 * 1024 * 1024) {
@@ -2778,7 +2802,9 @@ studyIpcRuntime = registerStudyIpc({
     const rawName = payload && typeof payload.suggestedName === "string"
       ? payload.suggestedName : "renmi-study-report.png";
     const suggestedName = rawName.replace(/[^a-zA-Z0-9._-]/g, "-").slice(0, 120) || "renmi-study-report.png";
-    const parent = _studyWindow.getWindow();
+    let parent = null;
+    try { parent = BrowserWindow.fromWebContents(event && event.sender); } catch {}
+    if (!parent) parent = _studyWindow.getWindow();
     const result = await dialog.showSaveDialog(parent, {
       defaultPath: suggestedName.endsWith(".png") ? suggestedName : `${suggestedName}.png`,
       filters: [{ name: "PNG image", extensions: ["png"] }],
@@ -4575,7 +4601,7 @@ const settingsEffectRouter = createSettingsEffectRouter({
   applyDockVisibility,
   sendToRenderer,
   sendDashboardI18n: () => sendDashboardI18n(),
-  sendStudyI18n: () => _studyWindow.sendI18n(),
+  sendStudyI18n: () => sendStudyI18nToWindows(),
   sendSessionHudI18n: () => sendSessionHudI18n(),
   syncWindowTitles: () => {
     settingsWindowRuntime.applyTitleToWindow();

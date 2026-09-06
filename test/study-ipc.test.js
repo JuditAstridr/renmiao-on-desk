@@ -69,4 +69,26 @@ describe("study IPC boundary", () => {
     assert.deepEqual(await ipcMain.handlers.get("study:get-poster-font")({ sender: {} }), { status: "error", message: "untrusted-study-sender" });
     registration.dispose();
   });
+
+  it("accepts the trusted Settings window for an embedded Study page", async () => {
+    const ipcMain = makeIpcMain();
+    const studyWebContents = {};
+    const settingsWebContents = {};
+    const registration = registerStudyIpc({
+      ipcMain,
+      studyRuntime: { getSnapshot: () => ({ embedded: true }) },
+      getStudyWindow: () => ({ webContents: studyWebContents, isDestroyed: () => false }),
+      getSettingsWindow: () => ({ webContents: settingsWebContents, isDestroyed: () => false }),
+    });
+
+    assert.deepEqual(
+      await ipcMain.handlers.get("study:get-snapshot")({ sender: settingsWebContents }),
+      { embedded: true },
+    );
+    assert.deepEqual(
+      await ipcMain.handlers.get("study:get-snapshot")({ sender: {} }),
+      { status: "error", message: "untrusted-study-sender" },
+    );
+    registration.dispose();
+  });
 });

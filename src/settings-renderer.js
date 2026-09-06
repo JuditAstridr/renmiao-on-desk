@@ -7,7 +7,7 @@ const core = globalThis.ClawdSettingsCore;
 // system fonts and didn't dark-mode well.
 const SIDEBAR_TABS = [
   { id: "general", labelKey: "sidebarGeneral", available: true },
-  { id: "study", labelKey: "sidebarStudy", action: "openStudyDashboard", available: true },
+  { id: "study", labelKey: "sidebarStudy", action: "embeddedStudy", available: true },
   { id: "theme", labelKey: "sidebarTheme", available: true },
   { id: "ambient", labelKey: "sidebarAmbient", available: true },
   { id: "animOverrides", labelKey: "sidebarAnimOverrides", available: true },
@@ -36,20 +36,16 @@ function renderSidebar() {
     const item = document.createElement("div");
     item.className = "sidebar-item";
     if (!tab.available) item.classList.add("disabled");
-    if (!tab.action && tab.id === core.state.activeTab) item.classList.add("active");
+    if (tab.id === core.state.activeTab) item.classList.add("active");
     // Icon HTML is trusted (it comes from our own settings-icons.js
     // module, not user input), so we drop it in as-is.
     item.innerHTML =
       `<span class="sidebar-item-icon">${getTabIcon(tab.id)}</span>` +
       `<span class="sidebar-item-label">${core.helpers.escapeHtml(core.helpers.t(tab.labelKey))}</span>` +
       (tab.available ? "" : `<span class="sidebar-item-soon">${core.helpers.escapeHtml(core.helpers.t("sidebarSoon"))}</span>`);
-    if (tab.available && tab.action === "openStudyDashboard") {
+    if (tab.available && tab.action === "embeddedStudy") {
       item.addEventListener("click", () => {
-        if (window.settingsAPI && typeof window.settingsAPI.openStudyDashboard === "function") {
-          window.settingsAPI.openStudyDashboard();
-        } else {
-          console.warn("settings: openStudyDashboard API unavailable");
-        }
+        core.ops.selectTab(tab.id);
       });
     } else if (tab.available) {
       item.addEventListener("click", () => {
@@ -58,6 +54,15 @@ function renderSidebar() {
     }
     sidebar.appendChild(item);
   }
+}
+
+function renderStudyEmbedded(content) {
+  const frame = document.createElement("iframe");
+  frame.className = "study-settings-frame";
+  frame.title = core.helpers.t("sidebarStudy");
+  frame.src = "study-dashboard.html?embedded=1";
+  frame.setAttribute("loading", "eager");
+  content.appendChild(frame);
 }
 
 function renderPlaceholder(parent) {
@@ -74,6 +79,7 @@ function renderContent() {
   const content = document.getElementById("content");
   if (!content) return;
   core.ops.clearMountedControls();
+  content.classList.toggle("study-embedded", core.state.activeTab === "study");
   content.innerHTML = "";
   const tab = core.tabs[core.state.activeTab];
   if (tab && typeof tab.render === "function") {
@@ -82,6 +88,8 @@ function renderContent() {
     renderPlaceholder(content);
   }
 }
+
+core.tabs.study = { render: renderStudyEmbedded };
 
 core.ops.installRenderHooks({
   sidebar: renderSidebar,

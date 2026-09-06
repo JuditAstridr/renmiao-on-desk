@@ -92,3 +92,16 @@ test("settings preload exposes dedicated Kimi quota operations", async () => {
     ["settings:kimi-quota-forget"],
   ]);
 });
+
+test("settings preload exposes the embedded Study Companion bridge", async () => {
+  const { exposed, invokes } = loadPreload();
+  const studyAPI = exposed.get("studyAPI");
+  await studyAPI.getSnapshot();
+  await studyAPI.addTask({ title: "Focus" });
+  await studyAPI.pomodoroCommand("start");
+  assert.deepStrictEqual(invokes, [
+    ["study:get-snapshot"],
+    ["study:add-task", { title: "Focus" }],
+    ["study:pomodoro-command", "start"],
+  ]);
+});

@@ -18,6 +18,8 @@ describe("Study Companion integration", () => {
     assert.match(main, /registerStudyIpc/);
     assert.match(main, /openStudyDashboard/);
     assert.match(main, /showStudyDashboard: \(\) => showStudyDashboard\(\)/);
+    assert.match(main, /broadcastStudySnapshotToWindows/);
+    assert.match(main, /sendStudyI18nToWindows/);
     assert.match(main, /require\("\.\/dashboard"\)/);
     assert.match(ipc, /study:get-snapshot/);
     assert.match(ipc, /study:pomodoro-command/);
@@ -140,6 +142,7 @@ describe("Study Companion integration", () => {
     assert.match(renderer, /studyPosterCaption/);
     assert.match(ipc, /study:get-poster-active-pet/);
     assert.match(preload, /getPosterFont/);
+    assert.match(read("src/study-embedded-bridge.js"), /window\.parent\.studyAPI/);
     const poster = read("src/report-poster-renderer.js");
     assert.match(poster, /canvas\.width = W/);
     assert.match(poster, /canvas\.height = H/);

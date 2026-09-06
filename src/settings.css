@@ -184,6 +184,21 @@ html, body {
 .content::-webkit-scrollbar-thumb { background: var(--scroll-thumb); border-radius: 3px; }
 .content::-webkit-scrollbar-thumb:hover { background: var(--scroll-thumb-hover); }
 
+/* Study Companion uses its existing full-page renderer inside Settings. Keep
+   the iframe flush to the right pane so the dashboard owns its own toolbar,
+   scrolling, and responsive layout. */
+.content.study-embedded {
+  overflow: hidden;
+  padding: 0;
+}
+.study-settings-frame {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: var(--panel-bg);
+}
+
 .content h1 {
   margin: 0 0 4px;
   font-size: 22px;

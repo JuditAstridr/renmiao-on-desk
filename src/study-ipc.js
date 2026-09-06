@@ -1,8 +1,9 @@
 "use strict";
 
-// IPC boundary for the independent Study Companion window.  Keeping this
-// separate from session-ipc.js prevents study data from becoming part of the
-// established coding-agent dashboard contract.
+// IPC boundary for the Study Companion page. Keeping this separate from
+// session-ipc.js prevents study data from becoming part of the established
+// coding-agent dashboard contract. The page may be standalone or embedded in
+// the trusted Settings window.
 
 function requiredDependency(value, name) {
   if (!value) throw new Error(`registerStudyIpc requires ${name}`);
@@ -17,6 +18,9 @@ function registerStudyIpc(options = {}) {
   const getStudyWindow = typeof options.getStudyWindow === "function"
     ? options.getStudyWindow
     : () => null;
+  const getSettingsWindow = typeof options.getSettingsWindow === "function"
+    ? options.getSettingsWindow
+    : () => null;
   const posterAssets = options.posterAssets && typeof options.posterAssets === "object"
     ? options.posterAssets
     : null;
@@ -25,15 +29,13 @@ function registerStudyIpc(options = {}) {
     : null;
   const disposers = [];
 
+  function isWindowSender(window, event) {
+    if (!window || (typeof window.isDestroyed === "function" && window.isDestroyed())) return false;
+    return !!(window.webContents && event && event.sender === window.webContents);
+  }
+
   function allowedSender(event) {
-    const studyWindow = getStudyWindow();
-    return !!(
-      studyWindow
-      && !studyWindow.isDestroyed()
-      && studyWindow.webContents
-      && event
-      && event.sender === studyWindow.webContents
-    );
+    return isWindowSender(getStudyWindow(), event) || isWindowSender(getSettingsWindow(), event);
   }
 
   function handle(channel, listener) {
@@ -119,6 +121,7 @@ function registerStudyIpc(options = {}) {
     payload && typeof payload === "object" ? payload.id : "",
     payload && typeof payload === "object" ? payload.patch : null,
   ));
+  handle("study:start-daily-goal", (_event, payload) => mutate("startDailyGoal", payload));
   handle("study:pomodoro-command", (_event, command) => mutate(
     "pomodoroCommand",
     typeof command === "string" ? command : "",

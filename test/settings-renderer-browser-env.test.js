@@ -19,6 +19,7 @@ const SETTINGS_ANIM_OVERRIDES_MERGE = path.join(SRC_DIR, "settings-anim-override
 const SETTINGS_I18N = path.join(SRC_DIR, "settings-i18n.js");
 const SETTINGS_DOCTOR_MODAL = path.join(SRC_DIR, "settings-doctor-modal.js");
 const SETTINGS_ANIMATION_PREVIEW = path.join(SRC_DIR, "settings-animation-preview.html");
+const STUDY_DASHBOARD_HTML = path.join(SRC_DIR, "study-dashboard.html");
 const PRELOAD_SETTINGS = path.join(SRC_DIR, "preload-settings.js");
 const MAIN_PROCESS = path.join(SRC_DIR, "main.js");
 const SETTINGS_IPC = path.join(SRC_DIR, "settings-ipc.js");
@@ -1711,14 +1712,20 @@ describe("settings renderer browser environment", () => {
     assert.ok(!rendererSource.includes("ClawdSettingsTabDiscordPresence"));
   });
 
-  it("routes the Study Companion sidebar entry to the existing Study window", () => {
+  it("renders the Study Companion sidebar entry inside the Settings content pane", () => {
     const rendererSource = fs.readFileSync(SETTINGS_RENDERER, "utf8");
     const preloadSource = fs.readFileSync(PRELOAD_SETTINGS, "utf8");
+    const html = fs.readFileSync(SETTINGS_HTML, "utf8");
+    const studyHtml = fs.readFileSync(STUDY_DASHBOARD_HTML, "utf8");
 
     assert.ok(rendererSource.includes('{ id: "study", labelKey: "sidebarStudy"'));
-    assert.ok(rendererSource.includes('action: "openStudyDashboard"'));
-    assert.ok(rendererSource.includes("settingsAPI.openStudyDashboard"));
+    assert.ok(rendererSource.includes('action: "embeddedStudy"'));
+    assert.ok(rendererSource.includes('frame.src = "study-dashboard.html?embedded=1"'));
+    assert.ok(rendererSource.includes('core.tabs.study = { render: renderStudyEmbedded }'));
     assert.ok(preloadSource.includes('openStudyDashboard: () => ipcRenderer.send("settings:open-study-dashboard")'));
+    assert.ok(preloadSource.includes('contextBridge.exposeInMainWorld("studyAPI"'));
+    assert.ok(html.includes("frame-src 'self' file:"));
+    assert.ok(studyHtml.includes('<script src="./study-embedded-bridge.js"></script>'));
   });
 
   it("uses browser globals instead of CommonJS in settings renderer modules", () => {
@@ -3706,7 +3713,7 @@ describe("settings renderer browser environment", () => {
     assert.ok(!/\.session-hud-collapsible \.collapsible-group-summary\s*\{[^}]*flex-wrap:\s*nowrap;/.test(css));
     assert.ok(!/\.sound-collapsible \.collapsible-group-summary\s*\{[^}]*flex-wrap:\s*nowrap;/.test(css));
     assert.ok(/\.session-hud-summary-control\s*\{[\s\S]*grid-template-columns:\s*repeat\(3,\s*max-content\);/.test(css));
-    assert.ok(/\.session-hud-summary-control\s*\{[\s\S]*width:\s*max-content;[\s\S]*justify-self:\s*end;/.test(css));
+    assert.ok(/\.session-hud-summary-control \.collapsible-summary-chip\s*\{[\s\S]*justify-self:\s*end;[\s\S]*width:\s*max-content;/.test(css));
     assert.ok(/\.session-hud-summary-control\.compact\s*\{[\s\S]*display:\s*inline-flex;[\s\S]*width:\s*auto;/.test(css));
     assert.ok(/@media \(max-width:\s*720px\)\s*\{[\s\S]*\.session-hud-collapsible \.collapsible-group-header\s*\{[\s\S]*flex-wrap:\s*wrap;/.test(css));
     assert.ok(/@media \(max-width:\s*720px\)\s*\{[\s\S]*\.session-hud-collapsible \.collapsible-group-summary\s*\{[\s\S]*flex:\s*0 0 calc\(100% - 22px\);[\s\S]*margin-left:\s*22px;/.test(css));
@@ -7943,7 +7950,7 @@ describe("settings renderer browser environment", () => {
     const rendererSource = fs.readFileSync(SETTINGS_RENDERER, "utf8");
 
     assert.ok(html.includes("img-src 'self' data: file:"));
-    assert.ok(!html.includes("frame-src"));
+    assert.ok(html.includes("frame-src 'self' file:"));
     assert.ok(html.includes("settings-anim-overrides-merge.js"));
     const themeTabSource = fs.readFileSync(path.join(SRC_DIR, "settings-tab-theme.js"), "utf8");
     assert.ok(!html.includes("object-src"));
