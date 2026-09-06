@@ -11,7 +11,6 @@ const SIDEBAR_TABS = [
   { id: "ambient", labelKey: "sidebarAmbient", available: true },
   { id: "animOverrides", labelKey: "sidebarAnimOverrides", available: true },
   { id: "shortcuts", labelKey: "sidebarShortcuts", available: true },
-  { id: "discord-presence", labelKey: "sidebarDiscordPresence", available: true },
   { id: "about", labelKey: "sidebarAbout", available: true },
 ];
 
@@ -88,7 +87,6 @@ globalThis.ClawdSettingsTabAmbient.init(core);
 globalThis.ClawdSettingsTabAnimMap.init(core);
 globalThis.ClawdSettingsTabAnimOverrides.init(core);
 globalThis.ClawdSettingsTabShortcuts.init(core);
-if (globalThis.ClawdSettingsTabDiscordPresence) globalThis.ClawdSettingsTabDiscordPresence.init(core);
 globalThis.ClawdSettingsTabAbout.init(core);
 
 core.ops.restoreNavigationState();

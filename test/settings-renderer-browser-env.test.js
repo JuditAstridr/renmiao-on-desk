@@ -1666,7 +1666,6 @@ describe("settings renderer browser environment", () => {
       "settings-tab-anim-map.js",
       "settings-tab-anim-overrides.js",
       "settings-tab-shortcuts.js",
-      "settings-tab-discord-presence.js",
       "settings-tab-about.js",
       "settings-doctor-modal.js",
       "settings-icons.js",
@@ -1701,6 +1700,15 @@ describe("settings renderer browser environment", () => {
     assert.ok(!rendererSource.includes("ClawdSettingsTabAgents"));
     assert.ok(!rendererSource.includes("onAgentActivity"));
     assert.ok(!rendererSource.includes("listAgents"));
+  });
+
+  it("does not expose the removed Discord status Settings tab", () => {
+    const html = fs.readFileSync(SETTINGS_HTML, "utf8");
+    const rendererSource = fs.readFileSync(SETTINGS_RENDERER, "utf8");
+
+    assert.ok(!html.includes("settings-tab-discord-presence.js"));
+    assert.ok(!rendererSource.includes('{ id: "discord-presence"'));
+    assert.ok(!rendererSource.includes("ClawdSettingsTabDiscordPresence"));
   });
 
   it("uses browser globals instead of CommonJS in settings renderer modules", () => {

@@ -35,11 +35,9 @@ test("other Settings tabs remain available after Remote Approval removal", () =>
   const renderer = read("settings-renderer.js");
   for (const id of [
     "general",
-    "agents",
     "theme",
     "animOverrides",
     "shortcuts",
-    "discord-presence",
     "about",
   ]) {
     assert.match(renderer, new RegExp(`id: "${id}"`));
