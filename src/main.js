@@ -4963,7 +4963,6 @@ registerSessionIpc({
   clearSessionAutomationGrant: (payload) =>
     sessionAutomationCoordinator.clearSessionAutomationGrant(payload),
   showDashboard: (options) => showDashboard(options),
-  showStudyDashboard: () => showStudyDashboard(),
   setSessionHudPinned: (value) => {
     const result = _settingsController.applyUpdate("sessionHudPinned", !!value);
     if (result && typeof result.then === "function") {

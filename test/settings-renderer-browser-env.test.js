@@ -1711,16 +1711,6 @@ describe("settings renderer browser environment", () => {
     assert.ok(!rendererSource.includes("ClawdSettingsTabDiscordPresence"));
   });
 
-  it("routes the Study Companion sidebar entry to the existing Study window", () => {
-    const rendererSource = fs.readFileSync(SETTINGS_RENDERER, "utf8");
-    const preloadSource = fs.readFileSync(PRELOAD_SETTINGS, "utf8");
-
-    assert.ok(rendererSource.includes('{ id: "study", labelKey: "sidebarStudy"'));
-    assert.ok(rendererSource.includes('action: "openStudyDashboard"'));
-    assert.ok(rendererSource.includes("settingsAPI.openStudyDashboard"));
-    assert.ok(preloadSource.includes('openStudyDashboard: () => ipcRenderer.send("settings:open-study-dashboard")'));
-  });
-
   it("uses browser globals instead of CommonJS in settings renderer modules", () => {
     const rendererSource = fs.readFileSync(SETTINGS_RENDERER, "utf8");
     const coreSource = fs.readFileSync(SETTINGS_UI_CORE, "utf8");

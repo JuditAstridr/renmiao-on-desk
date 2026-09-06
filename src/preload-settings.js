@@ -135,7 +135,6 @@ contextBridge.exposeInMainWorld("settingsAPI", {
   getPreviewSoundUrl: () => ipcRenderer.invoke("settings:get-preview-sound-url"),
   command: (action, payload) => ipcRenderer.invoke("settings:command", { action, payload }),
   openDashboard: () => ipcRenderer.send("settings:open-dashboard"),
-  openStudyDashboard: () => ipcRenderer.send("settings:open-study-dashboard"),
   listAgents: () => ipcRenderer.invoke("settings:list-agents"),
   pickAgentDiscoveryPath: (kind) => ipcRenderer.invoke("settings:pick-agent-discovery-path", { kind }),
   detectAgentInstallations: (opts) => ipcRenderer.invoke("settings:detect-agent-installations", opts),

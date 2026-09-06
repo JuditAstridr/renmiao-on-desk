@@ -35,7 +35,6 @@ test("other Settings tabs remain available after Remote Approval removal", () =>
   const renderer = read("settings-renderer.js");
   for (const id of [
     "general",
-    "study",
     "theme",
     "animOverrides",
     "shortcuts",

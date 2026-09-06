@@ -7,7 +7,6 @@ const core = globalThis.ClawdSettingsCore;
 // system fonts and didn't dark-mode well.
 const SIDEBAR_TABS = [
   { id: "general", labelKey: "sidebarGeneral", available: true },
-  { id: "study", labelKey: "sidebarStudy", action: "openStudyDashboard", available: true },
   { id: "theme", labelKey: "sidebarTheme", available: true },
   { id: "ambient", labelKey: "sidebarAmbient", available: true },
   { id: "animOverrides", labelKey: "sidebarAnimOverrides", available: true },
@@ -36,22 +35,14 @@ function renderSidebar() {
     const item = document.createElement("div");
     item.className = "sidebar-item";
     if (!tab.available) item.classList.add("disabled");
-    if (!tab.action && tab.id === core.state.activeTab) item.classList.add("active");
+    if (tab.id === core.state.activeTab) item.classList.add("active");
     // Icon HTML is trusted (it comes from our own settings-icons.js
     // module, not user input), so we drop it in as-is.
     item.innerHTML =
       `<span class="sidebar-item-icon">${getTabIcon(tab.id)}</span>` +
       `<span class="sidebar-item-label">${core.helpers.escapeHtml(core.helpers.t(tab.labelKey))}</span>` +
       (tab.available ? "" : `<span class="sidebar-item-soon">${core.helpers.escapeHtml(core.helpers.t("sidebarSoon"))}</span>`);
-    if (tab.available && tab.action === "openStudyDashboard") {
-      item.addEventListener("click", () => {
-        if (window.settingsAPI && typeof window.settingsAPI.openStudyDashboard === "function") {
-          window.settingsAPI.openStudyDashboard();
-        } else {
-          console.warn("settings: openStudyDashboard API unavailable");
-        }
-      });
-    } else if (tab.available) {
+    if (tab.available) {
       item.addEventListener("click", () => {
         core.ops.selectTab(tab.id);
       });

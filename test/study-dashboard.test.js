@@ -17,7 +17,6 @@ describe("Study Companion integration", () => {
     assert.match(main, /createStudyWindowRuntime/);
     assert.match(main, /registerStudyIpc/);
     assert.match(main, /openStudyDashboard/);
-    assert.match(main, /showStudyDashboard: \(\) => showStudyDashboard\(\)/);
     assert.match(main, /require\("\.\/dashboard"\)/);
     assert.match(ipc, /study:get-snapshot/);
     assert.match(ipc, /study:pomodoro-command/);
