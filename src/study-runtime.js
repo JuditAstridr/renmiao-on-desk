@@ -683,8 +683,27 @@ function createStudyRuntime(options = {}) {
   }
 
   function reportData() {
+    const history = state.history.slice();
+    const pomodoro = state.pomodoro;
+    if (pomodoro.running && pomodoro.phase === "focus") {
+      const task = state.tasks.find((entry) => entry.id === pomodoro.taskId);
+      const activeSeconds = (pomodoro.sessionFocusSeconds || 0)
+        + Math.max(0, Math.floor((now() - lastTickAt) / 1000));
+      const activeMinutes = Math.floor(activeSeconds / 60);
+      if (activeMinutes > 0) {
+        history.push({
+          kind: "focus",
+          at: now(),
+          minutes: activeMinutes,
+          points: activeMinutes,
+          taskId: task ? task.id : null,
+          taskTitle: task ? task.title : null,
+          category: task ? task.category : null,
+        });
+      }
+    }
     return {
-      history: state.history.slice(),
+      history,
       points: { ...state.points },
     };
   }

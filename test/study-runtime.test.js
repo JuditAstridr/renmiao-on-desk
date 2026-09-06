@@ -110,6 +110,18 @@ describe("study runtime", () => {
     assert.equal(persisted.pomodoro.taskId, "daily-goal:goal-1");
   });
 
+  it("includes the active focus minute in the current report", () => {
+    let clock = new Date(2026, 8, 6, 12).getTime();
+    const { runtime } = createRuntime({ now: () => clock });
+    const task = runtime.addTask({ title: "Reading", estimatedMinutes: 30 }).tasks[0];
+    runtime.startTaskPomodoro(task.id);
+    clock += 65 * 1000;
+
+    const report = runtime.getReport({ unit: "week", offset: 0 });
+    assert.equal(report.totals.focusMinutes, 1);
+    assert.equal(report.daily.find((entry) => entry.focusMinutes > 0).focusMinutes, 1);
+  });
+
   it("completes subtasks in order and then auto-completes the parent task", () => {
     const { runtime } = createRuntime({ now: () => 1000 });
     let snapshot = runtime.addTask({ title: "Project" });
